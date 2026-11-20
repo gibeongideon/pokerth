@@ -115,6 +115,8 @@ protected:
 	void RegisterAutoStartTimer(boost::shared_ptr<ServerGame> server);
 	void UnregisterAutoStartTimer(boost::shared_ptr<ServerGame> server);
 	void TimerAutoStart(const boost::system::error_code &ec, boost::shared_ptr<ServerGame> server);
+	void RegisterPlatformStartTimer(boost::shared_ptr<ServerGame> server);
+	void TimerPlatformStart(const boost::system::error_code &ec, boost::shared_ptr<ServerGame> server);
 	void TimerAdminWarning(const boost::system::error_code &ec, boost::shared_ptr<ServerGame> server);
 	void TimerAdminTimeout(const boost::system::error_code &ec, boost::shared_ptr<ServerGame> server);
 	void SendStartEvent(ServerGame &server, bool fillWithComputerPlayers);

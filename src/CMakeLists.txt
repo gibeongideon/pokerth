@@ -15,6 +15,7 @@ set(POKERTH_SERVER_SRC pokerth_server.cpp
     net/servertlsutil.cpp
     net/servergame.cpp 
     net/servergamestate.cpp 
+    net/platform.cpp
     net/serverbanmanager.cpp 
     core/linux/convhelper.cpp)
 

@@ -112,6 +112,12 @@ The KES rate is a config setting `fx.usd_kes_rate`, default **129** KES per USD,
 - Mail outages no longer break requests: invite emails are best-effort (the in-app invite is saved); sign-in links and withdrawal codes answer 503 `email_unavailable`.
 - Local-dev-only helpers (`/dev-login/:name`, demo buttons) are compiled out of production builds.
 
+### D-025 · 2026-11-20 · Accepted — Game server creates platform games from the seat token (supersedes the internal-API part of D-009)
+The seat token already carries signed table settings (`cfg`: players, chips, small blind, blind minutes, title). The game server creates the game when the first seat-holder logs in, seats each player automatically, and starts when everyone is in (or after a start timeout with those present). So the platform never calls the game server; the only server-to-platform traffic is the signed result POST. Fewer moving parts: no inbound internal port on game servers, no placement API.
+- Platform mode is set by environment (`POKERTH_PLATFORM_MODE=1`, public key, platform URL, shared secret); the public lobby's create/join is refused in that mode.
+- Packet limit raised from 384 to 1024 bytes (a login with a token is ~560 bytes); older clients are unaffected.
+- Result: finishing order (winner first). Players the server never saw are appended last by the platform (a no-show forfeits the seat).
+
 ---
 
 ## Open items (to decide)

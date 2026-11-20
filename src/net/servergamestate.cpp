@@ -30,6 +30,7 @@
  *****************************************************************************/
 
 #include <net/servergamestate.h>
+#include <net/platform.h>
 #include <net/servergame.h>
 #include <net/serverlobbythread.h>
 #include <net/senderhelper.h>
@@ -575,6 +576,33 @@ void
 ServerGameStateInit::NotifySessionRemoved(boost::shared_ptr<ServerGame> server)
 {
 	UnregisterAutoStartTimer(server);
+	if (server->IsPlatformGame() && server->GetCurNumberOfPlayers() > 0)
+		RegisterPlatformStartTimer(server);
+}
+
+void
+ServerGameStateInit::RegisterPlatformStartTimer(boost::shared_ptr<ServerGame> server)
+{
+	server->GetStateTimer2().expires_after(seconds(platform::StartTimeoutSec()));
+	server->GetStateTimer2().async_wait(
+		boost::bind(
+			&ServerGameStateInit::TimerPlatformStart, this, boost::asio::placeholders::error, server));
+}
+
+void
+ServerGameStateInit::TimerPlatformStart(const boost::system::error_code &ec, boost::shared_ptr<ServerGame> server)
+{
+	if (ec || &server->GetState() != this)
+		return;
+	if (server->GetCurNumberOfPlayers() >= 2) {
+		LOG_MSG("platform: starting table " << server->GetPlatformTable() << " with "
+				<< server->GetCurNumberOfPlayers() << " players (others did not connect in time).");
+		SendStartEvent(*server, false);
+	} else {
+		// Only one player showed up: they win by default; no-shows place last.
+		LOG_MSG("platform: table " << server->GetPlatformTable() << " had a single player at the start deadline.");
+		server->ReportPlatformResult();
+	}
 }
 
 void
@@ -595,6 +623,9 @@ ServerGameStateInit::HandleNewPlayer(boost::shared_ptr<ServerGame> server, boost
 			if (server->GetCurNumberOfPlayers() == tmpGameData.maxNumberOfPlayers) {
 				// Automatically start the game if it is full.
 				RegisterAutoStartTimer(server);
+			} else if (server->IsPlatformGame() && server->GetCurNumberOfPlayers() == 1) {
+				// Platform tables don't wait forever for a seated player who never connects.
+				RegisterPlatformStartTimer(server);
 			}
 		}
 	}
@@ -615,8 +646,9 @@ ServerGameStateInit::HandleNewSpectator(boost::shared_ptr<ServerGame> server, bo
 void
 ServerGameStateInit::RegisterAdminTimer(boost::shared_ptr<ServerGame> server)
 {
-	// No admin timeout in LAN or ranking games.
-	if (server->GetLobbyThread().GetServerMode() != SERVER_MODE_LAN && server->GetGameData().gameType != GAME_TYPE_RANKING) {
+	// No admin timeout in LAN, ranking or platform games (platform games start by themselves).
+	if (server->GetLobbyThread().GetServerMode() != SERVER_MODE_LAN && server->GetGameData().gameType != GAME_TYPE_RANKING
+			&& !server->IsPlatformGame()) {
 		server->GetStateTimer1().expires_after(seconds(SERVER_GAME_ADMIN_TIMEOUT_SEC - SERVER_GAME_ADMIN_WARNING_REMAINING_SEC));
 		server->GetStateTimer1().async_wait(
 			boost::bind(

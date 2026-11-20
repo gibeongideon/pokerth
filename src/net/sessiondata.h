@@ -44,6 +44,7 @@ typedef unsigned SessionId;
 #include <vector>
 #include <boost/asio/ssl.hpp>
 
+#include <net/platform.h>
 #include <net/socket_helper.h>
 #include <net/sessiondatacallback.h>
 
@@ -157,6 +158,16 @@ public:
 	void SetClientPlatform(unsigned platform);
 	unsigned GetClientPlatform() const;
 
+	// Managed (platform) mode: the verified seat token of this session.
+	void SetPlatformSeat(boost::shared_ptr<platform::SeatClaims> seat)
+	{
+		m_platformSeat = seat;
+	}
+	boost::shared_ptr<platform::SeatClaims> GetPlatformSeat() const
+	{
+		return m_platformSeat;
+	}
+
 	// Why the connection went away, as reported by the receive buffer. Set
 	// before the session is closed, read while closing it.
 	void SetCloseReason(const std::string &reason);
@@ -204,6 +215,7 @@ private:
 	boost::shared_ptr<PlayerData>	m_playerData;
 	unsigned						m_clientBuildId{0};
 	unsigned						m_clientPlatform{0};
+	boost::shared_ptr<platform::SeatClaims> m_platformSeat;
 	std::string						m_closeReason;
 
 	mutable boost::mutex			m_dataMutex;

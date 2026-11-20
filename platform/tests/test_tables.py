@@ -176,6 +176,13 @@ async def test_sit_and_go_from_lobby_to_payout(
         str(table_id),
         "ann",
     )
+    assert claims["cfg"] == {
+        "players": 3,
+        "chips": 3000,
+        "sb": 10,
+        "blind_minutes": 5,
+        "title": "High",
+    }
 
     # Game server reports the result (HMAC-signed): cat wins, ann second.
     order = [players[2][0].id, players[0][0].id, players[1][0].id]
@@ -490,3 +497,30 @@ async def test_scheduled_tournament_with_guarantee_and_registration_window(
         headers=admin,
     )
     assert bad.status_code == 422
+
+
+async def test_result_without_no_shows_places_them_last(
+    sessions: async_sessionmaker[AsyncSession], make_user: MakeUser, real_money: None
+) -> None:
+    tier = await _tier(sessions, seats=3, payout_bps=[6500, 3500])
+    users = [(await _player(sessions, make_user, f"ns{i}"))[0] for i in range(3)]
+    async with sessions() as s:
+        table = await svc.open_table(s, tier)
+        for u in users:
+            await svc.join(s, GW, table.id, await s.get(User, u.id))  # type: ignore[arg-type]
+        for u in users:
+            await svc.mark_ready(s, GW, table.id, await s.get(User, u.id))  # type: ignore[arg-type]
+        # The game server only saw two players; the third never connected.
+        await svc.settle(s, table.id, [users[2].id, users[0].id])
+        await s.commit()
+        places = {
+            seat.user_id: (seat.finish_position, seat.prize_cents)
+            for seat in (await s.scalars(select(TableSeat))).all()
+        }
+    assert places[users[2].id] == (1, 19_500)
+    assert places[users[0].id] == (2, 10_500)
+    assert places[users[1].id] == (3, 0)
+
+    async with sessions() as s:
+        with pytest.raises(svc.TableError):
+            await svc.settle(s, uuid.uuid4(), [users[0].id])

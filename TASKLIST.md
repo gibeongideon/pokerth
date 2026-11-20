@@ -47,15 +47,20 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [x] Seat tokens (Ed25519 JWT) + public key endpoint; HMAC-signed result endpoint for the game server (idempotent)
 - [x] Worker timer every 5 s; local dev dashboard + seed + simulate-result (screenshots in `docs/platform/screenshots/`)
 
-## Phase 2b — Game server managed mode (C++)
-- [!] Local build blocked: no CMake/Boost/Qt6 on this machine and ~1.5 GB free RAM. Options: install build deps, or build in Docker (`docker/linux/Dockerfile*`) on a machine with more memory / in CI.
-- [ ] Proto: optional `platformToken` in `InitMessage` (backward compatible)
-- [ ] Game server: Ed25519 seat-token verification (public key from `GET /internal/seat-token-key`)
-- [ ] Game server: internal HTTP API (Boost.Beast, HMAC): create game from table config, drain, health
-- [ ] Game server: result callback to `POST /internal/games/{table_id}/result` (signed, retried)
-- [ ] Platform: real `GameGateway` replacing `LocalGateway` (`platform/app/services/game_gateway.py`)
-- [ ] RNG: refuse to deal if OpenSSL `RAND_bytes` fails when real money is on (`src/engine/local_engine/tools.cpp`)
+## Phase 2b — Game server managed mode (C++) (done 2026-11-20)
+- [x] Server-only build: `POKERTH_SERVER_ONLY` CMake option + `docker/server/Dockerfile.build` (Ubuntu 25.10, Qt 6.9, Boost 1.88); builds on this machine with `-j2`
+- [x] Proto: optional `platformToken` in `InitMessage` (backward compatible)
+- [x] Game server: Ed25519 seat-token verification (OpenSSL) + claims (Boost.JSON); in platform mode the token is the only login
+- [x] Game created by the server from the token's signed table settings on first arrival; players seated automatically; lobby create/join refused (D-025, replaces the internal HTTP API)
+- [x] Auto-start when every seated player is in; start with those present after `POKERTH_PLATFORM_START_TIMEOUT_SEC`; no admin timeout for platform games
+- [x] Result callback: finishing order POSTed to `/internal/games/{table_id}/result` (HMAC), retried with backoff; platform places no-shows last
+- [x] RNG: refuses to deal if OpenSSL `RAND_bytes` fails in platform mode
+- [x] `--foreground` option for containers; packet limit 384 → 1024 bytes so logins can carry a seat token
+- [x] Bot: `--platform-tokens` (one bot per seat token)
+- [x] End-to-end verified: 3 bots played a real game on the C++ server, result reported and paid out correctly (`platform/scripts/e2e_game_server.sh`)
+- [ ] Runtime Docker image for the server (multi-stage, slim) for deployment
 - [ ] Hand history persistence (for disputes and RNG certification)
+- [ ] Reconnect: web client sends `myLastSessionId` and rejoins a running table
 
 ## Phase 3 — Player app (web + mobile) and site
 - [x] npm workspace (pnpm is broken on this machine); `packages/api-client` typed from the OpenAPI schema (`npm run api:types`)

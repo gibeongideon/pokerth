@@ -38,6 +38,9 @@
 #include <algorithm>
 #include <cstdint>
 #include <random>
+#include <string>
+#include <stdexcept>
+#include <cstdlib>
 
 namespace
 {
@@ -93,6 +96,13 @@ private:
 #ifdef HAVE_OPENSSL
 		filled = RAND_bytes(reinterpret_cast<unsigned char *>(m_words), static_cast<int>(sizeof(m_words))) == 1;
 		if(!filled) {
+			// Real-money (platform) tables must only ever be dealt from the
+			// CSPRNG: refuse to deal rather than fall back to a weaker source.
+			const char *platformMode = std::getenv("POKERTH_PLATFORM_MODE");
+			if(platformMode && std::string(platformMode) == "1") {
+				LOG_ERROR(__FILE__ << " (" << __LINE__ << "): RAND_bytes failed in platform mode - refusing to deal");
+				throw std::runtime_error("CSPRNG unavailable: refusing to deal");
+			}
 			LOG_ERROR(__FILE__ << " (" << __LINE__ << "): RAND_bytes failed, falling back to std::random_device");
 		}
 #endif

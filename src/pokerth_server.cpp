@@ -93,6 +93,7 @@ main(int argc, char *argv[])
 	//_CrtSetBreakAlloc(10260);
 
 	bool readonlyConfig = false;
+	bool runInForeground = false;
 	string pidFile;
 	int logLevel = 1;
 	{
@@ -104,6 +105,7 @@ main(int argc, char *argv[])
 		("log-level,l", po::value<int>(), "set log level (0=minimal, 1=default, 2=verbose)")
 		("pid-file,p", po::value<string>(), "create pid-file in different location")
 		("readonly-config", "treat config file as read-only")
+		("foreground,f", "stay in the foreground (containers, systemd Type=simple)")
 		;
 
 		po::variables_map vm;
@@ -128,6 +130,8 @@ main(int argc, char *argv[])
 		}
 		if (vm.count("pid-file"))
 			pidFile = vm["pid-file"].as<string>();
+		if (vm.count("foreground"))
+			runInForeground = true;
 		if (vm.count("readonly-config"))
 			readonlyConfig = true;
 	}
@@ -144,7 +148,7 @@ main(int argc, char *argv[])
 	// TODO: Hack
 #ifndef _WIN32
 #ifdef QT_NO_DEBUG
-	if (daemon(0, 0) != 0) {
+	if (!runInForeground && daemon(0, 0) != 0) {
 		cout << "Failed to start daemon." << endl;
 		return 1;
 	}

@@ -35,6 +35,7 @@
 #include <sstream>
 
 #include <net/servergame.h>
+#include <net/platform.h>
 #include <net/servergamestate.h>
 #include <net/serverlobbythread.h>
 #include <net/serverexception.h>
@@ -567,8 +568,62 @@ ServerGame::RemoveAutoLeavePlayers()
 }
 
 void
+ServerGame::SetPlatformTable(const std::string &tableId)
+{
+	m_platformTableId = tableId;
+}
+
+bool
+ServerGame::IsPlatformGame() const
+{
+	return !m_platformTableId.empty();
+}
+
+const std::string &
+ServerGame::GetPlatformTable() const
+{
+	return m_platformTableId;
+}
+
+void
+ServerGame::AddPlatformPlayer(unsigned playerId, const std::string &platformUserId)
+{
+	m_platformUsers[playerId] = platformUserId;
+}
+
+void
+ServerGame::ReportPlatformResult()
+{
+	if (!IsPlatformGame() || m_platformReported)
+		return;
+	m_platformReported = true;
+
+	// Winner first. Places of 0 (never ranked) go last; ties keep a stable order.
+	std::vector<std::pair<int, unsigned> > ranked;
+	for (RankingMap::const_iterator i = m_rankingMap.begin(); i != m_rankingMap.end(); ++i) {
+		const int place = (*i).second.place > 0 ? (*i).second.place : 1000;
+		ranked.push_back(std::make_pair(place, (*i).first));
+	}
+	std::stable_sort(ranked.begin(), ranked.end());
+
+	std::vector<std::string> order;
+	for (size_t i = 0; i < ranked.size(); ++i) {
+		std::map<unsigned, std::string>::const_iterator user = m_platformUsers.find(ranked[i].second);
+		if (user != m_platformUsers.end()
+				&& std::find(order.begin(), order.end(), user->second) == order.end()) {
+			order.push_back(user->second);
+		}
+	}
+	// Players the platform seated who never got ranked (e.g. never connected)
+	// are appended by the platform itself.
+	platform::ReportResult(m_platformTableId, order);
+	GetLobbyThread().ForgetPlatformGame(m_platformTableId);
+}
+
+void
 ServerGame::InternalEndGame()
 {
+	ReportPlatformResult();
 	StoreAndResetRanking();
 	m_game.reset();
 	m_numJoinsPerPlayer.clear();

@@ -30,6 +30,7 @@
  *****************************************************************************/
 
 #include <net/serverlobbythread.h>
+#include <net/platform.h>
 #include <net/servergame.h>
 #include <net/servergamestate.h>
 #include <net/serverbanmanager.h>
@@ -1396,7 +1397,21 @@ ServerLobbyThread::HandleNetPacketInit(boost::shared_ptr<SessionData> session, c
 	bool noAuth = false;
 	bool validGuest = false;
 
-	if (initMessage.login() == InitMessage::guestLogin) {
+	if (platform::Enabled()) {
+		// Managed mode: the platform's seat token is the only way in. It names
+		// the player and the table; nicknames and passwords are ignored.
+		boost::shared_ptr<platform::SeatClaims> seat;
+		if (initMessage.has_platformtoken())
+			seat = platform::VerifySeatToken(initMessage.platformtoken());
+		if (!seat) {
+			LOG_MSG("Rejected login without a valid seat token from " << session->GetClientAddr() << ".");
+			SessionError(session, ERR_NET_INVALID_PASSWORD);
+			return;
+		}
+		session->SetPlatformSeat(seat);
+		playerName = seat->username;
+		noAuth = true;
+	} else if (initMessage.login() == InitMessage::guestLogin) {
 		// Gast-Login
 		// Optional restriction (off by default): allow only one guest per IP
 		// address and at most SERVER_MAX_GUEST_USERS_LOBBY guests in the lobby.
@@ -1697,6 +1712,11 @@ void
 ServerLobbyThread::HandleNetPacketCreateGame(boost::shared_ptr<SessionData> session, const JoinNewGameMessage &newGame)
 {
 	LOG_VERBOSE("Creating new game, initiated by session #" << session->GetId() << ".");
+	if (platform::Enabled()) {
+		// Tables are created by the platform, never by players.
+		SendJoinGameFailed(session, 0, NTF_NET_JOIN_GAME_INVALID);
+		return;
+	}
 
 	string password;
 	if (newGame.has_password())
@@ -1769,8 +1789,65 @@ ServerLobbyThread::HandleNetPacketCreateGame(boost::shared_ptr<SessionData> sess
 }
 
 void
+ServerLobbyThread::PlacePlatformPlayer(boost::shared_ptr<SessionData> session)
+{
+	boost::shared_ptr<platform::SeatClaims> seat = session->GetPlatformSeat();
+	if (!seat || !session->GetPlayerData())
+		return;
+
+	boost::shared_ptr<ServerGame> game;
+	std::map<std::string, unsigned>::const_iterator known = m_platformGames.find(seat->tableId);
+	if (known != m_platformGames.end()) {
+		GameMap::iterator pos = m_gameMap.find(known->second);
+		if (pos != m_gameMap.end())
+			game = pos->second;
+	}
+
+	if (!game) {
+		// First seat-holder for this table: create the game from the signed settings.
+		GameData data;
+		data.gameType = GAME_TYPE_NORMAL;
+		data.allowSpectators = false;
+		data.maxNumberOfPlayers = seat->players;
+		data.startMoney = seat->startingChips;
+		data.firstSmallBlind = seat->firstSmallBlind;
+		data.raiseIntervalMode = RAISE_ON_MINUTES;
+		data.raiseSmallBlindEveryMinutesValue = seat->blindLevelMinutes > 0 ? seat->blindLevelMinutes : 5;
+		data.raiseMode = DOUBLE_BLINDS;
+		data.delayBetweenHandsSec = 5;
+		data.playerActionTimeoutSec = 20;
+
+		const unsigned gameId = GetNextGameId();
+		string name = seat->title.empty() ? ("Table " + seat->tableId.substr(0, 8)) : seat->title;
+		game.reset(new ServerGame(shared_from_this(), gameId, name, "", data,
+								  session->GetPlayerData()->GetUniqueId(), session->GetPlayerData()->GetDBId(),
+								  GetGui(), m_serverConfig));
+		game->SetPlatformTable(seat->tableId);
+		game->Init();
+		InternalAddGame(game);
+		m_platformGames[seat->tableId] = gameId;
+		LOG_MSG("platform: created game " << gameId << " for table " << seat->tableId
+				<< " (" << seat->players << " players).");
+	}
+
+	game->AddPlatformPlayer(session->GetPlayerData()->GetUniqueId(), seat->userId);
+	MoveSessionToGame(game, session, false, false);
+}
+
+void
+ServerLobbyThread::ForgetPlatformGame(const std::string &tableId)
+{
+	m_platformGames.erase(tableId);
+}
+
+void
 ServerLobbyThread::HandleNetPacketJoinGame(boost::shared_ptr<SessionData> session, const JoinExistingGameMessage &joinGame)
 {
+	if (platform::Enabled()) {
+		// Players are seated by PlacePlatformPlayer() from their seat token.
+		SendJoinGameFailed(session, joinGame.gameid(), NTF_NET_JOIN_GAME_INVALID);
+		return;
+	}
 	string password;
 	if (joinGame.has_password())
 		password = joinGame.password();
@@ -1829,6 +1906,8 @@ ServerLobbyThread::HandleNetPacketRejoinGame(boost::shared_ptr<SessionData> sess
 		if (game->IsRunning()) {
 			LOG_MSG("Player \"" << playerName << "\" session #" << session->GetId()
 					<< " requests rejoin of game " << rejoinGame.gameid() << ".");
+			if (session->GetPlatformSeat() && session->GetPlayerData())
+				game->AddPlatformPlayer(session->GetPlayerData()->GetUniqueId(), session->GetPlatformSeat()->userId);
 			MoveSessionToGame(game, session, rejoinGame.autoleave(), false);
 		} else {
 			LOG_MSG("Rejoin of game " << rejoinGame.gameid() << " by player \"" << playerName
@@ -2330,6 +2409,11 @@ ServerLobbyThread::EstablishSession(boost::shared_ptr<SessionData> session)
 	NotifyPlayerJoinedLobby(*session->GetPlayerData());
 
 	UpdateStatisticsNumberOfPlayers();
+
+	// Managed mode: go straight to the platform table (a reconnecting player
+	// with a running game rejoins through RejoinExistingGameMessage instead).
+	if (session->GetPlatformSeat() && rejoinGameId == 0)
+		PlacePlatformPlayer(session);
 
 }
 

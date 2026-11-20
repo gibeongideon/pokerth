@@ -209,7 +209,16 @@ async def seat_token(table_id: uuid.UUID, user: CurrentUser, session: SessionDep
     if table is None or seat is None or seat.status != "playing" or table.status != "running":
         raise ApiError(409, "not_playing", "You don't have a seat in a running game here.")
     assert table.game_ref is not None
+    playing = await session.scalar(
+        select(func.count())
+        .select_from(TableSeat)
+        .where(TableSeat.table_id == table.id, TableSeat.status == "playing")
+    )
     token = seat_tokens.issue(
-        user_id=user.id, username=user.username or "", table_id=table.id, game_ref=table.game_ref
+        user_id=user.id,
+        username=user.username or "",
+        table_id=table.id,
+        game_ref=table.game_ref,
+        table_cfg=svc.game_server_cfg(table, int(playing or 0)),
     )
     return {"token": token, "ws_url": table.ws_url, "game_ref": table.game_ref}

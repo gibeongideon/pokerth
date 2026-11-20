@@ -111,7 +111,14 @@ protobuf_generate_cpp(PROTOBUF_GEN_SRC PROTOBUF_GEN_HDRS
 # Add the generated files to the source list
 list(APPEND POKERTH_LIB_SRC ${PROTOBUF_GEN_SRC})
 
-find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Core Sql Xml WebSockets Qml Quick QuickControls2 Widgets Svg Network LinguistTools Multimedia REQUIRED)
+# POKERTH_SERVER_ONLY builds just the dedicated server and CLI tools (no GUI
+# clients), so a server image needs only Qt Core/Network/Sql/Xml.
+option(POKERTH_SERVER_ONLY "Build only the dedicated server and CLI tools" OFF)
+if(POKERTH_SERVER_ONLY)
+    find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Core Sql Xml Network)
+else()
+    find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Core Sql Xml WebSockets Qml Quick QuickControls2 Widgets Svg Network LinguistTools Multimedia REQUIRED)
+endif()
 
 # POKERTH.lib
 
@@ -341,10 +348,12 @@ endif()
 set_property(SOURCE ${PROTOBUF_GEN_SRC} ${PROTOBUF_GEN_HDRS} PROPERTY SKIP_AUTOGEN ON)
 
 add_subdirectory(src)
-add_subdirectory(src/chatcleaner)
-add_subdirectory(src/dbofficial)
-add_subdirectory(src/gui/qt)
-add_subdirectory(src/gui/qt6-qml)
+if(NOT POKERTH_SERVER_ONLY)
+    add_subdirectory(src/chatcleaner)
+    add_subdirectory(src/dbofficial)
+    add_subdirectory(src/gui/qt)
+    add_subdirectory(src/gui/qt6-qml)
+endif()
 
 # zlib_compress utility tool for compressing serverlist
 add_executable(zlib_compress src/zlib_compress.cpp)

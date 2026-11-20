@@ -101,6 +101,15 @@ public:
 
 	bool IsRunning() const;
 
+	// Managed (platform) mode.
+	void SetPlatformTable(const std::string &tableId);
+	bool IsPlatformGame() const;
+	const std::string &GetPlatformTable() const;
+	// Remember which platform user plays as this server player id (again after a rejoin).
+	void AddPlatformPlayer(unsigned playerId, const std::string &platformUserId);
+	// Report the finishing order to the platform; only the first call sends it.
+	void ReportPlatformResult();
+
 	unsigned GetAdminPlayerId() const;
 	void SetAdminPlayerId(unsigned playerId);
 
@@ -228,6 +237,10 @@ private:
 	PlayerIdList m_reportedAvatarList;
 
 	RankingMap m_rankingMap;
+
+	std::string m_platformTableId;
+	std::map<unsigned, std::string> m_platformUsers;
+	bool m_platformReported = false;
 
 	unsigned m_adminPlayerId;
 

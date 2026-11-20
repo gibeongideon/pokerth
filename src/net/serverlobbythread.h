@@ -39,6 +39,7 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <chrono>
 #include <deque>
+#include <map>
 
 #include <net/sessionmanager.h>
 #include <net/netpacket.h>
@@ -126,6 +127,12 @@ public:
 	u_int32_t GetNextUniquePlayerId();
 	u_int32_t GetNextGameId();
 	ServerCallback &GetCallback();
+
+	// Managed (platform) mode: seat a verified player at their platform table,
+	// creating the game from the token's settings for the first arrival.
+	void PlacePlatformPlayer(boost::shared_ptr<SessionData> session);
+	// Called when a platform game has ended, so the table id is not reused.
+	void ForgetPlatformGame(const std::string &tableId);
 
 	AvatarManager &GetAvatarManager();
 	ChatCleanerManager &GetChatCleaner();
@@ -333,6 +340,8 @@ private:
 	mutable boost::mutex m_computerPlayersMutex;
 
 	GameMap m_gameMap;
+	// Platform table id -> game id (managed mode only).
+	std::map<std::string, unsigned> m_platformGames;
 
 	struct PendingPrivateMessage {
 		unsigned long long id;

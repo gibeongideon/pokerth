@@ -1,0 +1,15 @@
+# Build environment for the dedicated game server only (no GUI toolchain).
+# Ubuntu 25.10 ships Qt 6.9 and Boost 1.88 (PokerTH needs Qt >= 6.7).
+#   docker build -t poker-server-build -f docker/server/Dockerfile.build docker/server
+#   docker run --rm -v "$PWD":/src -v poker-server-build-cache:/build poker-server-build
+FROM ubuntu:25.10
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential cmake ninja-build pkg-config ca-certificates \
+        libprotobuf-dev protobuf-compiler libwebsocketpp-dev libssl-dev \
+        libboost-iostreams-dev libboost-random-dev libboost-thread-dev \
+        libboost-filesystem-dev libboost-program-options-dev libboost-json-dev \
+        qt6-base-dev \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /build
+CMD ["sh", "-c", "cmake -S /src -B /build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPOKERTH_SERVER_ONLY=ON && cmake --build /build --target pokerth_dedicated_server pokerth_bot -j2"]

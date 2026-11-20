@@ -178,6 +178,9 @@ message InitMessage {
 		platformIos = 5;
 	}
 	optional	ClientPlatform	clientPlatform = 9;
+	// Managed (platform) mode only: Ed25519-signed seat token issued by the
+	// platform. Replaces nickname/password; older servers ignore it.
+	optional	string			platformToken = 10;
 }
 
 message AuthServerChallengeMessage {

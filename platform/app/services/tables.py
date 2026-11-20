@@ -529,9 +529,15 @@ async def settle(
         return table
     if table.status != "running":
         raise TableError("table_not_running", "This table is not running.", 409)
-    seats = {s.user_id: s for s in await _seats(session, table.id, "playing")}
-    if len(finishing_order) != len(seats) or set(finishing_order) != set(seats):
-        raise TableError("bad_result", "The result must list every player exactly once.", 422)
+    playing = await _seats(session, table.id, "playing")
+    seats = {s.user_id: s for s in playing}
+    if len(set(finishing_order)) != len(finishing_order) or not set(finishing_order) <= set(seats):
+        raise TableError("bad_result", "The result lists unknown or repeated players.", 422)
+    # Seated players the game server never saw (they didn't connect) finish last,
+    # in the order they joined - the same as a no-show forfeiting the seat.
+    finishing_order = list(finishing_order) + [
+        s.user_id for s in playing if s.user_id not in set(finishing_order)
+    ]
 
     pool = await ledger.balance(session, ledger.table_escrow(table.id))
     # Guaranteed prize pool: the house tops up the difference (D-023).
@@ -605,6 +611,18 @@ async def quick_play(
                 raise
     table = await open_table(session, tier)
     return await join(session, gateway, table.id, user)
+
+
+def game_server_cfg(table: GameTable, players: int) -> dict[str, Any]:
+    """Table settings carried in seat tokens for the game server (D-025)."""
+    c = table.config
+    return {
+        "players": players,
+        "chips": int(c.get("starting_chips") or 3000),
+        "sb": int(c.get("first_small_blind") or 10),
+        "blind_minutes": int(c.get("blind_level_minutes") or 5),
+        "title": (table.title or c["name"])[:60],
+    }
 
 
 async def table_view(

@@ -45,7 +45,9 @@
 #define NET_HEADER_SIZE				4
 
 #define MAX_FILE_DATA_SIZE			256
-#define MAX_PACKET_SIZE				384
+// 1024 (was 384) so a login can carry a platform seat token (an Ed25519 JWT
+// with the table settings, ~550 bytes). Still small enough to stop floods.
+#define MAX_PACKET_SIZE				1024
 #define MAX_CHAT_TEXT_SIZE			128
 // WebSocket messages can carry multiple length-prefixed packets, but must not
 // inherit WebSocket++'s 32 MB default allocation limit.

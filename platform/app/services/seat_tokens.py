@@ -6,6 +6,7 @@ import hashlib
 import uuid
 from datetime import timedelta
 from functools import lru_cache
+from typing import Any
 
 import jwt
 from cryptography.hazmat.primitives import serialization
@@ -41,7 +42,16 @@ def public_key_pem() -> str:
     )
 
 
-def issue(*, user_id: uuid.UUID, username: str, table_id: uuid.UUID, game_ref: str) -> str:
+def issue(
+    *,
+    user_id: uuid.UUID,
+    username: str,
+    table_id: uuid.UUID,
+    game_ref: str,
+    table_cfg: dict[str, Any],
+) -> str:
+    """``table_cfg`` (players, chips, sb, blind_minutes, title) lets the game
+    server create the game itself from the first seat token it sees (D-025)."""
     now = utcnow()
     claims = {
         "iss": ISSUER,
@@ -50,6 +60,7 @@ def issue(*, user_id: uuid.UUID, username: str, table_id: uuid.UUID, game_ref: s
         "name": username,
         "tbl": str(table_id),
         "game": game_ref,
+        "cfg": table_cfg,
         "iat": now,
         "exp": now + timedelta(seconds=get_settings().seat_token_ttl_seconds),
     }

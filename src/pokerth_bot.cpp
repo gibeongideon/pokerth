@@ -31,6 +31,8 @@
 // A headless bot client for PokerTH - automated test clients
 // It uses the modern protocol buffer protocol and TLS based plain auth
 
+#include <algorithm>
+#include <boost/algorithm/string.hpp>
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
 #include <boost/program_options.hpp>
@@ -390,6 +392,23 @@ public:
 			}
 		}
 
+		return true;
+	}
+
+	// Platform mode: one bot per seat token; the server seats each bot itself.
+	bool createPlatformBots(const vector<string> &tokens)
+	{
+		for (size_t i = 0; i < tokens.size(); i++) {
+			string botName = "seat" + to_string(i + 1);
+			auto bot = make_shared<BotSession>(io_, sslCtx_, botName, "platform-token:" + tokens[i], foldPercent_, useTls_);
+			if (!connectBot(bot)) {
+				cerr << "[" << getTimestamp() << "] Failed to connect bot: " << botName << endl;
+				return false;
+			}
+			bots_.push_back(bot);
+			cout << "[" << getTimestamp() << "] [" << botName << "] Connected with seat token" << endl;
+			this_thread::sleep_for(chrono::milliseconds(300));
+		}
 		return true;
 	}
 
@@ -771,9 +790,17 @@ private:
 				initMsg->mutable_requestedversion()->set_majorversion(NET_VERSION_MAJOR);
 				initMsg->mutable_requestedversion()->set_minorversion(NET_VERSION_MINOR);
 				initMsg->set_buildid(POKERTH_BUILD_ID);
-				initMsg->set_login(InitMessage::authenticatedLogin);
-				initMsg->set_nickname(bot->name());
-				initMsg->set_clientuserdata(bot->name());  // Password = username (for test* accounts)
+				const string seatPrefix = "platform-token:";
+				if (bot->password().compare(0, seatPrefix.size(), seatPrefix) == 0) {
+					// Managed (platform) server: the seat token is the login.
+					initMsg->set_login(InitMessage::unauthenticatedLogin);
+					initMsg->set_nickname(bot->name());
+					initMsg->set_platformtoken(bot->password().substr(seatPrefix.size()));
+				} else {
+					initMsg->set_login(InitMessage::authenticatedLogin);
+					initMsg->set_nickname(bot->name());
+					initMsg->set_clientuserdata(bot->name());  // Password = username (for test* accounts)
+				}
 
 				if (!bot->sendMessage(init)) {
 					cerr << "\n[" << bot->name() << "] Failed to send init" << endl;
@@ -931,7 +958,10 @@ private:
 //             cout << "[" << bot->name() << "] Received msgType: " << msgType << endl;
 //         }
 
-		if (msgType == PokerTHMessage::Type_HandStartMessage) {
+		if (msgType == PokerTHMessage::Type_JoinGameAckMessage) {
+			// Platform mode: the server seats the bot itself after login.
+			bot->setGameId(msg->GetMsg()->joingameackmessage().gameid());
+		} else if (msgType == PokerTHMessage::Type_HandStartMessage) {
 			// Increment the hand number, reset the sets
 			bot->setHandNum(bot->handNum() + 1);
 			bot->setMySet(0);
@@ -1428,6 +1458,7 @@ int main(int argc, char *argv[])
 		("game-name,g", po::value<string>()->default_value("Bot Test Game"), "Game name")
 		("game-password,G", po::value<string>()->default_value(""), "Game password")
 		("join-game,j", po::value<uint32_t>(), "Join existing game ID")
+		("platform-tokens", po::value<string>(), "Managed server: comma-separated seat tokens, one bot per token")
 		("no-tls", "Disable TLS (use plain TCP)")
 		("fold-percent,f", po::value<int>()->default_value(0), "Random fold probability (0-100%)")
 		// Chatcleaner test mode
@@ -1534,6 +1565,18 @@ int main(int argc, char *argv[])
 		cout << endl;
 
 		BotController controller(server, port, useTls, foldPercent);
+
+		if (vm.count("platform-tokens")) {
+			vector<string> tokens;
+			boost::split(tokens, vm["platform-tokens"].as<string>(), boost::is_any_of(","));
+			tokens.erase(remove(tokens.begin(), tokens.end(), string()), tokens.end());
+			if (!controller.createPlatformBots(tokens)) {
+				cerr << "Failed to seat platform bots" << endl;
+				return 1;
+			}
+			controller.run();
+			return 0;
+		}
 
 		if (!controller.createBots(numBots, startId, password)) {
 			cerr << "Failed to create bots" << endl;

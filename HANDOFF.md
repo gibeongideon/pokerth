@@ -5,7 +5,7 @@ Read this first when resuming. Update it at the end of every session.
 ## Current state (2026-11-20)
 - Branches: `stable` → `prod` → `dev`. **`dev` is checked out.** Nothing pushed to `origin`.
 - Phase 0 and Phase 1 done (Smile ID still manual). **Phase 2a done**: stake levels, fees, full Sit & Go lifecycle with a stand-in game server. **Phase 4 API done**: M-Pesa withdrawals with emailed code, review queue, admin users/reports.
-- Agreed order (D-020): non-UI tasks first (Phase 5 done except 5.7b late reg / re-entry / multi-table, which need the game server). **Phase 3 web player app built** (`apps/player`, screenshots in `docs/platform/screenshots/phase3/`). Next: Capacitor Android packaging, then Phase 2b C++ game server for live hands., then Phase 3 gamey UI, then Phase 2b C++.
+- Agreed order (D-020): non-UI tasks first (Phase 5 done except 5.7b late reg / re-entry / multi-table, which need the game server). **Phase 3 web player app built** (`apps/player`, screenshots in `docs/platform/screenshots/phase3/`). **Phase 2b done**: the C++ server runs in platform mode and an end-to-end bot game settled correctly. Next: live play in the web app (protobuf over WebSocket + table controls), then Capacitor Android., then Phase 3 gamey UI, then Phase 2b C++.
 - Screenshots of the dev dashboard: `docs/platform/screenshots/phase2-desktop.png`, `phase2-mobile.png`.
 - Phase 2b (C++ game server) waits until after the app; locally blocked (no CMake/Boost/Qt6, ~1.5 GB free RAM).
 - The owner prefers screenshots at the end of each phase over a server left running (machine is short on memory).
@@ -23,6 +23,12 @@ Read this first when resuming. Update it at the end of every session.
 - Admin: `GET /admin/settings`, `PUT /admin/settings/{key}`, `PUT /admin/users/{id}/kyc-tier`, `GET/POST /admin/stake-tiers`, `PUT /admin/stake-tiers/{id}`, `POST /admin/tables` (scheduled), `POST /admin/tables/{id}/cancel`, `GET /admin/withdrawals`, `POST /admin/withdrawals/{ref}/approve|reject`, `GET /admin/users`, `GET /admin/users/{id}`, `PUT /admin/users/{id}/status`, `GET /admin/reports/liabilities`
 - Dev (PLATFORM_ENV=local only): `GET /dev/dashboard`, `/dev/state`, `POST /dev/token/{username}`, `/dev/tick`, `/dev/tables/{id}/simulate-result`
 - Interactive docs: http://localhost:8000/docs
+
+## Build and test the game server (C++)
+- Builder image: `docker build -t poker-server-build -f docker/server/Dockerfile.build docker/server`
+- Compile (incremental, ~3 min after header changes): `docker run --rm -v "$PWD":/src -v poker-server-build-cache:/build poker-server-build`
+- End-to-end with bots: start Postgres/Redis + seeded API on :8000, then `platform/scripts/e2e_game_server.sh` (takes ~3-5 min)
+- Run the server: `pokerth_dedicated_server --foreground` with `POKERTH_PLATFORM_MODE=1`, `POKERTH_SEAT_TOKEN_PUBLIC_KEY` (from `GET /internal/seat-token-key`), `POKERTH_PLATFORM_URL`, `POKERTH_PLATFORM_SECRET`. Logs: `~/.pokerth/log-files/server_messages.log`.
 
 ## Run the web player app locally
 1. `cd platform && docker compose up -d postgres redis mailpit && . .venv/bin/activate && alembic upgrade head && python -m app.seed`
