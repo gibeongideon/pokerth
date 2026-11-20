@@ -75,6 +75,7 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [x] Verified end to end: alice played a full game in Chrome (desktop + phone size) against two C++ bots; the table settled (`docs/platform/screenshots/live/`). `WEB_CLIENTS=2 platform/scripts/e2e_game_server.sh` plays seats through the TS client headless
 - [x] Error boundaries around the table view and betting controls (a render bug can't drop the game connection)
 - [x] Table page lazy-loaded: main bundle 612 kB → 258 kB; table chunk 359 kB loads on demand
+- [x] Visual redesign (2026-11-21): SVG icon set + crown-chip logo, glass panels, redesigned shell, lobby, sign-in, wallet, table canvas (lit felt, real card faces, striped chips), action bar timer (`docs/platform/screenshots/ui-v2/`)
 - [ ] Google sign-in button (needs a Google OAuth client ID)
 - [ ] PWA manifest + offline shell
 - [ ] Capacitor Android build: deep links (invites, magic links), push notifications, secure token storage, native Google sign-in
@@ -101,6 +102,8 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [x] 5.4 Invite links: public preview by code, join after sign-in; email invites to people without an account
 - [x] 5.5 Invite expiry + anti-spam limits (per day, per table) as settings
 - [x] 5.6 Referrals: code + link per player, bonus after the new player's first paid game, both sides configurable, off by default, cap per referrer
+- [x] 5.6b Quick invites (done 2026-11-21, D-028): personal link `/i/<code>` with a sign-up landing page (email → magic link); invite by email from the Friends page, tracked by email (whenever that address signs up, the inviter is credited and both become friends); table links `/join/<code>?ref=` sign newcomers up in place and bring them back to the table; magic links carry a same-site `next` (works on another device); `/?ref=` fixed; auto-friend setting `referral.auto_friend`. Verified in browsers (`docs/platform/screenshots/invites/`)
+- [ ] SMS invites (Africa's Talking) for players without email at hand
 - [x] 5.7a Scheduled tournaments: admin-scheduled tables with title, registration window, guaranteed prize pool (house tops up from promotions), payout tables per stake level
 - [ ] 5.7b Late registration, re-entry, multi-table (>10 players) — need the game server (after Phase 2b)
 - [x] 5.8 Responsible gaming: deposit and loss limits (day/week/month, tighten now, loosen after 24 h), self-exclusion (24h to permanent, auto-refund open seats), reality-check reminder setting

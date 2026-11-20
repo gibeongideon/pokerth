@@ -129,6 +129,12 @@ The seat token already carries signed table settings (`cfg`: players, chips, sma
 - Opening the table in a second tab/device takes the seat over; the first one shows "Your seat was opened somewhere else" and does not auto-retry (no ping-pong). It can take the seat back with Reconnect.
 - Client: network drops and session timeouts retry automatically (1, 2, 4, 8, 15, 30 s; reset when seated again), and immediately on `online` and when the tab/app becomes visible (Capacitor resume). A 4xx from the seat-token endpoint (game over, no seat) is not retried.
 
+### D-028 · 2026-11-21 · Accepted — Invites that sign people up
+- Every player has one invite code (the referral code). `/i/<code>` is a public landing page ("alice wants you at the table") with an email box: it sends a magic link carrying the code and a return path. No account is created until the link is used.
+- Invites by email are stored per (inviter, email) in `player_invites`, so they follow the address: when it signs up - through any link or none - the first inviter gets the referral, every inviter of that address becomes a friend (`referral.auto_friend`, on by default), and the inviter's list shows "Joined". Emails that already have an account get a friend request instead. Re-sending to the same address is limited to once a day; total sends count against `invites.per_day`.
+- Table links carry `?ref=<inviter code>` (and fall back to the organizer's code), so a newcomer who signs up from a shared table link is credited too and is returned to the table after the welcome step.
+- Magic links carry `next` (a same-site path; `//host` and schemes are refused server- and client-side), so the flow works when the email is opened on another device.
+
 ---
 
 ## Open items (to decide)

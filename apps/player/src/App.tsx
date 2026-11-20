@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Spinner } from "./components/bits";
+import { Logo } from "./components/Brand";
 import { Shell } from "./components/Shell";
 import { useMe } from "./lib/hooks";
 import { AuthCallback, Login, Welcome, rememberRef, rememberReturn } from "./pages/Auth";
@@ -28,6 +29,23 @@ function Protected({ children }: { children: React.ReactNode }) {
   return <Shell>{children}</Shell>;
 }
 
+/** Full app chrome for players; a plain branded page for signed-out visitors (invite links). */
+function MaybeShell({ children }: { children: React.ReactNode }) {
+  const me = useMe();
+  // No spinner here: unmounting the page while "me" loads would make the
+  // page's own useMe retry the failed query on mount - an endless loop for
+  // signed-out visitors. Plain layout until we know it's a player.
+  if (me.data) return <Shell>{children}</Shell>;
+  return (
+    <div className="min-h-screen px-4 py-6">
+      <Link to="/login" className="mx-auto mb-6 block w-fit">
+        <Logo size={40} />
+      </Link>
+      {children}
+    </div>
+  );
+}
+
 export function App() {
   return (
     <Routes>
@@ -35,7 +53,7 @@ export function App() {
       {import.meta.env.DEV && <Route path="/dev-login/:name" element={<DevLogin />} />}
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/welcome" element={<Welcome />} />
-      <Route path="/join/:code" element={<Shell><JoinByCode /></Shell>} />
+      <Route path="/join/:code" element={<MaybeShell><JoinByCode /></MaybeShell>} />
       <Route path="/i/:code" element={<InviteLanding />} />
       <Route path="/" element={<Protected><Lobby /></Protected>} />
       <Route path="/tables" element={<Protected><MyTables /></Protected>} />
