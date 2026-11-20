@@ -5,7 +5,7 @@ Read this first when resuming. Update it at the end of every session.
 ## Current state (2026-11-20)
 - Branches: `stable` → `prod` → `dev`. **`dev` is checked out.** Nothing pushed to `origin`.
 - Phase 0 and Phase 1 done (Smile ID still manual). **Phase 2a done**: stake levels, fees, full Sit & Go lifecycle with a stand-in game server. **Phase 4 API done**: M-Pesa withdrawals with emailed code, review queue, admin users/reports.
-- Agreed order (D-020): non-UI tasks first (Phase 5 done except 5.7b late reg / re-entry / multi-table, which need the game server). **Next: Phase 3 — gamey player app (web + Capacitor).**, then Phase 3 gamey UI, then Phase 2b C++.
+- Agreed order (D-020): non-UI tasks first (Phase 5 done except 5.7b late reg / re-entry / multi-table, which need the game server). **Phase 3 web player app built** (`apps/player`, screenshots in `docs/platform/screenshots/phase3/`). Next: Capacitor Android packaging, then Phase 2b C++ game server for live hands., then Phase 3 gamey UI, then Phase 2b C++.
 - Screenshots of the dev dashboard: `docs/platform/screenshots/phase2-desktop.png`, `phase2-mobile.png`.
 - Phase 2b (C++ game server) waits until after the app; locally blocked (no CMake/Boost/Qt6, ~1.5 GB free RAM).
 - The owner prefers screenshots at the end of each phase over a server left running (machine is short on memory).
@@ -23,6 +23,13 @@ Read this first when resuming. Update it at the end of every session.
 - Admin: `GET /admin/settings`, `PUT /admin/settings/{key}`, `PUT /admin/users/{id}/kyc-tier`, `GET/POST /admin/stake-tiers`, `PUT /admin/stake-tiers/{id}`, `POST /admin/tables` (scheduled), `POST /admin/tables/{id}/cancel`, `GET /admin/withdrawals`, `POST /admin/withdrawals/{ref}/approve|reject`, `GET /admin/users`, `GET /admin/users/{id}`, `PUT /admin/users/{id}/status`, `GET /admin/reports/liabilities`
 - Dev (PLATFORM_ENV=local only): `GET /dev/dashboard`, `/dev/state`, `POST /dev/token/{username}`, `/dev/tick`, `/dev/tables/{id}/simulate-result`
 - Interactive docs: http://localhost:8000/docs
+
+## Run the web player app locally
+1. `cd platform && docker compose up -d postgres redis mailpit && . .venv/bin/activate && alembic upgrade head && python -m app.seed`
+2. `PLATFORM_COOKIE_PATH_PREFIX=/api uvicorn app.main:app --port 8000`
+3. In another terminal at the repo root: `npm install` (once) then `npm run dev` → http://localhost:5173
+4. Sign in with the "Local demo" buttons, or open `/dev-login/alice?next=/` (dev builds only).
+5. After API changes: re-export `packages/api-client/openapi.json` (see HANDOFF history) and `npm run api:types`.
 
 ## See it locally (light: API only, no Docker build)
 1. `cd platform && docker compose up -d postgres redis`

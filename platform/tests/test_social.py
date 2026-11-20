@@ -301,3 +301,29 @@ async def test_friends_only_setting(
         )
     ).json()
     assert resp["skipped"] == [{"handle": "stranger", "reason": "not_friends"}]
+
+
+async def test_mail_outage_does_not_break_invites(
+    client: httpx.AsyncClient,
+    sessions: async_sessionmaker[AsyncSession],
+    make_user: MakeUser,
+    mailer: FakeMailer,
+    tier_id: int,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.services.mailer import MailError
+
+    async def down(*_a: Any, **_k: Any) -> None:
+        raise MailError("ConnectionRefusedError")
+
+    _, org = await _player(sessions, make_user, "mailless")
+    await make_user("buddy@example.com", username="buddy")
+    monkeypatch.setattr(mailer, "send", down)
+    made = await client.post(
+        "/games/organize",
+        json={"tier_id": tier_id, "title": "No mail tonight", "invite": ["buddy"]},
+        headers=org,
+    )
+    assert made.status_code == 201 and made.json()["invited"] == ["buddy"]
+    link = await client.post("/auth/magic-link", json={"email": "someone@example.com"})
+    assert link.status_code == 503 and link.json()["detail"]["code"] == "email_unavailable"

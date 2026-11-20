@@ -9,6 +9,7 @@ from app.api.deps import CurrentUser, MailerDep, PaystackDep, SessionDep
 from app.core.errors import ApiError
 from app.models import PayoutDestination, Withdrawal
 from app.services import payouts
+from app.services.mailer import MailError
 from app.services.payments import PaymentError
 
 router = APIRouter(prefix="/wallet", tags=["withdrawals"])
@@ -100,6 +101,9 @@ async def request_withdrawal(
     except PaymentError as exc:
         await session.rollback()
         raise _err(exc) from exc
+    except MailError as exc:
+        # The withdrawal row exists but no money moved; it expires unconfirmed.
+        raise ApiError(503, "email_unavailable", "We couldn't email your code. Try again.") from exc
     await session.commit()
     if w.status == "approved":
         w = await payouts.send(session, paystack, w.reference)

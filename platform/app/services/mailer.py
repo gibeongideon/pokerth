@@ -6,6 +6,10 @@ from typing import Protocol
 from app.core.config import Settings, get_settings
 
 
+class MailError(Exception):
+    """The email could not be handed to the mail server."""
+
+
 class Mailer(Protocol):
     async def send(self, to: str, subject: str, body: str) -> None: ...
 
@@ -28,7 +32,10 @@ class SmtpMailer:
         msg["To"] = to
         msg["Subject"] = subject
         msg.set_content(body)
-        await asyncio.to_thread(self._send_sync, msg)
+        try:
+            await asyncio.to_thread(self._send_sync, msg)
+        except (OSError, smtplib.SMTPException) as exc:
+            raise MailError(f"{exc.__class__.__name__}: {exc}") from exc
 
 
 def get_mailer() -> Mailer:

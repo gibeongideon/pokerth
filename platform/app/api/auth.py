@@ -16,6 +16,7 @@ from app.api.schemas import UserOut, user_out
 from app.core.config import get_settings
 from app.core.errors import ApiError
 from app.services import auth as auth_svc
+from app.services.mailer import MailError
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -75,7 +76,7 @@ def _respond(response: Response, issued: auth_svc.IssuedSession, client: ClientK
         REFRESH_COOKIE,
         issued.refresh_token,
         max_age=issued.refresh_expires_in,
-        path="/auth",
+        path=f"{settings.cookie_path_prefix}/auth",
         **common,  # type: ignore[arg-type]
     )
     return SessionOut(user=user_out(issued.user), expires_in=ttl)
@@ -83,7 +84,7 @@ def _respond(response: Response, issued: auth_svc.IssuedSession, client: ClientK
 
 def _clear_cookies(response: Response) -> None:
     response.delete_cookie(ACCESS_COOKIE, path="/")
-    response.delete_cookie(REFRESH_COOKIE, path="/auth")
+    response.delete_cookie(REFRESH_COOKIE, path=f"{get_settings().cookie_path_prefix}/auth")
 
 
 def _auth_error(exc: auth_svc.AuthError) -> ApiError:
@@ -97,7 +98,10 @@ async def request_magic_link(
 ) -> dict[str, str]:
     """Always 202, whether or not the email has an account (no enumeration)."""
     ip = request.client.host if request.client else None
-    await auth_svc.request_magic_link(session, mailer, body.email, ip, body.ref)
+    try:
+        await auth_svc.request_magic_link(session, mailer, body.email, ip, body.ref)
+    except MailError as exc:
+        raise ApiError(503, "email_unavailable", "We couldn't send the email. Try again.") from exc
     return {"status": "sent"}
 
 

@@ -1,0 +1,103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Same tokens as tailwind.config.js, for PixiJS and hand-written CSS. */
+:root {
+  --felt-950: #04120c;
+  --felt-900: #071a13;
+  --felt-800: #0b2a1f;
+  --felt-600: #116149;
+  --gold-300: #ffe08a;
+  --gold-400: #f5c451;
+  --gold-600: #b9821a;
+  --cream: #f6f1e3;
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--cream);
+  background-color: var(--felt-950);
+  background-image:
+    radial-gradient(1200px 700px at 50% -10%, rgba(23, 138, 98, 0.35), transparent 60%),
+    radial-gradient(900px 600px at 100% 100%, rgba(185, 130, 26, 0.12), transparent 60%),
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.012) 0 2px, transparent 2px 6px);
+  background-attachment: fixed;
+  font-family: "Inter Variable", system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@layer components {
+  .panel {
+    @apply rounded-2xl border border-gold-400/15 bg-felt-900/80 shadow-panel backdrop-blur;
+  }
+
+  .title {
+    @apply font-display tracking-wide text-cream;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
+  }
+
+  .gold-text {
+    background: linear-gradient(180deg, #fff3c4 0%, #f5c451 45%, #c98d1c 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.5));
+  }
+
+  /* Chunky "candy" buttons that press down. */
+  .btn {
+    @apply inline-flex select-none items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-display text-base tracking-wide transition active:translate-y-[3px] disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn-gold {
+    @apply btn text-felt-950;
+    background: linear-gradient(180deg, #ffe08a 0%, #f5c451 45%, #e2a72e 100%);
+    box-shadow: 0 4px 0 #9a6a12, 0 8px 18px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  }
+  .btn-gold:active {
+    box-shadow: 0 1px 0 #9a6a12, 0 4px 10px rgba(0, 0, 0, 0.35);
+  }
+  .btn-felt {
+    @apply btn text-cream;
+    background: linear-gradient(180deg, #178a62 0%, #116149 100%);
+    box-shadow: 0 4px 0 #0a3a2b, 0 8px 18px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
+  .btn-felt:active {
+    box-shadow: 0 1px 0 #0a3a2b;
+  }
+  .btn-ghost {
+    @apply btn border border-gold-400/30 bg-transparent text-gold-300 hover:bg-gold-400/10;
+  }
+  .btn-red {
+    @apply btn text-white;
+    background: linear-gradient(180deg, #ef6a6e 0%, #c9363b 100%);
+    box-shadow: 0 4px 0 #7d1d21, 0 8px 18px rgba(0, 0, 0, 0.3);
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-gold-400/20 bg-felt-950/70 px-3.5 py-2.5 text-cream outline-none placeholder:text-cream/35 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/20;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wider text-cream/60;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

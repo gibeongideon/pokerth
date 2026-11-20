@@ -58,13 +58,19 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [ ] Hand history persistence (for disputes and RNG certification)
 
 ## Phase 3 — Player app (web + mobile) and site
-- [ ] pnpm workspace; `packages/api-client` (from OpenAPI), `packages/protocol` (ts-proto), `packages/ui` (tokens, components)
-- [ ] `apps/player/` Vite + React + TS: auth, wallet, deposit, lobby, tables, profile — mobile-first
-- [ ] PixiJS table screen, protobuf over WSS; portrait + landscape layouts, touch controls
-- [ ] Capacitor Android build: deep links (invites, magic links), push notifications, secure storage, native Google sign-in
+- [x] npm workspace (pnpm is broken on this machine); `packages/api-client` typed from the OpenAPI schema (`npm run api:types`)
+- [x] `apps/player/` Vite + React + TS + Tailwind, gamey look (D-020): sign-in (magic link), welcome (username + 18+/terms), lobby, quick play, private tables, table room, wallet (M-Pesa/card deposit, fund a friend, withdraw with code, history), friends + invites inbox, organize a game, invite-link page, profile (phone, referral link, limits, reality check, take a break) — mobile-first with bottom tabs, side rail on desktop
+- [x] PixiJS table: seats around the felt (you at the bottom), ready glow, chip stacks, pot, medals + prizes, demo deal while running; fits portrait and landscape
+- [x] Sounds (synthesized, mute toggle), reality-check reminder, toasts
+- [x] Screenshots: `docs/platform/screenshots/phase3/` (desktop + phone)
+- [ ] Live hands over the game-server protocol (`packages/protocol` from `pokerth.proto`, WSS, seat token) — after Phase 2b
+- [ ] Table controls for live play (fold/check/call/raise slider), timers, hand history
+- [ ] Google sign-in button (needs a Google OAuth client ID)
+- [ ] PWA manifest + offline shell
+- [ ] Capacitor Android build: deep links (invites, magic links), push notifications, secure token storage, native Google sign-in
 - [ ] Capacitor iOS build (after the licence is granted)
-- [ ] `apps/site/` Next.js: landing, SEO, legal and responsible-gaming pages
-- [ ] Original visual identity (no PokerTH branding); PWA
+- [ ] `apps/site/` Next.js: landing, SEO, legal and responsible-gaming pages; admin back office UI
+- [ ] Final name and visual identity ("Felt Kings" is a working title, O-5)
 
 ## Phase 4 — Withdrawals, KYC, admin (API done 2026-11-20)
 - [x] Payout destinations: M-Pesa via Paystack transfer recipients; number must match the profile phone

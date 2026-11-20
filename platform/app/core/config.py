@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     # Where the player app lives; magic links and payment callbacks point here.
     public_base_url: str = "http://localhost:5173"
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    # Path the API is served under on the app's origin ("/api" behind Vite/Caddy);
+    # the refresh cookie is scoped to <prefix>/auth so the browser sends it there.
+    cookie_path_prefix: str = ""
 
     database_url: str = "postgresql+asyncpg://platform:platform@localhost:55433/platform"
     redis_url: str = "redis://localhost:56379/0"

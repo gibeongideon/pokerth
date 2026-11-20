@@ -105,6 +105,13 @@ The KES rate is a config setting `fx.usd_kes_rate`, default **129** KES per USD,
 - **Referral bonuses** and **guaranteed prize top-ups** are paid from `house:promotions`, so marketing spend is visible in one account.
 - **Tournaments** for now are scheduled single tables (2-10 players) with a registration window and optional guarantee. Late registration, re-entry and multi-table events wait for the game server work.
 
+### D-024 · 2026-11-20 · Accepted — Player app as built (Phase 3 web)
+- One codebase for web and phones (D-011): Vite + React 18 + TypeScript + Tailwind, react-router, TanStack Query; PixiJS 8 draws the table. npm workspaces (pnpm is broken on this machine).
+- The app talks to the API under `/api` on its own origin (Vite proxy locally, Caddy in production), so httpOnly cookies work; the API's `PLATFORM_COOKIE_PATH_PREFIX=/api` scopes the refresh cookie. Native apps will use bearer tokens through the same client.
+- Gamey look: felt greens, gold, chunky "candy" buttons, chip motifs, Lilita One display font (bundled, no CDN), synthesized sounds with a mute toggle, reduced-motion respected.
+- Mail outages no longer break requests: invite emails are best-effort (the in-app invite is saved); sign-in links and withdrawal codes answer 503 `email_unavailable`.
+- Local-dev-only helpers (`/dev-login/:name`, demo buttons) are compiled out of production builds.
+
 ---
 
 ## Open items (to decide)

@@ -4,6 +4,7 @@ All functions expect the caller to commit, except the ones that send email,
 which commit before sending so an email never refers to unsaved data.
 """
 
+import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -18,7 +19,9 @@ from app.models import Friendship, GameTable, StakeTier, TableInvite, TableSeat,
 from app.services import config_registry as cfg
 from app.services import tables as table_svc
 from app.services.game_gateway import GameGateway
-from app.services.mailer import Mailer
+from app.services.mailer import Mailer, MailError
+
+log = logging.getLogger(__name__)
 
 
 class SocialError(Exception):
@@ -264,9 +267,13 @@ async def invite(
 
     await session.commit()
     for address, target in emails:
-        await mailer.send(
-            address, *_invite_email(inviter, table, message, has_account=bool(target))
-        )
+        try:
+            await mailer.send(
+                address, *_invite_email(inviter, table, message, has_account=bool(target))
+            )
+        except MailError as exc:
+            # The in-app invite is saved; a mail outage shouldn't fail the request.
+            log.warning("invite email to %s failed: %s", address, exc)
     return result
 
 
