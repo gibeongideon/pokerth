@@ -92,6 +92,13 @@ The KES rate is a config setting `fx.usd_kes_rate`, default **129** KES per USD,
 - Conversion uses the same rate (129) minus the optional spread, rounded down to whole shillings. Fees default to 0.
 - Transfer sends are retried by the worker; before a retry the worker asks Paystack whether the transfer already exists (reference = withdrawal reference), so nobody is paid twice.
 
+### D-022 · 2026-11-20 · Accepted — Friends and invites as built (Phase 5.1-5.5)
+- Invites go by username or email, to friends or anyone (setting `invites.friends_only` restricts usernames to friends). Each handle is reported invited or skipped with a reason.
+- Only someone seated at the table, or its organizer, can invite. Accepting an invite is a normal join: same buy-in, gates and limits. Accepting a private-table invite doesn't need the code.
+- Organized games are private tables with a title and message; the organizer may or may not play, can start at a set time or when full, sees an RSVP list, and can cancel before start (full refunds, pending invites revoked).
+- Unknown emails get a sign-up invite; the invite appears when they sign in with that email. Friend requests to unknown emails answer "sent" so emails can't be probed.
+- Limits: 50 invites per player per day, 30 per table, 72 h expiry; invites also close when the table starts or is cancelled.
+
 ---
 
 ## Open items (to decide)

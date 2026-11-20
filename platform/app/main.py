@@ -8,6 +8,7 @@ from app.api import (
     health,
     internal,
     me,
+    social,
     tables,
     wallet,
     webhooks,
@@ -33,7 +34,18 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
     )
-    for module in (health, auth, me, wallet, withdrawals, tables, webhooks, internal, admin):
+    for module in (
+        health,
+        auth,
+        me,
+        wallet,
+        withdrawals,
+        tables,
+        social,
+        webhooks,
+        internal,
+        admin,
+    ):
         app.include_router(module.router)
     if settings.env == "local":
         app.include_router(dev.router)

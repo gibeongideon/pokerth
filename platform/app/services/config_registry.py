@@ -185,6 +185,20 @@ _DEFS += [
     ),
 ]
 
+_DEFS += [
+    # Friends and invites (Phase 5)
+    SettingDef("friends.max", int, 500, "Most friends one player can have.", min=1),
+    SettingDef("invites.ttl_hours", int, 72, "Invites expire after this long.", min=1, max=720),
+    SettingDef("invites.max_per_table", int, 30, "Invites one table can send.", min=1, max=200),
+    SettingDef("invites.per_day", int, 50, "Invites one player can send per 24h.", min=1),
+    SettingDef(
+        "invites.friends_only",
+        bool,
+        False,
+        "Only friends can be invited by username (email invites always allowed).",
+    ),
+]
+
 REGISTRY: dict[str, SettingDef] = {d.key: d for d in _DEFS}
 
 

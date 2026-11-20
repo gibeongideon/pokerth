@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app import jobs
 from app.core.config import get_settings
+from app.services import social
 from app.services import tables as table_svc
 from app.services.game_gateway import get_gateway
 from app.services.paystack import get_paystack
@@ -74,6 +75,7 @@ def reconcile_deposits() -> dict[str, Any]:
 async def _tick(sessions: async_sessionmaker[Any]) -> dict[str, int]:
     async with sessions() as session:
         counts = await table_svc.tick(session, get_gateway())
+        counts["invites_expired"] = await social.expire_invites(session)
         await session.commit()
         return counts
 

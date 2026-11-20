@@ -75,6 +75,9 @@ class GameTable(Base):
     scheduled_start_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     ready_deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    # Organized games: shown to invitees ("Friday night poker").
+    title: Mapped[str | None] = mapped_column(String(80))
+    message: Mapped[str | None] = mapped_column(String(500))
     # Set when the game server has the game.
     game_ref: Mapped[str | None] = mapped_column(String(64))
     ws_url: Mapped[str | None] = mapped_column(String(255))

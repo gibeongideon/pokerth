@@ -619,7 +619,12 @@ async def table_view(
         "payout_bps": c["payout_bps"],
         "start_mode": c["start_mode"],
         "is_private": table.is_private,
-        "invite_code": table.invite_code if table.is_private and me else None,
+        "title": table.title,
+        "message": table.message,
+        "is_organizer": viewer is not None and table.created_by == viewer,
+        "invite_code": table.invite_code
+        if table.is_private and (me or (viewer is not None and table.created_by == viewer))
+        else None,
         "scheduled_start_at": table.scheduled_start_at.isoformat()
         if table.scheduled_start_at
         else None,
