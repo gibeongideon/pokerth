@@ -45,7 +45,12 @@ def normalize_email(email: str) -> str:
 
 
 async def request_magic_link(
-    session: AsyncSession, mailer: Mailer, email: str, ip: str | None, ref: str | None = None
+    session: AsyncSession,
+    mailer: Mailer,
+    email: str,
+    ip: str | None,
+    ref: str | None = None,
+    next_path: str | None = None,
 ) -> None:
     """Create and email a sign-in link. Silently does nothing when rate limited,
     so callers can always answer 202 without revealing anything."""
@@ -73,7 +78,12 @@ async def request_magic_link(
     )
     await session.commit()
 
-    link = f"{get_settings().public_base_url}/auth/callback?{urlencode({'token': token})}"
+    # `next` brings the player back to where they started (an invite, a table)
+    # even when they open the email on another device. Only same-site paths.
+    params = {"token": token}
+    if next_path and next_path.startswith("/") and not next_path.startswith("//"):
+        params["next"] = next_path
+    link = f"{get_settings().public_base_url}/auth/callback?{urlencode(params)}"
     await mailer.send(
         email,
         "Your sign-in link",

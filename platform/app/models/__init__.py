@@ -6,7 +6,7 @@ from app.models.config import ConfigAudit, ConfigSetting
 from app.models.ledger import JournalTransaction, LedgerAccount, LedgerEntry
 from app.models.payments import Deposit, WebhookEvent
 from app.models.payouts import PayoutDestination, Withdrawal
-from app.models.referrals import Referral
+from app.models.referrals import PlayerInvite, Referral
 from app.models.rg import RgLimit
 from app.models.social import Friendship, TableInvite
 from app.models.tables import GameTable, StakeTier, TableSeat
@@ -23,6 +23,7 @@ __all__ = [
     "LedgerEntry",
     "MagicLinkToken",
     "PayoutDestination",
+    "PlayerInvite",
     "Referral",
     "RefreshToken",
     "RgLimit",

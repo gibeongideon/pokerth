@@ -24,7 +24,10 @@ function InvitePanel({ table, onClose }: { table: TableView; onClose: () => void
   const [picked, setPicked] = useState<string[]>([]);
   const [extra, setExtra] = useState("");
   const [message, setMessage] = useState("");
-  const link = table.invite_code ? `${location.origin}/join/${table.invite_code}` : `${location.origin}/tables/${table.id}`;
+  const referral = useQuery({ queryKey: ["referral"], queryFn: () => call<{ code: string }>(api.GET("/me/referral")) });
+  // Newcomers who sign up from this link are credited to you (and become your friend).
+  const ref = referral.data?.code ? `?ref=${referral.data.code}` : "";
+  const link = table.invite_code ? `${location.origin}/join/${table.invite_code}${ref}` : `${location.origin}/tables/${table.id}`;
 
   const send = async () => {
     const handles = [...picked, ...extra.split(/[\s,]+/).filter(Boolean)];

@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from app.api.deps import CurrentUser, MailerDep, SessionDep
 from app.core.errors import ApiError
 from app.models import GameTable
-from app.services import social
+from app.services import referrals, social
 from app.services import tables as table_svc
 from app.services.game_gateway import GameGateway, get_gateway
 
@@ -148,6 +148,15 @@ async def invite_preview(code: str, session: SessionDep) -> dict[str, Any]:
         return await social.preview_by_code(session, code)
     except social.SocialError as exc:
         raise _err(exc) from exc
+
+
+@router.get("/invites/personal/{code}")
+async def personal_invite_preview(code: str, session: SessionDep) -> dict[str, Any]:
+    """Public: who is inviting you, behind a personal link /i/<code>."""
+    out = await referrals.inviter_preview(session, code)
+    if out is None:
+        raise ApiError(404, "not_found", "This invite link is not valid.")
+    return out
 
 
 # ----------------------------------------------------------- organized games

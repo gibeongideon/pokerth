@@ -1,14 +1,15 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Avatar, Chip, Empty, SeatDots, Spinner } from "../components/bits";
 import { useToast } from "../components/Toast";
 import { api, call, errorMessage } from "../lib/api";
-import { TIER_COLORS, when } from "../lib/format";
+import { TIER_COLORS, usd, when } from "../lib/format";
 import { useInvites, useMe, useTiers } from "../lib/hooks";
 import { play } from "../lib/sound";
 import type { FriendItem, Invite, TablePreview, TableView } from "../lib/types";
-import { rememberReturn } from "./Auth";
+import { Icon } from "../components/Icon";
+import { EmailSignIn, rememberReturn } from "./Auth";
 
 function InviteCard({ invite }: { invite: Invite }) {
   const toast = useToast();
@@ -59,6 +60,142 @@ function InviteCard({ invite }: { invite: Invite }) {
   );
 }
 
+interface SentInvite {
+  email: string;
+  status: "pending" | "joined";
+  joined_as: string | null;
+  sent_at: string;
+}
+
+/** Grow the crew: a personal link to share anywhere, or invites by email. */
+export function InviteToApp() {
+  const toast = useToast();
+  const qc = useQueryClient();
+  const [emails, setEmails] = useState("");
+  const [busy, setBusy] = useState(false);
+  const referral = useQuery({
+    queryKey: ["referral"],
+    queryFn: () => call<{ code: string; link: string; enabled: boolean; bonus_usd_cents: number; signed_up: number }>(api.GET("/me/referral")),
+  });
+  const sent = useQuery({ queryKey: ["sent-invites"], queryFn: () => call<SentInvite[]>(api.GET("/me/invites")) });
+  const link = referral.data?.link ?? "";
+  const text = `Join me on Felt Kings — Sit & Go poker with friends. Sign up with one tap: ${link}`;
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(link);
+      play("chip");
+      toast("Invite link copied", "ok");
+    } catch {
+      toast(link, "info");
+    }
+  };
+  const share = async () => {
+    try {
+      if (navigator.share) await navigator.share({ title: "Felt Kings", text, url: link });
+      else await copy();
+    } catch {
+      /* cancelled */
+    }
+  };
+  const sendEmails = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const list = emails.split(/[\s,;]+/).filter((x) => x.includes("@"));
+    if (!list.length) return toast("Type one or more email addresses.", "info");
+    setBusy(true);
+    try {
+      const r = await call<{ invited: string[]; friend_requests: string[]; skipped: { handle: string; reason: string }[] }>(
+        api.POST("/me/invites", { body: { emails: list } }),
+      );
+      play("chip");
+      const parts = [
+        r.invited.length && `Invited ${r.invited.length}`,
+        r.friend_requests.length && `${r.friend_requests.length} already play — friend request sent`,
+        r.skipped.length && `skipped ${r.skipped.map((x) => `${x.handle} (${x.reason.replace("_", " ")})`).join(", ")}`,
+      ].filter(Boolean);
+      toast(parts.join(" · "), r.invited.length || r.friend_requests.length ? "ok" : "info");
+      setEmails("");
+      await Promise.all([qc.invalidateQueries({ queryKey: ["sent-invites"] }), qc.invalidateQueries({ queryKey: ["friends"] })]);
+    } catch (err) {
+      toast(errorMessage(err), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="panel relative overflow-hidden p-5">
+      <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-gold-400/15 blur-3xl" />
+      <div className="relative flex items-start gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gold-400/15 text-gold-300">
+          <Icon name="gift" size={22} />
+        </span>
+        <div className="min-w-0">
+          <h2 className="title text-2xl">Invite friends to Felt Kings</h2>
+          <p className="text-sm text-cream/60">
+            Anyone who joins with your link or email becomes your friend automatically
+            {referral.data?.enabled && referral.data.bonus_usd_cents > 0 ? ` — and you earn ${usd(referral.data.bonus_usd_cents)} when they play their first paid game` : ""}.
+          </p>
+        </div>
+      </div>
+
+      <div className="relative mt-4 flex gap-2">
+        <input className="input font-mono text-sm" readOnly value={link} aria-label="Your invite link" onFocus={(e) => e.currentTarget.select()} />
+        <button className="btn-gold shrink-0 px-4" onClick={copy} disabled={!link}>
+          <Icon name="link" size={18} /> Copy
+        </button>
+      </div>
+      <div className="relative mt-2 grid grid-cols-2 gap-2">
+        <a
+          className="btn shrink-0 bg-[#25d366] text-[#06210f] shadow-[0_4px_0_#128c48]"
+          href={`https://wa.me/?text=${encodeURIComponent(text)}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          WhatsApp
+        </a>
+        <button className="btn-ghost" onClick={share} disabled={!link}>
+          <Icon name="spark" size={18} /> Share…
+        </button>
+      </div>
+
+      <form onSubmit={sendEmails} className="relative mt-4 flex gap-2">
+        <input
+          className="input"
+          type="text"
+          inputMode="email"
+          placeholder="Or invite by email: wanjiru@example.com, kevo@…"
+          value={emails}
+          onChange={(e) => setEmails(e.target.value)}
+          aria-label="Emails to invite"
+        />
+        <button className="btn-felt shrink-0 px-4" disabled={busy}>
+          <Icon name="mail" size={18} /> Send
+        </button>
+      </form>
+
+      {(sent.data?.length ?? 0) > 0 && (
+        <div className="relative mt-4">
+          <div className="label">Invited ({sent.data!.filter((x) => x.status === "joined").length} joined)</div>
+          <ul className="max-h-48 space-y-1.5 overflow-y-auto text-sm">
+            {sent.data!.map((x) => (
+              <li key={x.email} className="flex items-center gap-2">
+                <Avatar name={x.joined_as ?? x.email} size={24} />
+                <span className="min-w-0 flex-1 truncate">{x.joined_as ? `${x.joined_as} · ${x.email}` : x.email}</span>
+                {x.status === "joined" ? (
+                  <span className="badge bg-chip-green/20 text-chip-green">Joined</span>
+                ) : (
+                  <span className="badge bg-gold-400/15 text-gold-300">Invited</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function Friends() {
   const toast = useToast();
   const qc = useQueryClient();
@@ -102,6 +239,8 @@ export function Friends() {
           </div>
         </section>
       )}
+
+      <InviteToApp />
 
       <form onSubmit={add} className="panel flex gap-2 p-3">
         <input className="input" placeholder="Add a friend by username or email" value={handle} onChange={(e) => setHandle(e.target.value)} required />
@@ -294,18 +433,21 @@ export function Organize() {
 
 export function JoinByCode() {
   const { code = "" } = useParams();
+  const [params] = useSearchParams();
   const me = useMe();
   const toast = useToast();
   const navigate = useNavigate();
+  const [signingUp, setSigningUp] = useState(false);
   const preview = useQuery({
     queryKey: ["preview", code],
     queryFn: () => call<TablePreview>(api.GET("/invites/code/{code}", { params: { path: { code } } })),
     retry: false,
   });
   const join = async () => {
-    if (!me.data) {
+    if (!me.data) return setSigningUp(true);
+    if (!me.data.username || !me.data.terms_accepted) {
       rememberReturn(`/join/${code}`);
-      return navigate("/login");
+      return navigate("/welcome");
     }
     try {
       await call(api.POST("/tables/{table_id}/join", { params: { path: { table_id: preview.data!.table_id } }, body: { invite_code: code } }));
@@ -341,9 +483,22 @@ export function JoinByCode() {
           </div>
           {t.scheduled_start_at && <div className="text-cream/70">Starts {when(t.scheduled_start_at)}</div>}
           {t.message && <p className="italic text-cream/80">“{t.message}”</p>}
-          <button className="btn-gold w-full py-3 text-xl" disabled={t.status !== "open"} onClick={join}>
-            {t.status !== "open" ? "This game has started" : me.data ? "Take my seat" : "Sign in to join"}
-          </button>
+          {signingUp && !me.data ? (
+            <div className="space-y-2 text-left">
+              <p className="text-center text-sm text-cream/65">
+                New here? Enter your email — the link signs you up and brings you straight back to this table.
+              </p>
+              <EmailSignIn refCode={params.get("ref") ?? t.organizer_ref} next={`/join/${code}`} cta="Email me my seat link" compact />
+            </div>
+          ) : (
+            <button className="btn-gold w-full py-3 text-xl" disabled={t.status !== "open"} onClick={join}>
+              {t.status !== "open" ? "This game has started" : me.data ? "Take my seat" : (
+                <>
+                  <Icon name="seat" size={20} /> Join this game
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>

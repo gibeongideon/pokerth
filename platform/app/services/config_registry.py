@@ -203,6 +203,12 @@ _DEFS += [
     # Referrals (Phase 5.6), off by default (D-013: no hidden levers)
     SettingDef("referrals_enabled", bool, False, "Pay referral bonuses."),
     SettingDef(
+        "referral.auto_friend",
+        bool,
+        True,
+        "New players who signed up through an invite become friends with whoever invited them.",
+    ),
+    SettingDef(
         "referral.referrer_bonus_usd_cents",
         int,
         500,

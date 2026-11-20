@@ -1,10 +1,10 @@
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, EmailStr, Field, StringConstraints
 from sqlalchemy import select
 
-from app.api.deps import CurrentUser, SessionDep
+from app.api.deps import CurrentUser, MailerDep, SessionDep
 from app.api.schemas import UserOut, user_out
 from app.core.errors import ApiError
 from app.core.security import utcnow
@@ -68,6 +68,30 @@ async def referral(user: CurrentUser, session: SessionDep) -> dict[str, Any]:
     out = await referrals.summary(session, user)
     await session.commit()  # saves a newly created code
     return out
+
+
+class EmailInvitesIn(BaseModel):
+    emails: list[EmailStr] = Field(min_length=1, max_length=20)
+    message: str | None = Field(default=None, max_length=300)
+
+
+@router.post("/invites")
+async def invite_by_email(
+    body: EmailInvitesIn, user: CurrentUser, session: SessionDep, mailer: MailerDep
+) -> dict[str, Any]:
+    """Invite people to Felt Kings by email. The invite follows the email
+    address: whenever it signs up, you get the referral and become friends.
+    Emails that already have an account get a friend request instead."""
+    r = await referrals.invite_emails(
+        session, mailer, user, [str(e) for e in body.emails], body.message
+    )
+    return {"invited": r.invited, "friend_requests": r.friend_requests, "skipped": r.skipped}
+
+
+@router.get("/invites")
+async def my_sent_invites(user: CurrentUser, session: SessionDep) -> list[dict[str, Any]]:
+    """People you invited by email, and whether they have joined."""
+    return await referrals.sent_invites(session, user)
 
 
 # ---------------------------------------------------------- responsible gaming

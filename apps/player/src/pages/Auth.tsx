@@ -42,6 +42,90 @@ export function rememberReturn(path: string) {
   remember(RETURN_KEY, path);
 }
 
+/** Keep an invite/referral code for the sign-up that follows. */
+export function rememberRef(code: string | null) {
+  remember(REF_KEY, code);
+}
+
+/** Same-site path only (no //host, no scheme). */
+export function safeNext(path: string | null): string | null {
+  return path && path.startsWith("/") && !path.startsWith("//") && path.length <= 200 ? path : null;
+}
+
+/**
+ * Email -> magic link. Used by the sign-in page and by invite pages, so a
+ * newcomer can sign up right where the invite landed them. The link carries
+ * the referral code and brings them back to `next` - even on another device.
+ */
+export function EmailSignIn({ refCode, next, cta = "Email me a sign-in link", compact }: {
+  refCode?: string | null;
+  next?: string | null;
+  cta?: string;
+  compact?: boolean;
+}) {
+  const [email, setEmail] = useState("");
+  const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const toast = useToast();
+
+  const send = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    const ref = refCode ?? recall(REF_KEY);
+    const to = safeNext(next ?? recall(RETURN_KEY));
+    if (next) rememberReturn(next); // same-device fallback
+    try {
+      await call(api.POST("/auth/magic-link", { body: { email, ref: ref || null, next: to } }));
+      play("chip");
+      setSent(true);
+    } catch (err) {
+      toast(errorMessage(err), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (sent) {
+    return (
+      <div className="animate-pop space-y-3 text-center">
+        <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gold-400/15 text-gold-300">
+          <Icon name="mail" size={28} />
+        </span>
+        <h2 className="title text-2xl">Check your email</h2>
+        <p className="text-cream/70">
+          We sent a sign-in link to <b className="text-cream">{email}</b>. Tap it on any device — it works once and expires in 15 minutes.
+        </p>
+        <button className="btn-ghost" onClick={() => setSent(false)}>
+          Use another email
+        </button>
+      </div>
+    );
+  }
+  return (
+    <form onSubmit={send} className="space-y-3">
+      {!compact && (
+        <label className="label" htmlFor="email">
+          Email
+        </label>
+      )}
+      <input
+        id="email"
+        className="input"
+        type="email"
+        autoComplete="email"
+        required
+        placeholder="you@example.com"
+        aria-label="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <button className="btn-gold w-full py-3 text-lg" disabled={busy}>
+        <Icon name="mail" size={18} strokeWidth={2.4} /> {busy ? "Sending…" : cta}
+      </button>
+    </form>
+  );
+}
+
 const PERKS: { icon: IconName; title: string; text: string }[] = [
   { icon: "phone", title: "M-Pesa or card in seconds", text: "Top up with an STK push or any card. Fund a friend too." },
   { icon: "trophy", title: "Prize shown before you sit", text: "One price up front. Nothing taken while you play." },
@@ -79,28 +163,11 @@ function Hero() {
 
 export function Login() {
   const [params] = useSearchParams();
-  const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
-  const [busy, setBusy] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
   const qc = useQueryClient();
 
   useEffect(() => remember(REF_KEY, params.get("ref")), [params]);
-
-  const send = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      await call(api.POST("/auth/magic-link", { body: { email, ref: recall(REF_KEY) } }));
-      play("chip");
-      setSent(true);
-    } catch (err) {
-      toast(errorMessage(err), "error");
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const demo = async (name: string) => {
     const res = await fetch(`/api/dev/token/${name}`, { method: "POST" });
@@ -126,61 +193,19 @@ export function Login() {
         <span className="pointer-events-none absolute -bottom-6 -right-6 hidden animate-float md:block">
           <Chip color="#3d7be0" size={64} />
         </span>
-        <div className="panel relative p-6 md:p-8">
-          {sent ? (
-            <div className="animate-pop text-center">
-              <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-400/15 text-gold-300">
-                <Icon name="mail" size={32} />
-              </span>
-              <h2 className="title mt-3 text-2xl">Check your email</h2>
-              <p className="mt-2 text-cream/70">
-                We sent a sign-in link to <b className="text-cream">{email}</b>. It works once and expires in 15 minutes.
-              </p>
-              <button className="btn-ghost mt-5" onClick={() => setSent(false)}>
-                Use another email
-              </button>
-            </div>
-          ) : (
-            <form onSubmit={send} className="space-y-4">
-              <div>
-                <h2 className="title text-3xl">Sign in or join</h2>
-                <p className="mt-1 text-sm text-cream/55">We'll email you a one-tap link. No password to remember.</p>
-              </div>
-              <div>
-                <label className="label" htmlFor="email">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  className="input"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <button className="btn-gold w-full py-3 text-lg" disabled={busy}>
-                <Icon name="mail" size={18} strokeWidth={2.4} /> {busy ? "Sending…" : "Email me a sign-in link"}
-              </button>
-              <div className="flex items-center gap-3 text-xs text-cream/35">
-                <span className="h-px flex-1 bg-cream/10" /> or <span className="h-px flex-1 bg-cream/10" />
-              </div>
-              <button type="button" className="btn w-full border border-cream/15 bg-white/[0.04] text-cream/60" disabled title="Needs a Google client ID">
-                <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
-                  <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
-                  <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
-                  <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
-                  <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" />
-                </svg>
-                Continue with Google
-              </button>
-              <p className="flex items-center justify-center gap-1.5 text-center text-xs text-cream/45">
-                <Icon name="shield" size={14} /> 18+ only · Play responsibly
-              </p>
-            </form>
-          )}
+        <div className="panel relative space-y-4 p-6 md:p-8">
+          <div>
+            <h2 className="title text-3xl">Sign in or join</h2>
+            <p className="mt-1 text-sm text-cream/55">We'll email you a one-tap link. No password to remember.</p>
+          </div>
+          <EmailSignIn />
+          <div className="flex items-center gap-3 text-xs text-cream/35">
+            <span className="h-px flex-1 bg-cream/10" /> or <span className="h-px flex-1 bg-cream/10" />
+          </div>
+          <GoogleButton />
+          <p className="flex items-center justify-center gap-1.5 text-center text-xs text-cream/45">
+            <Icon name="shield" size={14} /> 18+ only · Play responsibly
+          </p>
         </div>
 
         {import.meta.env.DEV && (
@@ -200,6 +225,20 @@ export function Login() {
   );
 }
 
+export function GoogleButton() {
+  return (
+    <button type="button" className="btn w-full border border-cream/15 bg-white/[0.04] text-cream/60" disabled title="Needs a Google client ID">
+      <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
+        <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
+        <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+        <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
+        <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" />
+      </svg>
+      Continue with Google
+    </button>
+  );
+}
+
 export function AuthCallback() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -213,11 +252,20 @@ export function AuthCallback() {
     const token = params.get("token");
     if (!token) return setError("This link is missing its token.");
     call(api.POST("/auth/magic-link/verify", { body: { token, client: "web" } }))
-      .then(async () => {
+      .then(async (res) => {
         setToken(null);
         await qc.invalidateQueries();
         play("ready");
-        navigate(afterSignIn(), { replace: true });
+        // `next` came in the link itself, so it works on another device too.
+        // New players see the welcome step (username, 18+) first, then `next`.
+        const next = safeNext(params.get("next"));
+        const user = (res as { user?: { username: string | null; terms_accepted: boolean } }).user;
+        if (next && !(user?.username && user.terms_accepted)) {
+          rememberReturn(next);
+          return navigate("/welcome", { replace: true });
+        }
+        if (next) afterSignIn(); // drop any older same-device fallback
+        navigate(next ?? afterSignIn(), { replace: true });
       })
       .catch((e) => setError(errorMessage(e)));
   }, [params, navigate, qc]);

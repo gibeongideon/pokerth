@@ -3,10 +3,11 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Spinner } from "./components/bits";
 import { Shell } from "./components/Shell";
 import { useMe } from "./lib/hooks";
-import { AuthCallback, Login, Welcome, rememberReturn } from "./pages/Auth";
+import { AuthCallback, Login, Welcome, rememberRef, rememberReturn } from "./pages/Auth";
 import { Lobby } from "./pages/Lobby";
 import { Profile } from "./pages/Profile";
 import { Friends, JoinByCode, Organize } from "./pages/Social";
+import { InviteLanding } from "./pages/Invite";
 import { MyTables } from "./pages/MyTables";
 import { DepositReturn, WalletPage } from "./pages/Wallet";
 import { DevLogin } from "./pages/DevLogin";
@@ -20,6 +21,7 @@ function Protected({ children }: { children: React.ReactNode }) {
   if (me.isLoading) return <Spinner />;
   if (!me.data) {
     rememberReturn(location.pathname + location.search);
+    rememberRef(new URLSearchParams(location.search).get("ref")); // e.g. /?ref=CODE
     return <Navigate to="/login" replace />;
   }
   if (!me.data.username || !me.data.terms_accepted) return <Navigate to="/welcome" replace />;
@@ -34,6 +36,7 @@ export function App() {
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/welcome" element={<Welcome />} />
       <Route path="/join/:code" element={<Shell><JoinByCode /></Shell>} />
+      <Route path="/i/:code" element={<InviteLanding />} />
       <Route path="/" element={<Protected><Lobby /></Protected>} />
       <Route path="/tables" element={<Protected><MyTables /></Protected>} />
       <Route path="/tables/:id" element={<Protected><Suspense fallback={<Spinner />}><TableRoom /></Suspense></Protected>} />

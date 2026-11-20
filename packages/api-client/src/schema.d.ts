@@ -201,6 +201,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Sent Invites
+         * @description People you invited by email, and whether they have joined.
+         */
+        get: operations["my_sent_invites_me_invites_get"];
+        put?: never;
+        /**
+         * Invite By Email
+         * @description Invite people to Felt Kings by email. The invite follows the email
+         *     address: whenever it signs up, you get the referral and become friends.
+         *     Emails that already have an account get a friend request instead.
+         */
+        post: operations["invite_by_email_me_invites_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/limits": {
         parameters: {
             query?: never;
@@ -817,6 +843,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/invites/personal/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Personal Invite Preview
+         * @description Public: who is inviting you, behind a personal link /i/<code>.
+         */
+        get: operations["personal_invite_preview_invites_personal__code__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/games/organize": {
         parameters: {
             query?: never;
@@ -1285,6 +1331,13 @@ export interface components {
             /** Phone */
             phone: string;
         };
+        /** EmailInvitesIn */
+        EmailInvitesIn: {
+            /** Emails */
+            emails: string[];
+            /** Message */
+            message?: string | null;
+        };
         /** FriendRequestIn */
         FriendRequestIn: {
             /** Handle */
@@ -1349,6 +1402,8 @@ export interface components {
             email: string;
             /** Ref */
             ref?: string | null;
+            /** Next */
+            next?: string | null;
         };
         /** MagicLinkVerify */
         MagicLinkVerify: {
@@ -1947,6 +2002,63 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    my_sent_invites_me_invites_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+        };
+    };
+    invite_by_email_me_invites_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailInvitesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -3100,6 +3212,39 @@ export interface operations {
         };
     };
     invite_preview_invites_code__code__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    personal_invite_preview_invites_personal__code__get: {
         parameters: {
             query?: never;
             header?: never;

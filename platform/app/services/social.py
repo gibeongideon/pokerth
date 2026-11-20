@@ -159,9 +159,11 @@ class InviteResult:
     skipped: list[dict[str, str]] = field(default_factory=list)
 
 
-def join_link(table: GameTable) -> str:
+def join_link(table: GameTable, ref: str | None = None) -> str:
+    """Table link; `ref` (the inviter's code) credits a newcomer who signs up from it."""
     base = get_settings().public_base_url
-    return f"{base}/join/{table.invite_code}" if table.invite_code else f"{base}/tables/{table.id}"
+    url = f"{base}/join/{table.invite_code}" if table.invite_code else f"{base}/tables/{table.id}"
+    return f"{url}?ref={ref}" if ref else url
 
 
 async def _can_invite(session: AsyncSession, user: User, table: GameTable) -> None:
@@ -265,11 +267,14 @@ async def invite(
         result.invited.append(raw)
         emails.append((target.email if target else raw, target))
 
+    from app.services import referrals  # local import: referrals uses this module too
+
+    ref = await referrals.code_for(session, inviter)
     await session.commit()
     for address, target in emails:
         try:
             await mailer.send(
-                address, *_invite_email(inviter, table, message, has_account=bool(target))
+                address, *_invite_email(inviter, table, message, has_account=bool(target), ref=ref)
             )
         except MailError as exc:
             # The in-app invite is saved; a mail outage shouldn't fail the request.
@@ -278,7 +283,7 @@ async def invite(
 
 
 def _invite_email(
-    inviter: User, table: GameTable, message: str | None, has_account: bool
+    inviter: User, table: GameTable, message: str | None, has_account: bool, ref: str | None = None
 ) -> tuple[str, str]:
     c = table.config
     what = table.title or f"a {c['name']} game"
@@ -292,7 +297,8 @@ def _invite_email(
     body = (
         f"{_name(inviter)} invited you to {what}.\n\n"
         f"Price: {c['price_label']} · {c['seats']} seats. {when}{note}\n\n"
-        f"{step}\n{join_link(table)}\n\nIgnore this email if you're not interested."
+        f"{step}\n{join_link(table, None if has_account else ref)}\n\n"
+        "Ignore this email if you're not interested."
     )
     return f"{_name(inviter)} invited you to play poker", body
 
@@ -481,6 +487,8 @@ async def preview(session: AsyncSession, table: GameTable) -> dict[str, Any]:
         "title": table.title or c["name"],
         "message": table.message,
         "organizer": organizer.username if organizer else None,
+        # Credits the organizer when a newcomer signs up from a shared link.
+        "organizer_ref": organizer.referral_code if organizer else None,
         "price_label": c["price_label"],
         "seats_total": c["seats"],
         "players": players or 0,

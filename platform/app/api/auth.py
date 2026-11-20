@@ -9,7 +9,7 @@ from functools import lru_cache
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Request, Response
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.api.deps import ACCESS_COOKIE, REFRESH_COOKIE, CurrentUser, MailerDep, SessionDep
 from app.api.schemas import UserOut, user_out
@@ -26,6 +26,15 @@ ClientKind = Literal["web", "app"]
 class MagicLinkRequest(BaseModel):
     email: EmailStr
     ref: str | None = None  # referral code from the sign-up link
+    # Where to land after signing in (same-site path, e.g. /join/ABC123).
+    next: str | None = Field(default=None, max_length=200, pattern=r"^/[A-Za-z0-9/_\-?=&.%]*$")
+
+    @field_validator("next")
+    @classmethod
+    def _same_site(cls, v: str | None) -> str | None:
+        if v is not None and v.startswith("//"):
+            raise ValueError("next must be a path on this site")
+        return v
 
 
 class MagicLinkVerify(BaseModel):
@@ -99,7 +108,7 @@ async def request_magic_link(
     """Always 202, whether or not the email has an account (no enumeration)."""
     ip = request.client.host if request.client else None
     try:
-        await auth_svc.request_magic_link(session, mailer, body.email, ip, body.ref)
+        await auth_svc.request_magic_link(session, mailer, body.email, ip, body.ref, body.next)
     except MailError as exc:
         raise ApiError(503, "email_unavailable", "We couldn't send the email. Try again.") from exc
     return {"status": "sent"}
