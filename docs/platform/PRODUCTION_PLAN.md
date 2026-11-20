@@ -76,7 +76,7 @@ Decisions already made with the user:
 - The balance is always derived from ledger entries and never stored as a free float.
 
 **Sit & Go pools (core scenario)**
-1. Tables are created from table templates: stake tier (e.g. $100), seats (2–10), min players, start mode (`when_full` or `scheduled_at`), payout structure, entry fee, blind structure.
+1. Tables are created from stake levels that admins configure without a deploy (D-016): buy-in (e.g. $100), seats (2–10), min players, start mode (`when_full` or `scheduled_at`), payout structure, entry fee, blind structure.
 2. **Join:** the buy-in moves to escrow and the entry fee to `house:fees` (refunded if the table is cancelled).
 3. **Pull-out window:** free unregister within `unregister_grace_seconds`; after that, locked until start or cancel.
 4. **Full table:** a ready check with `ready_check_timeout`. No-shows are replaced from the waitlist, or forfeit or are refunded, depending on config.
@@ -195,7 +195,7 @@ Decisions already made with the user:
 **Wallet currency: USD, with KES shown for reference.**
 - All balances, buy-ins and prizes are USD cents. Every screen shows the KES equivalent underneath ("$100.00 · ≈ KES 12,950").
 - Card deposits charge USD directly (needs USD enabled on the Paystack Kenya merchant account — confirm with Paystack).
-- M-Pesa deposits and withdrawals are KES. They convert at the rate shown to the user before they confirm. The rate = reference rate (configurable source, refreshed by a worker) ± a configurable spread. The rate used is stored on every conversion.
+- M-Pesa deposits and withdrawals are KES. They convert at the rate shown to the user before they confirm. The rate is a fixed admin setting, **default 129 KES per USD** (D-017), with an optional spread that defaults to 0. The rate used is stored on every conversion.
 - Treasury: the house holds a KES float for M-Pesa payouts; daily report of USD liabilities vs KES/USD holdings.
 
 **House earnings: a small entry fee, shown once, nothing during play.**

@@ -31,7 +31,7 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [ ] Deposit: M-Pesa STK push (Charge API, `mobile_money`, provider `mpesa`) + pending poll
 - [ ] Webhook endpoint: HMAC-SHA512, event store (idempotent), amount + currency check, retry-friendly status codes
 - [ ] Fund-a-friend: pay on behalf of a user; wallet→wallet transfer (caps, flag)
-- [ ] FX: USD/KES reference rate worker, configurable spread, quote-then-confirm for M-Pesa, rate stored per conversion
+- [ ] FX: `fx.usd_kes_rate` setting (default 129), `fx.spread_pct` (default 0), quote-then-confirm for M-Pesa, rate stored per conversion
 - [ ] Fee engine: entry fee per stake tier (flat/%/min/max), optional levers off by default, tax lines (excise, withholding)
 - [ ] KYC tiers with Smile ID: Tier 1 ID-number check, Tier 2 selfie + liveness; tier gates on deposit/play/withdraw
 - [ ] Stale PENDING expiry job; daily reconciliation job; daily FX exposure report
@@ -43,7 +43,7 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [ ] Game server: result/elimination callbacks to the platform (signed, retried)
 - [ ] RNG: refuse to deal if OpenSSL `RAND_bytes` fails when real money is on (`src/engine/local_engine/tools.cpp`)
 - [ ] Hand history persistence (for disputes and RNG certification)
-- [ ] Table templates (stake, seats, min players, start mode, payout structure, rake, blinds)
+- [ ] `stake_tiers` table + admin CRUD (buy-in, fee, seats, min players, start mode, payouts, blinds, enabled); dev seed $1/$5/$20/$100
 - [ ] Sit & Go lifecycle: join→escrow, pull-out window, ready check, start, cancel/refund, settlement
 - [ ] Quick Play matchmaking queue per stake tier
 - [ ] Private tables + invite links/codes

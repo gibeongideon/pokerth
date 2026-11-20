@@ -59,11 +59,15 @@ Tier 0 email/Google (free play) → Tier 1 name, DOB, phone, national ID number 
 ### D-015 · 2026-11-20 · Accepted — Local until MVP, then one VPS via GitHub Actions; Kubernetes later
 Develop and test locally with Docker Compose until the MVP works end to end (sign-in, deposit, Sit & Go, payout). Then deploy to a single VPS: GitHub Actions builds images to GHCR on push to `prod` and deploys over SSH with `docker compose`, with Caddy for HTTPS. `dev` runs CI only. Kubernetes (D-010) moves to after launch. Why: far less to run and pay for while the product is unproven, and a 12-factor setup keeps the later move to Kubernetes a deployment change, not a code change.
 
+### D-016 · 2026-11-20 · Accepted — Stake levels are configuration, not code (resolves O-6)
+Stake levels are rows in a `stake_tiers` table managed from the admin back office: buy-in (USD cents), entry fee (flat or %, min/max), seats, min players, start mode, payout structure, blind structure, enabled flag, display order. Admins can add, change or retire levels without a deploy; a change never affects tables already open. Seed data for local dev only: $1, $5, $20, $100, editable.
+
+### D-017 · 2026-11-20 · Accepted — USD/KES rate: fixed, configurable, default 129 (resolves O-7)
+The KES rate is a config setting `fx.usd_kes_rate`, default **129** KES per USD, changed by an admin (audit-logged), no live feed for now. Used for KES reference amounts and M-Pesa conversions; the rate in force is stored on every conversion. Spread `fx.spread_pct` defaults to 0 (D-013 keeps it off). A live rate source can be added later behind the same setting.
+
 ---
 
 ## Open items (to decide)
-- **O-8 VPS provider and region** (latency to Kenyan players matters; e.g. a Johannesburg or Europe region).
-- **O-6 Default stake tiers** (proposal: $1, $5, $20, $100) and fee per tier.
-- **O-7 FX reference rate source** for USD/KES (e.g. a bank feed or a commercial FX API).
+- **O-8 VPS provider and region** — parked by the owner (2026-11-20); decide before Phase 6. Latency to Kenyan players matters.
 - **O-4 Licence of `platform/`.** The game server is AGPL-3.0 (modified source must be offered to network users). `platform/` only talks to it over HTTP; decide whether to keep `platform/` in this repo or a separate private repo.
 - **O-5 Branding.** New name and original art; confirm licences of any assets reused from `data/gfx`.
