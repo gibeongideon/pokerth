@@ -139,7 +139,7 @@ export function Profile() {
 
       {referral.data && (
         <div className="panel space-y-3 p-5">
-          <div className="title text-xl">Bring your crew 🎁</div>
+          <div className="title text-xl">Bring your crew</div>
           <p className="text-sm text-cream/70">
             {referral.data.enabled
               ? `Earn ${usd(referral.data.bonus_usd_cents)} when a friend you invite plays their first paid game.`

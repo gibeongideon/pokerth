@@ -43,7 +43,7 @@ function InviteCard({ invite }: { invite: Invite }) {
         <div className="flex flex-wrap items-center gap-3 text-sm text-cream/70">
           <span className="font-display text-base text-gold-300">{t.price_label}</span>
           <SeatDots filled={t.players} total={t.seats_total} />
-          {t.scheduled_start_at && <span>🕗 {when(t.scheduled_start_at)}</span>}
+          {t.scheduled_start_at && <span>Starts {when(t.scheduled_start_at)}</span>}
         </div>
         {invite.message && <p className="rounded-lg bg-felt-950/60 px-3 py-2 text-sm italic">“{invite.message}”</p>}
         <div className="flex gap-2 pt-1">

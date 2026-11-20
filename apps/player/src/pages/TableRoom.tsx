@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Avatar, Ring, SeatDots, Spinner, StatusBadge } from "../components/bits";
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import { Icon } from "../components/Icon";
 import { useToast } from "../components/Toast";
 import { ActionBar } from "../game/ActionBar";
 import { TableCanvas, type CanvasSeat, type LiveTable } from "../game/TableCanvas";
@@ -98,7 +99,7 @@ function InvitePanel({ table, onClose }: { table: TableView; onClose: () => void
         <input id="msg" className="input" placeholder="One seat left, come!" value={message} onChange={(e) => setMessage(e.target.value)} />
         <div className="mt-5 flex gap-2">
           <button className="btn-ghost flex-1" onClick={share}>
-            🔗 Share link
+            <Icon name="link" size={18} /> Share link
           </button>
           <button className="btn-gold flex-1" onClick={send}>
             Send invites
@@ -162,16 +163,16 @@ function Rsvp({ tableId }: { tableId: string }) {
     refetchInterval: 8000,
   });
   if (!rsvp.data?.length) return null;
-  const icon: Record<string, string> = { accepted: "✅", declined: "✖️", pending: "⏳", expired: "⌛", revoked: "🚫" };
+  const tone: Record<string, string> = { accepted: "text-chip-green", declined: "text-[#ff9a9d]", pending: "text-gold-300", expired: "text-cream/40", revoked: "text-cream/40" };
   return (
     <div className="panel p-4">
       <div className="label">Who's coming</div>
       <ul className="space-y-1.5 text-sm">
         {rsvp.data.map((r) => (
           <li key={r.invitee} className="flex items-center gap-2">
-            <span>{icon[r.status] ?? "•"}</span>
+            <Avatar name={r.invitee} size={24} />
             <span className="flex-1 truncate">{r.invitee}</span>
-            <span className="text-cream/50">{r.status}</span>
+            <span className={`text-xs font-bold uppercase tracking-wider ${tone[r.status] ?? "text-cream/50"}`}>{r.status}</span>
           </li>
         ))}
       </ul>
@@ -255,26 +256,39 @@ export function TableRoom() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <button className="btn-ghost px-3 py-1.5 text-sm" onClick={() => navigate(-1)}>
-          ←
+      <div className="flex items-center gap-3">
+        <button className="btn-icon shrink-0" onClick={() => navigate(-1)} aria-label="Back">
+          <Icon name="back" size={20} />
         </button>
         <div className="min-w-0 flex-1">
-          <h1 className="title truncate text-3xl">{t.title ?? `${t.name} table`}</h1>
-          <div className="flex flex-wrap items-center gap-2 text-sm text-cream/70">
+          <h1 className="title truncate text-2xl md:text-3xl">{t.title ?? `${t.name} table`}</h1>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-cream/65">
             <StatusBadge status={t.status} />
             <span>{t.price_label}</span>
-            {t.is_private && <span className="badge bg-cream/10 text-cream/70">🔒 Private</span>}
-            {t.scheduled_start_at && <span>Starts {when(t.scheduled_start_at)}</span>}
+            {t.is_private && (
+              <span className="badge bg-cream/10 text-cream/70">
+                <Icon name="lock" size={11} strokeWidth={2.6} /> Private
+              </span>
+            )}
+            {t.scheduled_start_at && (
+              <span className="inline-flex items-center gap-1">
+                <Icon name="clock" size={14} /> {when(t.scheduled_start_at)}
+              </span>
+            )}
           </div>
         </div>
-        <div className="text-right">
-          <div className="text-xs uppercase tracking-widest text-cream/50">Prize pool</div>
-          <div className="title gold-text text-3xl">{usd(t.prize_pool_cents)}</div>
+        <div className="shrink-0 rounded-2xl border border-gold-400/30 bg-black/30 px-3 py-1.5 text-right shadow-glow md:px-4 md:py-2">
+          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-cream/50">Prize pool</div>
+          <div className="title gold-text text-2xl leading-tight md:text-3xl">{usd(t.prize_pool_cents)}</div>
         </div>
       </div>
 
-      {t.message && <div className="panel px-4 py-3 text-cream/80">💬 {t.message}</div>}
+      {t.message && (
+        <div className="panel-flat flex items-start gap-3 px-4 py-3 text-cream/80">
+          <Icon name="mail" size={18} className="mt-0.5 shrink-0 text-gold-300" />
+          <span>{t.message}</span>
+        </div>
+      )}
 
       <div className="panel relative aspect-[4/5] overflow-hidden sm:aspect-[16/10]">
         <ErrorBoundary label="table view">
@@ -360,7 +374,7 @@ export function TableRoom() {
               </div>
               <div className="flex flex-wrap gap-2">
                 <button className="btn-felt" onClick={() => setInviting(true)}>
-                  👥 Invite friends
+                  <Icon name="users" size={18} /> Invite friends
                 </button>
                 {t.me?.can_pull_out && (pullOutLeft ?? 0) > 0 && (
                   <button className="btn-ghost" onClick={() => act(() => call(api.POST("/tables/{table_id}/leave", path)))}>
@@ -374,7 +388,7 @@ export function TableRoom() {
           {t.status === "ready_check" && !t.me && <div className="title text-xl">Ready check in progress…</div>}
           {t.status === "ready_check" && t.me && (
             <div>
-              <div className="title text-xl">{t.me.ready ? "You're ready ✔" : "Confirm you're in"}</div>
+              <div className="title text-xl">{t.me.ready ? "You're ready" : "Confirm you're in"}</div>
               <p className="mt-1 text-sm text-cream/60">
                 The game starts when everyone is ready. Anyone who doesn't confirm in time loses their seat and gets
                 refunded.
@@ -390,7 +404,9 @@ export function TableRoom() {
                 </div>
               ) : live.error ? (
                 <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex-1 text-cream/80">⚠️ {live.error}</div>
+                  <div className="flex flex-1 items-center gap-2 text-cream/80">
+                    <Icon name="info" size={18} className="shrink-0 text-gold-300" /> {live.error}
+                  </div>
                   <button className="btn-gold" onClick={live.retry}>
                     Reconnect
                   </button>
@@ -401,7 +417,7 @@ export function TableRoom() {
                 </div>
               ) : live.state.rejoining ? (
                 <div>
-                  <div className="title text-xl">Welcome back 👋</div>
+                  <div className="title text-xl">Welcome back</div>
                   <p className="mt-1 text-sm text-cream/60">Your seat and chips are safe. You're dealt in at the next hand.</p>
                 </div>
               ) : live.state.phase === "waiting" ? (
@@ -414,7 +430,7 @@ export function TableRoom() {
               ) : live.state.phase === "ended" ? (
                 <div>
                   <div className="title text-2xl">
-                    {live.state.winnerId === live.state.myId ? "🏆 You won the game!" : "Game over"}
+                    {live.state.winnerId === live.state.myId ? "You won the game!" : "Game over"}
                   </div>
                   <p className="mt-1 text-sm text-cream/60">Settling prizes… your wallet updates in a moment.</p>
                 </div>
@@ -441,8 +457,11 @@ export function TableRoom() {
                     key={s.username}
                     className={`flex items-center gap-3 rounded-xl px-3 py-2 ${s.prize_cents ? "bg-gold-400/10" : "bg-cream/5"}`}
                   >
-                    <span className="w-8 text-center font-display text-xl">
-                      {s.finish_position === 1 ? "🥇" : s.finish_position === 2 ? "🥈" : s.finish_position === 3 ? "🥉" : `#${s.finish_position}`}
+                    <span
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-display text-sm text-felt-950"
+                      style={{ background: ["#f5c451", "#d6dbe0", "#d08a4e"][s.finish_position! - 1] ?? "rgba(246,241,227,.15)", boxShadow: "inset 0 -2px 0 rgba(0,0,0,.25)" }}
+                    >
+                      {s.finish_position}
                     </span>
                     <Avatar name={s.username} size={30} />
                     <span className="flex-1 font-semibold">{s.username}</span>

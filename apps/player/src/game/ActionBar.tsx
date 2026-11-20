@@ -6,6 +6,7 @@
  */
 import { legalActions, me, pot, type PlayerMove, type TableState } from "@poker/protocol";
 import { useEffect, useState } from "react";
+import { Icon } from "../components/Icon";
 
 const chips = (n: number) => n.toLocaleString("en-US");
 
@@ -44,7 +45,7 @@ export function ActionBar({ state, act }: { state: TableState; act: (m: PlayerMo
         ) : mine.folded ? (
           <span>You folded · watching the hand</span>
         ) : mine.allIn ? (
-          <span className="font-display text-lg text-gold-300">You're all-in 🤞</span>
+          <span className="font-display text-lg text-gold-300">You're all-in — good luck</span>
         ) : turnName ? (
           <span>
             Waiting for <b className="text-cream">{turnName}</b>…
@@ -69,9 +70,17 @@ export function ActionBar({ state, act }: { state: TableState; act: (m: PlayerMo
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between text-sm">
-        <span className="font-display text-lg text-gold-300 animate-pulse">Your turn</span>
-        <span className={`font-display text-lg ${left <= 5 ? "text-red-400" : "text-cream/70"}`}>{left}s</span>
+      <div className="flex items-center gap-3">
+        <span className="flex items-center gap-2 font-display text-lg text-gold-300">
+          <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-gold-400 shadow-[0_0_10px_#f5c451]" /> Your turn
+        </span>
+        <div className="h-2 flex-1 overflow-hidden rounded-full bg-cream/10">
+          <div
+            className={`h-full rounded-full transition-[width] duration-300 ease-linear ${left <= 5 ? "bg-chip-red" : "bg-gradient-to-r from-gold-600 to-gold-300"}`}
+            style={{ width: `${(left / Math.max(1, state.actionTimeoutSec)) * 100}%` }}
+          />
+        </div>
+        <span className={`w-9 text-right font-display text-lg ${left <= 5 ? "text-[#ff8a8e]" : "text-cream/70"}`}>{left}s</span>
       </div>
       {sizing && r && (
         <div className="panel animate-pop space-y-3 p-3">
@@ -109,11 +118,11 @@ export function ActionBar({ state, act }: { state: TableState; act: (m: PlayerMo
       )}
       <div className="grid grid-cols-3 gap-2">
         <button className="btn-red py-4 text-lg" onClick={() => act({ kind: "fold" })}>
-          Fold
+          <Icon name="close" size={18} strokeWidth={2.6} /> Fold
         </button>
         {legal.check ? (
           <button className="btn-felt py-4 text-lg" onClick={() => act({ kind: "check" })}>
-            Check
+            <Icon name="check" size={18} strokeWidth={2.6} /> Check
           </button>
         ) : (
           <button className="btn-felt py-4 text-lg" onClick={() => act({ kind: "call" })}>

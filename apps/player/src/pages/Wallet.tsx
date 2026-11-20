@@ -1,7 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Chip, Empty, Spinner } from "../components/bits";
+import { Empty, Spinner } from "../components/bits";
+import { LogoMark } from "../components/Brand";
+import { Icon, type IconName } from "../components/Icon";
 import { useToast } from "../components/Toast";
 import { api, call, errorMessage } from "../lib/api";
 import { kes, kesFromSubunits, usd, when } from "../lib/format";
@@ -10,15 +12,15 @@ import { play } from "../lib/sound";
 import type { Deposit, HistoryItem, Withdrawal } from "../lib/types";
 
 const PRESETS = [500, 1_000, 2_000, 5_000, 10_000];
-const KIND: Record<string, { icon: string; label: string }> = {
-  deposit: { icon: "⬇️", label: "Deposit" },
-  buy_in: { icon: "🎟️", label: "Table entry" },
-  prize: { icon: "🏆", label: "Prize" },
-  refund: { icon: "↩️", label: "Refund" },
-  withdrawal: { icon: "⬆️", label: "Withdrawal" },
-  p2p_transfer: { icon: "🤝", label: "Transfer" },
-  bonus: { icon: "🎁", label: "Bonus" },
-  adjustment: { icon: "✨", label: "Adjustment" },
+const KIND: Record<string, { icon: IconName; label: string; tint: string }> = {
+  deposit: { icon: "arrowDown", label: "Deposit", tint: "#35b26b" },
+  buy_in: { icon: "seat", label: "Table entry", tint: "#3d7be0" },
+  prize: { icon: "trophy", label: "Prize", tint: "#f5c451" },
+  refund: { icon: "history", label: "Refund", tint: "#1fb5b5" },
+  withdrawal: { icon: "arrowUp", label: "Withdrawal", tint: "#e06fb0" },
+  p2p_transfer: { icon: "users", label: "Transfer", tint: "#8f5ce0" },
+  bonus: { icon: "gift", label: "Bonus", tint: "#f5c451" },
+  adjustment: { icon: "spark", label: "Adjustment", tint: "#9aa" },
 };
 
 function usePollDeposit(reference: string | null, onDone: (d: Deposit) => void) {
@@ -104,8 +106,10 @@ function DepositForm() {
     return (
       <div className="flex flex-col items-center gap-4 py-8 text-center">
         <div className="relative">
-          <span className="absolute inset-0 animate-ping rounded-full bg-chip-green/30" />
-          <span className="relative block text-6xl">📱</span>
+          <span className="absolute inset-0 animate-ping rounded-3xl bg-chip-green/25" />
+          <span className="relative flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-b from-[#1c9a6d] to-felt-600 text-cream shadow-panel">
+            <Icon name="phone" size={40} />
+          </span>
         </div>
         <div className="title text-2xl">Check your phone</div>
         <p className="max-w-xs text-cream/70">Enter your M-Pesa PIN on the prompt we just sent to {phone}.</p>
@@ -116,15 +120,10 @@ function DepositForm() {
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-2 rounded-2xl bg-felt-950/60 p-1.5">
+      <div className="segmented" role="tablist">
         {(["mpesa", "card"] as const).map((c) => (
-          <button
-            key={c}
-            className={`rounded-xl py-2.5 font-display text-lg tracking-wide transition ${
-              channel === c ? "bg-gold-400 text-felt-950 shadow" : "text-cream/70"
-            }`}
-            onClick={() => setChannel(c)}
-          >
+          <button key={c} role="tab" aria-selected={channel === c} className="text-lg" onClick={() => setChannel(c)}>
+            <Icon name={c === "mpesa" ? "phone" : "card"} size={18} />
             {c === "mpesa" ? "M-Pesa" : "Card"}
           </button>
         ))}
@@ -136,8 +135,8 @@ function DepositForm() {
             <button
               key={p}
               onClick={() => setCents(p)}
-              className={`rounded-full border-2 px-4 py-1.5 font-display text-lg transition ${
-                cents === p ? "border-gold-400 bg-gold-400/15 text-gold-300" : "border-cream/15 text-cream/80"
+              className={`rounded-xl border px-4 py-2 font-display text-lg transition ${
+                cents === p ? "border-gold-400 bg-gold-400/15 text-gold-300 shadow-glow" : "border-cream/10 bg-black/20 text-cream/80 hover:border-cream/30"
               }`}
             >
               {usd(p).replace(".00", "")}
@@ -305,10 +304,12 @@ function History() {
   return (
     <ul className="divide-y divide-cream/5">
       {history.data.map((h) => {
-        const k = KIND[h.kind] ?? { icon: "•", label: h.kind };
+        const k = KIND[h.kind] ?? { icon: "info" as IconName, label: h.kind, tint: "#9aa" };
         return (
           <li key={`${h.transaction_id}-${h.amount_usd_cents}`} className="flex items-center gap-3 py-3">
-            <span className="text-xl">{k.icon}</span>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: `${k.tint}22`, color: k.tint }}>
+              <Icon name={k.icon} size={18} />
+            </span>
             <div className="min-w-0 flex-1">
               <div className="font-semibold">{k.label}</div>
               <div className="truncate text-xs text-cream/50">
@@ -332,27 +333,36 @@ export function WalletPage() {
   const [tab, setTab] = useState<"deposit" | "withdraw" | "history">("deposit");
   return (
     <div className="mx-auto max-w-xl space-y-5">
-      <div className="panel relative overflow-hidden p-6 text-center">
-        <div className="absolute -left-6 -top-6 opacity-30">
-          <Chip color="#e2a72e" size={110} />
+      {/* Balance card */}
+      <div className="relative overflow-hidden rounded-3xl border border-gold-400/30 bg-[linear-gradient(135deg,#17805a_0%,#0c3a2a_55%,#05170f_100%)] p-6 shadow-panel">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-gold-400/20 blur-3xl" />
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <span className="absolute -inset-y-6 left-0 w-1/3 animate-shine bg-gradient-to-r from-transparent via-white/10 to-transparent" />
         </div>
-        <div className="text-xs uppercase tracking-[0.3em] text-cream/55">Balance</div>
-        <div className="title gold-text mt-1 text-6xl">{wallet.data ? usd(wallet.data.available_usd_cents) : "—"}</div>
-        {wallet.data && <div className="mt-1 text-cream/60">≈ {kes(wallet.data.kes_reference)}</div>}
-        {wallet.data && !wallet.data.real_money_enabled && (
-          <div className="badge mt-3 bg-gold-400/15 text-gold-300">Real-money play opens soon</div>
-        )}
+        <div className="relative flex items-start justify-between">
+          <div>
+            <div className="eyebrow">Wallet balance</div>
+            <div className="title gold-text mt-1 text-5xl md:text-6xl">{wallet.data ? usd(wallet.data.available_usd_cents) : "—"}</div>
+            {wallet.data && <div className="mt-1 text-cream/65">≈ {kes(wallet.data.kes_reference)}</div>}
+          </div>
+          <LogoMark size={48} />
+        </div>
+        <div className="relative mt-6 flex items-center justify-between text-xs text-cream/55">
+          <span className="inline-flex items-center gap-1.5">
+            <Icon name="shield" size={14} /> Held in your name · paid out to M-Pesa
+          </span>
+          {wallet.data && !wallet.data.real_money_enabled && <span className="badge bg-black/30 text-gold-300">Real money soon</span>}
+        </div>
       </div>
-      <div className="grid grid-cols-3 gap-2">
-        {(["deposit", "withdraw", "history"] as const).map((t) => (
-          <button
-            key={t}
-            className={`rounded-xl py-2.5 font-display text-lg capitalize tracking-wide transition ${
-              tab === t ? "bg-felt-600 text-cream shadow-glow" : "bg-felt-900/70 text-cream/60"
-            }`}
-            onClick={() => setTab(t)}
-          >
-            {t}
+      <div className="segmented" role="tablist">
+        {([
+          ["deposit", "Deposit", "arrowDown"],
+          ["withdraw", "Withdraw", "arrowUp"],
+          ["history", "History", "history"],
+        ] as const).map(([t, label, icon]) => (
+          <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}>
+            <Icon name={icon} size={17} />
+            <span className="text-[15px]">{label}</span>
           </button>
         ))}
       </div>
@@ -385,7 +395,9 @@ export function DepositReturn() {
         </>
       ) : result.status === "success" ? (
         <div className="animate-pop">
-          <div className="text-6xl">🎉</div>
+          <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gold-400/15 text-gold-300">
+            <Icon name="trophy" size={40} />
+          </span>
           <div className="title gold-text mt-3 text-4xl">+{usd(result.credit_usd_cents)}</div>
           <p className="mt-2 text-cream/70">Added to your wallet.</p>
         </div>

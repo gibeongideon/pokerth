@@ -87,46 +87,72 @@ const chips = (n: number) => n.toLocaleString("en-US");
 /** A playing card. `index` = PokerTH card 0..51; undefined = random face (demo). */
 function cardSprite(w: number, faceUp: boolean, index?: number): Container {
   const h = w * 1.4;
+  const rad = w * 0.11;
   const c = new Container();
-  const g = new Graphics()
-    .roundRect(-w / 2, -h / 2, w, h, w * 0.12)
-    .fill(faceUp ? 0xffffff : C.red)
-    .stroke({ width: 1.5, color: faceUp ? 0xd7d0bd : 0x7d1d21 });
-  c.addChild(g);
-  if (faceUp) {
-    let rank: string;
-    let suit: string;
-    let red: boolean;
-    if (index === undefined) {
-      suit = SUITS[Math.floor(Math.random() * 4)];
-      rank = RANKS[Math.floor(Math.random() * 13)];
-      red = suit === "♥" || suit === "♦";
-    } else {
-      const k = decodeCard(index);
-      rank = k.rank;
-      suit = SUIT_GLYPH[k.suit];
-      red = k.red;
+  // Soft drop shadow under every card.
+  c.addChild(new Graphics().roundRect(-w / 2 + 1.5, -h / 2 + 3, w, h, rad).fill({ color: 0x000000, alpha: 0.35 }));
+  if (!faceUp) {
+    const g = new Graphics().roundRect(-w / 2, -h / 2, w, h, rad).fill(0xffffff);
+    const m = Math.max(2.5, w * 0.07);
+    g.roundRect(-w / 2 + m, -h / 2 + m, w - 2 * m, h - 2 * m, rad * 0.7).fill(0xb3262c);
+    // Diamond pattern, kept inside the border.
+    const step = Math.max(6, w / 5);
+    const iw = w / 2 - m - step / 2;
+    const ih = h / 2 - m - step / 2;
+    for (let y = -ih; y <= ih + 0.1; y += step / 2) {
+      const odd = Math.round((y + ih) / (step / 2)) % 2 === 1;
+      for (let x = -iw + (odd ? step / 2 : 0); x <= iw + 0.1; x += step) {
+        g.poly([x, y - step / 2.4, x + step / 2.4, y, x, y + step / 2.4, x - step / 2.4, y]).fill({ color: 0xe0464b, alpha: 0.55 });
+      }
     }
-    const t = new Text({
-      text: `${rank}\n${suit}`,
-      style: { ...DISPLAY, fontSize: w * 0.42, fill: red ? 0xd62f36 : 0x161616, align: "center", lineHeight: w * 0.45 },
-    });
-    t.anchor.set(0.5);
-    c.addChild(t);
-  } else {
-    const inner = new Graphics()
-      .roundRect(-w / 2 + 4, -h / 2 + 4, w - 8, h - 8, w * 0.08)
-      .stroke({ width: 1.5, color: 0xffffff, alpha: 0.55 });
-    c.addChild(inner);
+    g.roundRect(-w / 2 + m, -h / 2 + m, w - 2 * m, h - 2 * m, rad * 0.7).stroke({ width: 1.5, color: C.gold });
+    g.circle(0, 0, w * 0.17).fill(0x7d1d21).stroke({ width: 1.5, color: C.gold });
+    c.addChild(g);
+    return c;
   }
+  let rank: string;
+  let suit: string;
+  let red: boolean;
+  if (index === undefined) {
+    suit = SUITS[Math.floor(Math.random() * 4)];
+    rank = RANKS[Math.floor(Math.random() * 13)];
+    red = suit === "♥" || suit === "♦";
+  } else {
+    const k = decodeCard(index);
+    rank = k.rank;
+    suit = SUIT_GLYPH[k.suit];
+    red = k.red;
+  }
+  const ink = red ? 0xd62f36 : 0x15171c;
+  c.addChild(
+    new Graphics()
+      .roundRect(-w / 2, -h / 2, w, h, rad)
+      .fill(0xfbf8f0)
+      .stroke({ width: 1, color: 0xcfc6ae }),
+  );
+  const r = new Text({ text: rank, style: { ...DISPLAY, fontSize: w * 0.36, fill: ink } });
+  r.position.set(-w / 2 + w * 0.09, -h / 2 + w * 0.04);
+  const sm = new Text({ text: suit, style: { fontFamily: "system-ui", fontSize: w * 0.26, fill: ink } });
+  sm.position.set(-w / 2 + w * 0.1, -h / 2 + w * 0.4);
+  const big = new Text({ text: suit, style: { fontFamily: "system-ui", fontSize: w * 0.62, fill: ink } });
+  big.anchor.set(0.5);
+  big.position.set(w * 0.1, h * 0.12);
+  c.addChild(r, sm, big);
   return c;
 }
 
 function chipStack(n: number, colors: number[]): Graphics {
   const g = new Graphics();
+  g.ellipse(0, 3, 13, 5.5).fill({ color: 0x000000, alpha: 0.35 });
   for (let i = 0; i < n; i++) {
     const col = colors[i % colors.length];
-    g.ellipse(0, -i * 3, 11, 5).fill(col).stroke({ width: 1, color: 0x000000, alpha: 0.35 });
+    const y = -i * 3.2;
+    g.rect(-11, y - 1, 22, 3).fill(col);
+    g.ellipse(0, y + 2, 11, 4.6).fill(col);
+    // White edge stripes.
+    for (const x of [-7, 0, 7]) g.rect(x - 1.2, y - 0.5, 2.4, 2.8).fill({ color: 0xffffff, alpha: 0.85 });
+    g.ellipse(0, y - 1, 11, 4.6).fill(col).stroke({ width: 1, color: 0x000000, alpha: 0.3 });
+    g.ellipse(0, y - 1, 6.5, 2.6).stroke({ width: 1, color: 0xffffff, alpha: 0.55 });
   }
   return g;
 }
@@ -207,23 +233,34 @@ export function TableCanvas(props: TableCanvasProps) {
         tableLayer.removeChildren().forEach((c) => c.destroy());
         const { cx, cy, rx, ry, unit } = geometry();
         const g = new Graphics();
-        g.ellipse(cx, cy + 10, rx + 30, ry + 30).fill({ color: 0x000000, alpha: 0.45 }); // shadow
-        g.ellipse(cx, cy, rx + 26, ry + 26).fill(C.rail);
-        g.ellipse(cx, cy - 3, rx + 22, ry + 22).stroke({ width: 4, color: C.railHi, alpha: 0.8 });
-        g.ellipse(cx, cy, rx + 6, ry + 6).fill(C.goldDark);
-        g.ellipse(cx, cy, rx + 3, ry + 3).fill(C.gold);
-        g.ellipse(cx, cy, rx, ry).fill(C.feltDark);
-        g.ellipse(cx, cy, rx * 0.97, ry * 0.95).fill(C.felt);
-        g.ellipse(cx, cy - ry * 0.08, rx * 0.72, ry * 0.62).fill({ color: C.feltHi, alpha: 0.35 });
-        for (let i = 0; i < 64; i++) {
-          const a = (i / 64) * Math.PI * 2;
-          g.circle(cx + Math.cos(a) * rx * 0.8, cy + Math.sin(a) * ry * 0.76, 1.6).fill({ color: C.gold, alpha: 0.35 });
+        // Spotlight pool on the floor.
+        for (let k = 6; k >= 1; k--) g.ellipse(cx, cy, (rx + 60) * (0.8 + k * 0.12), (ry + 60) * (0.8 + k * 0.12)).fill({ color: 0x1c9a6d, alpha: 0.018 });
+        g.ellipse(cx, cy + 16, rx + 34, ry + 32).fill({ color: 0x000000, alpha: 0.55 }); // shadow
+        // Padded leather rail with a lit top edge.
+        g.ellipse(cx, cy, rx + 28, ry + 28).fill(0x24140b);
+        g.ellipse(cx, cy - 2, rx + 25, ry + 25).fill(C.rail);
+        g.ellipse(cx, cy - 4, rx + 21, ry + 20).stroke({ width: 3, color: C.railHi, alpha: 0.9 });
+        g.ellipse(cx, cy - 6, rx + 16, ry + 14).stroke({ width: 1.5, color: 0x7a4b29, alpha: 0.6 });
+        // Gold trim.
+        g.ellipse(cx, cy, rx + 7, ry + 7).fill(C.goldDark);
+        g.ellipse(cx, cy, rx + 4, ry + 4).fill(C.gold);
+        g.ellipse(cx, cy, rx + 2, ry + 2).fill(0x8a5f14);
+        // Felt: darker at the edge, lit in the middle.
+        g.ellipse(cx, cy, rx, ry).fill(0x0a3a2b);
+        const rings = 10;
+        for (let k = 0; k < rings; k++) {
+          const t = k / rings;
+          g.ellipse(cx, cy - ry * 0.06 * t, rx * (0.98 - t * 0.55), ry * (0.96 - t * 0.55)).fill({ color: k < 2 ? C.felt : C.feltHi, alpha: k < 2 ? 1 : 0.09 });
         }
+        // Inner shadow under the rail.
+        g.ellipse(cx, cy, rx - 2, ry - 2).stroke({ width: 8, color: 0x000000, alpha: 0.22 });
+        // Betting line.
+        g.ellipse(cx, cy, rx * 0.8, ry * 0.76).stroke({ width: 1.5, color: C.gold, alpha: 0.28 });
         tableLayer.addChild(g);
-        const logo = new Text({ text: "FELT KINGS", style: { ...DISPLAY, fontSize: unit * 0.75, fill: C.cream, letterSpacing: 4 } });
-        logo.alpha = 0.12;
+        const logo = new Text({ text: "FELT KINGS", style: { ...DISPLAY, fontSize: unit * 0.7, fill: C.cream, letterSpacing: 6 } });
+        logo.alpha = 0.1;
         logo.anchor.set(0.5);
-        logo.position.set(cx, cy + ry * 0.38);
+        logo.position.set(cx, cy + ry * 0.42);
         tableLayer.addChild(logo);
       };
 
@@ -237,9 +274,12 @@ export function TableCanvas(props: TableCanvasProps) {
           g.circle(0, 0, r + 9).fill({ color: C.gold, alpha: 0.18 });
           g.circle(0, 0, r + 5).stroke({ width: 3, color: C.gold });
         }
-        g.circle(0, 3, r).fill({ color: 0x000000, alpha: 0.35 });
-        g.circle(0, 0, r).fill(color).stroke({ width: 3, color: me ? C.gold : 0x000000, alpha: me ? 1 : 0.4 });
-        g.circle(-r * 0.3, -r * 0.35, r * 0.35).fill({ color: 0xffffff, alpha: 0.18 });
+        g.circle(0, 4, r + 3).fill({ color: 0x000000, alpha: 0.45 });
+        g.circle(0, 0, r + 3).fill(me ? C.gold : 0x1a1f1c);
+        g.circle(0, 0, r + 1).fill(me ? C.goldDark : 0x2c332f);
+        g.circle(0, 0, r - 1).fill(color);
+        g.circle(0, r * 0.25, r - 1).fill({ color: 0x000000, alpha: 0.12 });
+        g.ellipse(-r * 0.15, -r * 0.45, r * 0.55, r * 0.3).fill({ color: 0xffffff, alpha: 0.2 });
         const ini = new Text({ text: name.slice(0, 2).toUpperCase(), style: { ...DISPLAY, fontSize: r * 0.8 } });
         ini.anchor.set(0.5);
         const fs = Math.max(11, unit * 0.22);
@@ -255,9 +295,9 @@ export function TableCanvas(props: TableCanvasProps) {
         const pw = Math.max(label.width, subText?.width ?? 0) + 16;
         const ph = label.height + (subText ? subText.height : 0) + 6;
         const plate = new Graphics()
-          .roundRect(-pw / 2, r + 4, pw, ph, 8)
-          .fill({ color: C.ink, alpha: 0.85 })
-          .stroke({ width: 1, color: C.gold, alpha: 0.35 });
+          .roundRect(-pw / 2, r + 4, pw, ph, Math.min(12, ph / 2))
+          .fill({ color: 0x020806, alpha: 0.88 })
+          .stroke({ width: 1, color: me ? C.gold : 0xffffff, alpha: me ? 0.6 : 0.12 });
         label.position.set(0, r + 7 + label.height / 2);
         seat.addChild(g, ini, plate, label);
         if (subText) {
@@ -386,7 +426,7 @@ export function TableCanvas(props: TableCanvasProps) {
           // Dealer button.
           if (s.dealer) {
             const d = new Container();
-            d.addChild(new Graphics().circle(0, 0, 10).fill(0xffffff).stroke({ width: 2, color: 0x333333 }));
+            d.addChild(new Graphics().circle(0, 2, 11).fill({ color: 0x000000, alpha: 0.4 }).circle(0, 0, 11).fill(0xfbf8f0).stroke({ width: 2, color: C.goldDark }));
             const t = new Text({ text: "D", style: { ...DISPLAY, fontSize: 12, fill: 0x161616 } });
             t.anchor.set(0.5);
             d.addChild(t);
@@ -400,7 +440,7 @@ export function TableCanvas(props: TableCanvasProps) {
             const w = big ? cw * 1.1 : cw * 0.72;
             // Mine: big, beside my avatar (clear of the action badge); others: toward the middle.
             const base = big
-              ? { x: pos.x + r + w * 0.95, y: pos.y - r * 0.15 }
+              ? { x: pos.x + r + w * 1.2, y: pos.y - r * 0.1 }
               : { x: pos.x + toward.x * 0.3, y: pos.y + toward.y * 0.3 };
             [0, 1].forEach((k) => {
               const known = s.cards?.[k];
@@ -437,10 +477,14 @@ export function TableCanvas(props: TableCanvasProps) {
           const pot = new Container();
           pot.position.set(cx, cy + ry * 0.2);
           const st = chipStack(Math.min(8, 2 + Math.floor(Math.log10(live.pot + 1) * 1.5)), [0xe2a72e, 0xffe08a]);
-          const t = new Text({ text: `Pot ${chips(live.pot)}`, style: { ...DISPLAY, fontSize: Math.max(16, unit * 0.38), fill: C.gold } });
-          t.anchor.set(0.5, 0);
-          t.position.set(0, 10);
-          pot.addChild(st, t);
+          const t = new Text({ text: `POT ${chips(live.pot)}`, style: { ...DISPLAY, fontSize: Math.max(15, unit * 0.34), fill: C.gold, letterSpacing: 1 } });
+          t.anchor.set(0.5, 0.5);
+          t.position.set(0, 22);
+          const pill = new Graphics()
+            .roundRect(-t.width / 2 - 12, 22 - t.height / 2 - 4, t.width + 24, t.height + 8, (t.height + 8) / 2)
+            .fill({ color: 0x000000, alpha: 0.45 })
+            .stroke({ width: 1, color: C.gold, alpha: 0.35 });
+          pot.addChild(st, pill, t);
           seatLayer.addChild(pot);
         }
       };
@@ -520,7 +564,10 @@ export function TableCanvas(props: TableCanvasProps) {
           dealt = null;
         }
         redrawRef.current();
-        tweens.forEach((tw) => (tw.t = 1));
+        tweens.forEach((tw) => {
+          tw.t = 1;
+          tw.delay = 0;
+        });
       });
 
       app.ticker.add((ticker) => {

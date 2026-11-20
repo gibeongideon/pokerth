@@ -3,14 +3,16 @@ import { Link, NavLink, useLocation } from "react-router-dom";
 import { usd } from "../lib/format";
 import { useInvites, useMe, useWallet } from "../lib/hooks";
 import { isMuted, play, setMuted } from "../lib/sound";
-import { Chip } from "./bits";
+import { Avatar } from "./bits";
+import { Logo, LogoMark } from "./Brand";
+import { Icon, type IconName } from "./Icon";
 
-const NAV = [
-  { to: "/", label: "Lobby", icon: "♠" },
-  { to: "/tables", label: "My tables", icon: "♣" },
-  { to: "/wallet", label: "Wallet", icon: "◆" },
-  { to: "/friends", label: "Friends", icon: "♥" },
-  { to: "/profile", label: "Profile", icon: "★" },
+const NAV: { to: string; label: string; icon: IconName }[] = [
+  { to: "/", label: "Lobby", icon: "lobby" },
+  { to: "/tables", label: "My tables", icon: "tables" },
+  { to: "/wallet", label: "Wallet", icon: "wallet" },
+  { to: "/friends", label: "Friends", icon: "friends" },
+  { to: "/profile", label: "Profile", icon: "profile" },
 ];
 
 function RealityCheck({ minutes }: { minutes: number }) {
@@ -49,75 +51,98 @@ export function Shell({ children }: { children: ReactNode }) {
   const [muted, setMutedState] = useState(isMuted);
   const location = useLocation();
   const pending = invites.data?.length ?? 0;
+  const name = me.data?.username ?? "player";
+  const toggleSound = () => {
+    setMuted(!muted);
+    setMutedState(!muted);
+  };
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-6xl flex-col md:flex-row">
+    <div className="mx-auto flex min-h-screen max-w-7xl flex-col md:flex-row">
       {/* Side rail on larger screens */}
-      <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col gap-1 p-4 md:flex">
-        <Link to="/" className="mb-6 flex items-center gap-2">
-          <Chip color="#e0464b" size={38} />
-          <span className="title gold-text text-2xl">Felt Kings</span>
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col p-4 md:flex">
+        <Link to="/" className="mb-8 mt-2 px-2">
+          <Logo size={42} />
         </Link>
-        {NAV.map((n) => (
-          <NavLink
-            key={n.to}
-            to={n.to}
-            end={n.to === "/"}
-            onClick={() => play("click")}
-            className={({ isActive }) =>
-              `flex items-center gap-3 rounded-xl px-3 py-2.5 font-display text-lg tracking-wide transition ${
-                isActive ? "bg-gold-400/15 text-gold-300 shadow-glow" : "text-cream/70 hover:bg-cream/5 hover:text-cream"
-              }`
-            }
-          >
-            <span className="w-5 text-center">{n.icon}</span>
-            {n.label}
-            {n.to === "/friends" && pending > 0 && (
-              <span className="ml-auto rounded-full bg-chip-red px-2 text-xs text-white">{pending}</span>
-            )}
-          </NavLink>
-        ))}
+        <nav className="flex flex-col gap-1">
+          {NAV.map((n) => (
+            <NavLink
+              key={n.to}
+              to={n.to}
+              end={n.to === "/"}
+              onClick={() => play("click")}
+              className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
+            >
+              <Icon name={n.icon} size={20} />
+              {n.label}
+              {n.to === "/friends" && pending > 0 && (
+                <span className="ml-auto rounded-full bg-chip-red px-2 py-0.5 font-sans text-xs font-bold text-white">{pending}</span>
+              )}
+            </NavLink>
+          ))}
+        </nav>
+        <div className="mt-auto space-y-3">
+          <Link to="/organize" className="panel block overflow-hidden p-4 transition hover:-translate-y-0.5">
+            <div className="eyebrow">Play with friends</div>
+            <div className="title mt-1 text-lg leading-snug">Organize a private game</div>
+            <div className="mt-2 inline-flex items-center gap-1 text-sm text-gold-300">
+              Start <Icon name="chevron" size={16} />
+            </div>
+          </Link>
+          <div className="panel-flat flex items-center gap-3 p-2.5">
+            <Avatar name={name} size={38} />
+            <div className="min-w-0 flex-1">
+              <div className="truncate font-semibold">{name}</div>
+              <div className="text-xs text-cream/45">{me.data?.kyc_tier ? "Verified" : "Basic account"}</div>
+            </div>
+            <button className="btn-icon h-9 w-9" onClick={toggleSound} aria-label={muted ? "Turn sound on" : "Turn sound off"}>
+              <Icon name={muted ? "soundOff" : "soundOn"} size={18} />
+            </button>
+          </div>
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header
-          className="sticky top-0 z-30 flex items-center gap-3 border-b border-gold-400/10 bg-felt-950/85 px-4 py-3 backdrop-blur md:border-none md:bg-transparent"
-          style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
+          className="sticky top-0 z-30 flex items-center gap-2 border-b border-cream/[0.06] bg-[#030c08]/80 px-4 py-2.5 backdrop-blur-xl md:border-none md:bg-transparent md:px-6 md:pt-5 md:backdrop-blur-none"
+          style={{ paddingTop: "max(0.625rem, env(safe-area-inset-top))" }}
         >
-          <Link to="/" className="flex items-center gap-2 md:hidden">
-            <Chip color="#e0464b" size={30} />
-            <span className="title gold-text text-xl">Felt Kings</span>
-          </Link>
-          <div className="flex-1" />
-          <button
-            className="rounded-full p-2 text-cream/60 hover:text-cream"
-            onClick={() => {
-              setMuted(!muted);
-              setMutedState(!muted);
-            }}
-            aria-label={muted ? "Turn sound on" : "Turn sound off"}
-          >
-            {muted ? "🔇" : "🔊"}
-          </button>
-          <Link
-            to="/wallet"
-            className="flex items-center gap-2 rounded-full border border-gold-400/30 bg-felt-900/90 py-1 pl-1 pr-4 shadow-glow"
-          >
-            <Chip color="#e2a72e" size={28} />
-            <span className="font-display text-lg text-gold-300">
-              {wallet.data ? usd(wallet.data.available_usd_cents) : "—"}
+          <Link to="/" className="md:hidden" aria-label="Felt Kings home">
+            <span className="flex items-center gap-2">
+              <LogoMark size={32} />
+              <span className="title gold-text text-xl">Felt Kings</span>
             </span>
           </Link>
+          <div className="flex-1" />
+          <button className="btn-icon h-9 w-9 md:hidden" onClick={toggleSound} aria-label={muted ? "Turn sound on" : "Turn sound off"}>
+            <Icon name={muted ? "soundOff" : "soundOn"} size={18} />
+          </button>
+          <div className="flex items-center rounded-full border border-gold-400/30 bg-black/40 p-1 shadow-glow">
+            <Link to="/wallet" className="flex items-center gap-2 pl-1 pr-3" aria-label="Wallet balance">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-b from-gold-300 to-gold-600 text-felt-950">
+                <Icon name="wallet" size={15} strokeWidth={2.4} />
+              </span>
+              <span className="font-display text-lg text-gold-300">{wallet.data ? usd(wallet.data.available_usd_cents) : "—"}</span>
+            </Link>
+            <Link
+              to="/wallet"
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-b from-[#1c9a6d] to-felt-600 text-cream shadow-[inset_0_1px_0_rgba(255,255,255,.25)]"
+              aria-label="Add money"
+              onClick={() => play("click")}
+            >
+              <Icon name="plus" size={16} strokeWidth={2.6} />
+            </Link>
+          </div>
         </header>
 
-        <main key={location.pathname} className="flex-1 px-4 pb-28 pt-4 md:pb-10">
+        <main key={location.pathname} className="flex-1 animate-fadeUp px-4 pb-28 pt-4 md:px-6 md:pb-10">
           {children}
         </main>
       </div>
 
       {/* Bottom tab bar on phones */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-gold-400/15 bg-felt-950/95 backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-cream/[0.07] bg-[#030c08]/90 px-1 backdrop-blur-xl md:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         {NAV.map((n) => (
@@ -127,15 +152,20 @@ export function Shell({ children }: { children: ReactNode }) {
             end={n.to === "/"}
             onClick={() => play("click")}
             className={({ isActive }) =>
-              `relative flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold ${
-                isActive ? "text-gold-300" : "text-cream/55"
-              }`
+              `relative flex flex-col items-center gap-1 pb-2 pt-2.5 text-[11px] font-semibold transition ${isActive ? "text-gold-300" : "text-cream/50"}`
             }
           >
-            <span className="text-lg leading-none">{n.icon}</span>
-            {n.label}
-            {n.to === "/friends" && pending > 0 && (
-              <span className="absolute right-[22%] top-1.5 h-2.5 w-2.5 rounded-full bg-chip-red" />
+            {({ isActive }) => (
+              <>
+                {isActive && <span className="absolute top-0 h-[3px] w-8 rounded-b-full bg-gold-400 shadow-[0_0_10px_rgba(245,196,81,.9)]" />}
+                <span className={`flex h-8 w-12 items-center justify-center rounded-full transition ${isActive ? "bg-gold-400/15" : ""}`}>
+                  <Icon name={n.icon} size={21} />
+                </span>
+                {n.label}
+                {n.to === "/friends" && pending > 0 && (
+                  <span className="absolute right-[24%] top-2 h-2.5 w-2.5 rounded-full bg-chip-red ring-2 ring-[#030c08]" />
+                )}
+              </>
             )}
           </NavLink>
         ))}
