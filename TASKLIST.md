@@ -86,7 +86,7 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [x] 5.5 Invite expiry + anti-spam limits (per day, per table) as settings
 - [x] 5.6 Referrals: code + link per player, bonus after the new player's first paid game, both sides configurable, off by default, cap per referrer
 - [ ] 5.7 Scheduled tournaments (registration windows, late reg, guarantees, re-entry, payout tables)
-- [ ] 5.8 Responsible gaming: deposit/loss/session limits, self-exclusion
+- [x] 5.8 Responsible gaming: deposit and loss limits (day/week/month, tighten now, loosen after 24 h), self-exclusion (24h to permanent, auto-refund open seats), reality-check reminder setting
 
 ## MVP checkpoint (all local)
 - [ ] Sign in → deposit (card + M-Pesa, test keys, via tunnel) → join Sit & Go → play in browser → prize in wallet

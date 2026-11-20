@@ -30,4 +30,8 @@ class User(Base):
     terms_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Shareable code for referral links; created on first request.
     referral_code: Mapped[str | None] = mapped_column(String(12), unique=True)
+    # Self-exclusion (Phase 5.8): no deposits or paid play until then.
+    excluded_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Play-time reminder interval the apps show; None = off.
+    reality_check_minutes: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

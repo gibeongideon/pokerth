@@ -225,6 +225,18 @@ _DEFS += [
     ),
 ]
 
+_DEFS += [
+    # Responsible gaming (Phase 5.8)
+    SettingDef(
+        "rg.limit_increase_delay_hours",
+        int,
+        24,
+        "A looser deposit/loss limit applies only after this cooling-off period.",
+        min=0,
+        max=720,
+    ),
+]
+
 REGISTRY: dict[str, SettingDef] = {d.key: d for d in _DEFS}
 
 

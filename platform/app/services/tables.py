@@ -25,7 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import utcnow
 from app.models import GameTable, StakeTier, TableSeat, User
 from app.services import config_registry as cfg
-from app.services import ledger, referrals
+from app.services import ledger, referrals, rg
 from app.services.game_gateway import GameGateway
 from app.services.ledger import Leg
 
@@ -273,6 +273,10 @@ async def _check_join_gates(session: AsyncSession, user: User, table: GameTable)
         needed = await cfg.get_int(session, "kyc.play_min_tier")
         if user.kyc_tier < needed:
             raise TableError("kyc_required", f"Verify your identity (level {needed}).", 403)
+        try:
+            await rg.check_play(session, user, _price_of(table).total)
+        except rg.RgBlockedError as exc:
+            raise TableError(exc.code, str(exc), 403) from exc
     limit = await cfg.get_int(session, "table.max_concurrent_per_user")
     active = await session.scalar(
         select(func.count())
@@ -362,6 +366,28 @@ async def leave(session: AsyncSession, table_id: uuid.UUID, user: User) -> None:
     seat.status = "left"
 
 
+async def leave_all_open(session: AsyncSession, user: User) -> int:
+    """Pull a player out of every table still taking players, with full refunds
+    and no grace-window check (used on self-exclusion)."""
+    table_ids = (
+        await session.scalars(
+            select(TableSeat.table_id)
+            .join(GameTable, GameTable.id == TableSeat.table_id)
+            .where(TableSeat.user_id == user.id, TableSeat.status == "registered")
+            .where(GameTable.status == "open")
+        )
+    ).all()
+    for table_id in table_ids:
+        table = await _lock_table(session, table_id)
+        seat = await session.scalar(
+            select(TableSeat).where(TableSeat.table_id == table.id, TableSeat.user_id == user.id)
+        )
+        if table.status == "open" and seat is not None and seat.status == "registered":
+            await _refund(session, table, seat, "exclusion")
+            seat.status = "left"
+    return len(table_ids)
+
+
 async def _begin_ready_check(session: AsyncSession, table: GameTable) -> None:
     secs = await cfg.get_int(session, "table.ready_check_seconds")
     table.status = "ready_check"
@@ -376,6 +402,8 @@ async def mark_ready(
     table = await _lock_table(session, table_id)
     if table.status != "ready_check":
         raise TableError("no_ready_check", "This table is not waiting for players.", 409)
+    if _price_of(table).total > 0 and rg.is_excluded(user):
+        raise TableError("self_excluded", "Real-money play is paused for you.", 403)
     seats = await _seats(session, table.id, "registered")
     mine = next((s for s in seats if s.user_id == user.id), None)
     if mine is None:

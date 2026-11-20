@@ -15,6 +15,8 @@ class UserOut(BaseModel):
     kyc_tier: int
     is_admin: bool
     terms_accepted: bool
+    excluded_until: datetime | None = None
+    reality_check_minutes: int | None = None
     created_at: datetime | None
 
 
@@ -28,5 +30,7 @@ def user_out(u: User) -> UserOut:
         kyc_tier=u.kyc_tier,
         is_admin=u.is_admin,
         terms_accepted=u.terms_accepted_at is not None,
+        excluded_until=u.excluded_until,
+        reality_check_minutes=u.reality_check_minutes,
         created_at=u.created_at,
     )

@@ -21,7 +21,7 @@ from app.core.config import get_settings
 from app.core.security import utcnow
 from app.models import Deposit, JournalTransaction, LedgerAccount, LedgerEntry, User
 from app.services import config_registry as cfg
-from app.services import ledger
+from app.services import ledger, rg
 from app.services.paystack import PaystackClient, PaystackError
 
 log = logging.getLogger(__name__)
@@ -133,6 +133,10 @@ async def create_deposit(
     """
     await _require_real_money(session)
     _require_terms(payer)
+    try:
+        await rg.check_deposit(session, payer, usd_cents)
+    except rg.RgBlockedError as exc:
+        raise PaymentError(exc.code, str(exc), 403) from exc
     await _require_tier(session, payer, "kyc.deposit_min_tier")
     if not paystack.enabled:
         raise PaymentError("payments_unavailable", "Payments are not configured.", 503)
@@ -304,6 +308,8 @@ async def transfer(
     if not await cfg.get_bool(session, "p2p_transfers_enabled"):
         raise PaymentError("feature_disabled", "Transfers between players are turned off.", 403)
     _require_terms(sender)
+    if rg.is_excluded(sender):
+        raise PaymentError("self_excluded", "Transfers are paused while you take a break.", 403)
     await _require_tier(session, sender, "kyc.p2p_min_tier")
 
     to = await find_recipient(session, recipient)
