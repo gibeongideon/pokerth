@@ -34,7 +34,7 @@ Balances are derived from ledger entries, never stored as a float. Every money m
 ### D-009 · 2026-11-20 · Accepted — Platform ↔ game server integration
 Players join with a short-lived Ed25519-signed seat token (new optional `platformToken` field in `InitMessage`). The platform creates tables over an HMAC-signed internal HTTP API on the game server; the game server posts results back the same way. The game server does not use MySQL in managed mode.
 
-### D-010 · 2026-11-20 · Accepted — Kubernetes topology
+### D-010 · 2026-11-20 · Deferred by D-015 — Kubernetes topology
 Stateless Deployments (api, workers, web, webclient) with HPA/PDB; game server as a StatefulSet with graceful drain because games live in memory. Managed Postgres (HA + PITR) and Redis. Argo CD GitOps: `dev` → staging, `prod` → production.
 
 ### D-011 · 2026-11-20 · Accepted — One mobile-portable player app (supersedes the client split in D-004)
@@ -56,9 +56,13 @@ Price shown as "$100 + $0.50" on join and receipt; prize pool = buy-ins, fee →
 ### D-014 · 2026-11-20 · Accepted — Identity: tiered KYC with Smile ID (resolves O-3)
 Tier 0 email/Google (free play) → Tier 1 name, DOB, phone, national ID number checked against the register, no photo (deposits and play up to a limit) → Tier 2 selfie + liveness (withdrawals above threshold, higher limits). Asked only when the user first needs the tier. Web + Android/iOS SDKs fit D-011. Thresholds are config settings. One person per account (unique national ID).
 
+### D-015 · 2026-11-20 · Accepted — Local until MVP, then one VPS via GitHub Actions; Kubernetes later
+Develop and test locally with Docker Compose until the MVP works end to end (sign-in, deposit, Sit & Go, payout). Then deploy to a single VPS: GitHub Actions builds images to GHCR on push to `prod` and deploys over SSH with `docker compose`, with Caddy for HTTPS. `dev` runs CI only. Kubernetes (D-010) moves to after launch. Why: far less to run and pay for while the product is unproven, and a 12-factor setup keeps the later move to Kubernetes a deployment change, not a code change.
+
 ---
 
 ## Open items (to decide)
+- **O-8 VPS provider and region** (latency to Kenyan players matters; e.g. a Johannesburg or Europe region).
 - **O-6 Default stake tiers** (proposal: $1, $5, $20, $100) and fee per tier.
 - **O-7 FX reference rate source** for USD/KES (e.g. a bank feed or a commercial FX API).
 - **O-4 Licence of `platform/`.** The game server is AGPL-3.0 (modified source must be offered to network users). `platform/` only talks to it over HTTP; decide whether to keep `platform/` in this repo or a separate private repo.

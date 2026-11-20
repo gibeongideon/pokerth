@@ -123,13 +123,15 @@ Decisions already made with the user:
 - run a daily reconciliation against `GET /transaction` and `/transfer`
 
 ## Repository and workflow
-- **Monorepo inside `bgames/pokerth`:** existing C++ code plus new `platform/`, `apps/player/`, `apps/site/`, `packages/` and `deploy/` (Helm charts and Argo CD apps).
+- **Monorepo inside `bgames/pokerth`:** existing C++ code plus new `platform/`, `apps/player/`, `apps/site/`, `packages/` and `deploy/` (VPS compose files and Caddy config now; Helm charts later).
 - **AGPL note:** modified game-server source must be made available to network users. `platform/` talks to it only over HTTP, so record the licensing choice for it in DECISIONS.md.
 - **Branches:** `prod` from `stable`, then `dev` from `prod`. All work happens on `dev` (feature branches → `dev` → `prod`).
   - Only local branches at first. Push to `origin` only when you ask.
 - **CI/CD:**
   - GitHub Actions builds and tests images for game-server, platform-api, worker, player (web build) and site. Mobile builds (Android AAB/APK, iOS IPA) run in a separate workflow with Fastlane.
-  - Argo CD deploys the `dev` branch to the dev/staging namespace and `prod` to production.
+  - Until MVP: everything runs locally with Docker Compose.
+  - MVP onwards: a push to `prod` deploys to the VPS through GitHub Actions (D-015). `dev` runs CI only.
+  - Kubernetes and Argo CD come after launch (see below).
 - **Tracking docs at the repo root** (kept up to date every session):
   - `TASKLIST.md`: phased checklist with status
   - `DECISIONS.md`: ADR-style log, starting with the decisions above
@@ -138,7 +140,27 @@ Decisions already made with the user:
   - `docs/platform/ARCHITECTURE.md`
   - `CLAUDE.md`: points to all of the above
 
-## Kubernetes / HA
+## Stage 1: local until MVP (D-015)
+- One `docker compose` stack on the developer machine: platform-api, worker, Postgres, Redis, Mailpit, game server, player app dev server.
+- Paystack test keys. Webhooks reach the laptop through a tunnel (cloudflared or ngrok) pointed at `/webhooks/paystack`.
+- MVP = Phase 1 + Phase 2 + the Phase 3 web player app: sign-in, deposit (card + M-Pesa), join a Sit & Go, play it in the browser, prize paid to the wallet. Withdrawals can follow right after.
+
+## Stage 2: single VPS via GitHub Actions (MVP to launch)
+- **VPS:** Ubuntu LTS, 4 vCPU / 8 GB to start, Docker Engine + Compose plugin, a non-root `deploy` user with SSH key only, UFW allowing 22/80/443, fail2ban, unattended security upgrades.
+- **Stack:** `deploy/vps/docker-compose.prod.yml` with Caddy (automatic HTTPS, WebSocket proxying), platform-api, worker, beat, game server, Postgres, Redis, and the player app as static files served by Caddy.
+- **Pipeline** (`.github/workflows/deploy-vps.yml`):
+  1. On every push and PR: lint and test platform, build the game server.
+  2. On push to `prod`: build images, tag with the commit SHA, push to GHCR.
+  3. SSH to the VPS (key in a GitHub environment secret), `docker compose pull`, run `alembic upgrade head` as a one-off container, then `docker compose up -d`.
+  4. Health check `/readyz`; if it fails, redeploy the previous SHA.
+- The `production` GitHub environment needs a manual approval before the deploy job runs.
+- **Secrets:** stored as GitHub environment secrets and written to `/opt/app/.env` (mode 600) by the deploy job. Never in the repo.
+- **Game server restarts:** deploys wait while games are running (server drain endpoint), so a deploy never kills a live table.
+- **Backups:** nightly `pg_dump` plus WAL archiving to off-site object storage (restic); restore tested monthly. Optionally move Postgres to a managed database before real money goes live.
+- **Monitoring:** Uptime check on `/readyz`, Sentry for errors, and Docker logs shipped off the box.
+- Everything stays 12-factor (config from env, stateless API, data only in Postgres/Redis), so moving to Kubernetes later needs no code changes.
+
+## Stage 3: Kubernetes / HA (after launch, when traffic needs it)
 - **platform-api, player (static, behind a CDN), site:** stateless Deployments with an HPA, PDBs, and pods spread across zones.
 - **Workers:** Celery workers, plus a single beat (or `celery-redbeat` for HA).
 - **game-server:** a StatefulSet, because games live in memory. The platform assigns each table to a pod.
@@ -165,7 +187,8 @@ Decisions already made with the user:
 | 3 | Player app (Vite + React + PixiJS): auth, wallet, lobby, Quick Play, private tables and invites, poker table. Capacitor Android build. Next.js site with landing and legal pages. |
 | 4 | Withdrawals and payouts, limits, KYC tiers, admin back office, reconciliation. |
 | 5 | Scheduled tournaments, friends, referrals, responsible-gaming tools. |
-| 6 | Docker images, Helm, Argo CD, observability, load tests, security review, RNG certification and BCLB compliance pack, then production launch with `real_money_enabled` switched on. |
+| 6 | VPS deploy via GitHub Actions (Stage 2), backups, monitoring, load tests, security review, RNG certification and BCLB compliance pack, then production launch with `real_money_enabled` switched on. |
+| 7 | Kubernetes (Stage 3): Helm, Argo CD, game-server StatefulSet, HA Postgres/Redis, when traffic needs it. |
 
 ## Money, fees and identity (decided — D-012, D-013, D-014)
 

@@ -69,10 +69,22 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [ ] Friends list, invites, referrals (configurable bonus)
 - [ ] Responsible gaming: deposit/loss/session limits, self-exclusion
 
-## Phase 6 — Production
-- [ ] Docker images for all services; Helm charts in `deploy/`; Argo CD apps
-- [ ] Game-server StatefulSet with graceful drain; per-pod WSS routing
-- [ ] Observability: Prometheus, Grafana, Loki, Sentry, OpenTelemetry; alerts
-- [ ] Load tests; chaos drill (kill pods mid-game, check ledger)
-- [ ] Security review; RNG certification; BCLB compliance pack
+## MVP checkpoint (all local)
+- [ ] Sign in → deposit (card + M-Pesa, test keys, via tunnel) → join Sit & Go → play in browser → prize in wallet
+
+## Phase 6 — VPS deploy and launch (D-015)
+- [ ] `deploy/vps/docker-compose.prod.yml` + Caddyfile (HTTPS, WebSocket)
+- [ ] Production Dockerfiles for platform, worker, game server; player app static build
+- [ ] GitHub Actions: CI on push/PR; on `prod` build → GHCR → SSH deploy → migrate → health check → rollback
+- [ ] VPS hardening: deploy user, SSH keys only, UFW, fail2ban, unattended upgrades
+- [ ] Backups (pg_dump + WAL to off-site storage), tested restore
+- [ ] Monitoring: uptime on `/readyz`, Sentry, off-box logs
+- [ ] Game-server drain before deploy
+- [ ] Load tests; security review; RNG certification; BCLB compliance pack
 - [ ] Launch: switch on `real_money_enabled` in production
+
+## Phase 7 — Kubernetes (after launch, when traffic needs it)
+- [ ] Helm charts in `deploy/`; Argo CD apps
+- [ ] Game-server StatefulSet with graceful drain; per-pod WSS routing
+- [ ] HA Postgres/Redis; Prometheus, Grafana, Loki, OpenTelemetry
+- [ ] Chaos drill (kill pods mid-game, check ledger)
