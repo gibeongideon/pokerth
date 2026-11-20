@@ -6,15 +6,16 @@
 | Game server | `src/` (existing) | C++23, Boost.Asio, protobuf, websocketpp | Runs hands only. In-memory game state. Ports 7234 (TCP) and 7233 (WebSocket). |
 | Platform API | `platform/` (new) | FastAPI, SQLAlchemy 2, Alembic, Postgres | Users, auth, wallet ledger, payments, tables, tournaments, config. Source of truth for money. |
 | Workers | `platform/` (new) | Celery + Redis, beat | Timeouts, scheduled starts, payouts, reconciliation, expiry jobs. |
-| Web portal | `web/` (new) | Next.js, Tailwind, shadcn/ui | Sign-in, wallet, lobby, tournaments, admin. |
-| Table client | `webclient/` (new) | Vite, React, PixiJS, ts-proto | Poker table in the browser over WSS. |
+| Player app | `apps/player/` (new) | Vite, React, TS, Tailwind, PixiJS, Capacitor | The only player-facing app: sign-in, wallet, lobby, tournaments and the poker table. Web/PWA plus Android and iOS from the same code. |
+| Site | `apps/site/` (new) | Next.js | Landing page, SEO, legal pages, admin back office. |
+| Shared packages | `packages/` (new) | TypeScript, pnpm workspace | `api-client` (from OpenAPI), `protocol` (ts-proto from `pokerth.proto`), `ui` (design tokens, components). |
 | Deployment | `deploy/` (new) | Helm, Argo CD | Kubernetes manifests. |
 
 ## Flow diagram
 ```
- Browser ──► web (Next.js) ──REST──► platform-api ◄── Paystack webhooks
+ Web / Android / iOS ──► player app ──REST──► platform-api ◄── Paystack webhooks
     │                                   │  Postgres · Redis · Celery workers
-    └──► webclient ──WSS protobuf──► game-server pod N
+    └──► (table screen) ──WSS protobuf──► game-server pod N
                                         ▲
          platform-api ◄──HMAC internal HTTP──┘ (create table / results)
 ```

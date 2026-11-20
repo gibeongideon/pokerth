@@ -37,6 +37,16 @@ Players join with a short-lived Ed25519-signed seat token (new optional `platfor
 ### D-010 · 2026-11-20 · Accepted — Kubernetes topology
 Stateless Deployments (api, workers, web, webclient) with HPA/PDB; game server as a StatefulSet with graceful drain because games live in memory. Managed Postgres (HA + PITR) and Redis. Argo CD GitOps: `dev` → staging, `prod` → production.
 
+### D-011 · 2026-11-20 · Accepted — One mobile-portable player app (supersedes the client split in D-004)
+The owner wants a design that ports easily to mobile apps. So instead of a Next.js portal plus a separate table client:
+- `apps/player/` is the single player app: Vite + React + TypeScript + PixiJS, mobile-first, shipped as web/PWA and wrapped with **Capacitor** for Android and iOS from the same code.
+- `apps/site/` (Next.js) keeps only the public landing page, SEO, legal pages and the admin back office.
+- Shared code in `packages/` (`api-client`, `protocol`, `ui`), pnpm workspace.
+
+Why Capacitor rather than React Native: the PixiJS table and all screens run unchanged in the native WebView, so there is one UI to build and test. React Native would need a second table renderer. Capacitor still gives push notifications, deep links, secure storage and native Google sign-in.
+
+Consequences: the platform API must support bearer tokens (for apps) as well as cookies (for web); magic links and invite links must be universal/app links; Android ships first, iOS after the licence is granted (store rules for real-money gaming).
+
 ---
 
 ## Open items (to decide)

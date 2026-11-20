@@ -4,8 +4,16 @@ Read this first when resuming. Update it at the end of every session.
 
 ## Current state (2026-11-20)
 - Branches: `stable` → `prod` → `dev`, all at commit `52c05c31`. **`dev` is checked out.** Nothing pushed to `origin`.
-- Phase 0 in progress. Done: branches, production plan, tracking docs.
-- Next: scaffold `platform/` (FastAPI skeleton, Alembic, docker-compose with Postgres + Redis, pytest).
+- Phase 0 almost done. Done: branches, production plan, tracking docs, `platform/` skeleton.
+- Client design changed to one mobile-portable player app + Capacitor (D-011).
+- Remaining Phase 0: CI workflow for `platform/`; owner to answer open items (wallet currency first).
+- Next: Phase 1 — users + magic-link/Google auth, config registry, ledger, Paystack deposits.
+
+## How to run
+- `cd platform && docker compose up --build` → `curl localhost:8000/readyz`.
+- Host ports are moved off the defaults because this machine already runs Postgres/Redis/Mailpit (and another project uses 55432):
+  Postgres 55433, Redis 56379, Mailpit UI 58025, SMTP 51025, API 8000. Override with `PG_PORT`, `REDIS_PORT`, etc.
+- Tests without Docker: `cd platform && . .venv/bin/activate && pytest && ruff check . && mypy app`.
 
 ## Where things are
 - Plan: `docs/platform/PRODUCTION_PLAN.md`

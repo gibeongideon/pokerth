@@ -8,7 +8,7 @@ a mature C++23/Qt6 Texas Hold'em client + server (AGPL-3.0). It is **free-play o
 - no matchmaking or tournament engine
 - clients are native QML only
 
-The goal is a web-first, real-money poker product:
+The goal is a web-first, real-money poker product, designed so the same app ships to Android and iOS with little extra work:
 - easy sign-up and funding: card + M-Pesa through Paystack, plus topping up someone else's wallet
 - staked games: e.g. a $100 Sit & Go that starts when full or at a set time, with configurable pull-out windows and timeouts
 - tournaments and friend invites
@@ -20,15 +20,16 @@ The BCLB licence is in progress, so real money ships behind a feature flag.
 
 Decisions already made with the user:
 - **Backend:** FastAPI
-- **Web:** React + TypeScript (Next.js portal, Vite + PixiJS game client)
+- **Web + mobile:** one React + TypeScript player app (Vite + PixiJS), wrapped with Capacitor for Android/iOS; Next.js only for the public site and admin (see D-011)
 - **Login:** email magic link + Google
 - **Payments:** Paystack, reusing Dafeapp patterns
 
 ## Target architecture
 ```
                  ┌──────────── Ingress (TLS, cert-manager) ─────────────┐
- Browser ──► web (Next.js portal: auth, wallet, lobby, tournaments, admin)
-         ──► /play (Vite+PixiJS table client) ──WSS protobuf──► game-server pods (C++ PokerTH)
+ Browser / Android / iOS ──► player app (Vite+React+PixiJS; Capacitor shell on mobile)
+         │   lobby, wallet, tournaments, table ──WSS protobuf──► game-server pods (C++ PokerTH)
+ Browser ──► site (Next.js: landing, SEO, legal pages, admin back office)
          ──► platform-api (FastAPI) ◄── Paystack webhooks
                      │  Postgres (ledger, users, tables, tournaments, config)
                      │  Redis (queues, matchmaking, rate limits, pub/sub)
@@ -44,9 +45,16 @@ Decisions already made with the user:
 - **No MySQL:** MySQL and the `dbofficial` code path are not needed. Build on the dedicated-server path (`src/net/serverlobbythread.cpp`, `servergame.cpp`, `servergamestate.cpp`, `serveracceptwebhelper.cpp`) instead.
 - **Real-money hardening:** use a CSPRNG for shuffling (audit `src/engine/local_engine` deck code). Store full hand histories for disputes and BCLB RNG certification.
 
-**Web:**
-- `web/`: Next.js App Router, Tailwind + shadcn/ui, mobile-first, PWA.
-- `webclient/`: Vite + React + PixiJS poker table. It speaks the existing protobuf protocol over WebSocket port 7233, using TS types generated from `pokerth.proto` with `ts-proto`.
+**Clients (mobile-portable by design, D-011):**
+- `apps/player/`: the only player-facing app. Vite + React + TypeScript, Tailwind, PixiJS table.
+  - Mobile-first layout, touch controls, safe-area insets, portrait and landscape table layouts.
+  - Runs as a website / PWA, and as Android and iOS apps through **Capacitor** (same code, native shell).
+  - Native features through Capacitor plugins: push notifications (table starting, tournament reminders, payouts), deep links (invite links and magic links open the app), secure token storage, native Google sign-in, haptics.
+  - Plays over the existing protobuf protocol on WSS port 7233, types generated from `pokerth.proto` with `ts-proto`.
+- `apps/site/`: Next.js for the public landing page, SEO, legal/responsible-gaming pages and the admin back office.
+- Shared packages in `packages/`: `api-client` (generated from the FastAPI OpenAPI schema), `protocol` (ts-proto output), `ui` (design tokens and components). pnpm workspace.
+- **Rules that keep mobile porting cheap:** no SSR-only features in the player app; all data through the API client; no browser-only APIs without a Capacitor fallback; auth supports both cookies (web) and bearer tokens kept in secure storage (apps).
+- **App stores:** real-money gaming apps need licence proof and country targeting on Google Play and the App Store. Ship Android first (Play Store and a signed direct-download APK), iOS after the BCLB licence is granted.
 - New original art. Don't reuse the PokerTH branding, and check the licences of anything taken from `data/gfx`.
 
 ## Key product flows
@@ -115,12 +123,12 @@ Decisions already made with the user:
 - run a daily reconciliation against `GET /transaction` and `/transfer`
 
 ## Repository and workflow
-- **Monorepo inside `bgames/pokerth`:** existing C++ code plus new `platform/`, `web/`, `webclient/` and `deploy/` (Helm charts and Argo CD apps).
+- **Monorepo inside `bgames/pokerth`:** existing C++ code plus new `platform/`, `apps/player/`, `apps/site/`, `packages/` and `deploy/` (Helm charts and Argo CD apps).
 - **AGPL note:** modified game-server source must be made available to network users. `platform/` talks to it only over HTTP, so record the licensing choice for it in DECISIONS.md.
 - **Branches:** `prod` from `stable`, then `dev` from `prod`. All work happens on `dev` (feature branches → `dev` → `prod`).
   - Only local branches at first. Push to `origin` only when you ask.
 - **CI/CD:**
-  - GitHub Actions builds and tests images for game-server, platform-api, worker, web and webclient.
+  - GitHub Actions builds and tests images for game-server, platform-api, worker, player (web build) and site. Mobile builds (Android AAB/APK, iOS IPA) run in a separate workflow with Fastlane.
   - Argo CD deploys the `dev` branch to the dev/staging namespace and `prod` to production.
 - **Tracking docs at the repo root** (kept up to date every session):
   - `TASKLIST.md`: phased checklist with status
@@ -131,7 +139,7 @@ Decisions already made with the user:
   - `CLAUDE.md`: points to all of the above
 
 ## Kubernetes / HA
-- **platform-api, web, webclient:** stateless Deployments with an HPA, PDBs, and pods spread across zones.
+- **platform-api, player (static, behind a CDN), site:** stateless Deployments with an HPA, PDBs, and pods spread across zones.
 - **Workers:** Celery workers, plus a single beat (or `celery-redbeat` for HA).
 - **game-server:** a StatefulSet, because games live in memory. The platform assigns each table to a pod.
   - Clients connect through a per-pod host or path route (`wss://play.x/gs-N`).
@@ -154,7 +162,7 @@ Decisions already made with the user:
 | 0 (this session) | Create branches. Add tracking docs and the full production plan. Scaffold `platform/` (FastAPI skeleton, config, Alembic, docker-compose with Postgres and Redis) on `dev`. |
 | 1 | Auth (magic link + Google), users and profiles, config/flags system, ledger, Paystack deposits (card + M-Pesa STK), webhooks, fund-a-friend. |
 | 2 | Game-server managed mode: proto token field, internal API, result callbacks, CSPRNG, hand history. Table templates, Sit & Go lifecycle (escrow, pull-out window, ready check, start/cancel/refund, settlement). |
-| 3 | Web portal (Next.js): auth, wallet, lobby, Quick Play, private tables and invites. Web table client (Vite + PixiJS). |
+| 3 | Player app (Vite + React + PixiJS): auth, wallet, lobby, Quick Play, private tables and invites, poker table. Capacitor Android build. Next.js site with landing and legal pages. |
 | 4 | Withdrawals and payouts, limits, KYC tiers, admin back office, reconciliation. |
 | 5 | Scheduled tournaments, friends, referrals, responsible-gaming tools. |
 | 6 | Docker images, Helm, Argo CD, observability, load tests, security review, RNG certification and BCLB compliance pack, then production launch with `real_money_enabled` switched on. |

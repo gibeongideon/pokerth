@@ -9,17 +9,19 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [x] Create `dev` branch from `prod`; all work happens on `dev`
 - [x] Production plan as Markdown (`docs/platform/PRODUCTION_PLAN.md`)
 - [x] Tracking docs: TASKLIST, DECISIONS, HANDOFF, ARCHITECTURE, CLAUDE.md
-- [ ] `platform/` FastAPI skeleton: settings (pydantic-settings), `/healthz`, `/readyz`
-- [ ] SQLAlchemy 2 async + Alembic set up; first migration
-- [ ] `platform/docker-compose.yml` (api, postgres, redis, mailpit)
-- [ ] pytest + ruff + mypy configured; CI workflow for `platform/`
+- [x] `platform/` FastAPI skeleton: settings (pydantic-settings), `/healthz`, `/readyz`
+- [x] SQLAlchemy 2 async + Alembic set up (no tables yet; first migration comes with Phase 1 models)
+- [x] `platform/docker-compose.yml` (api, postgres, redis, mailpit) — verified `/readyz` ok
+- [x] pytest + ruff + mypy configured and passing
+- [ ] CI workflow for `platform/` (GitHub Actions)
+- [x] Client design is mobile-portable: one player app + Capacitor (D-011)
 - [ ] Decide wallet currency (see DECISIONS open items)
 
 ## Phase 1 — Identity, config, ledger, deposits
 - [ ] Users, profiles, unique username (table display name)
 - [ ] Email magic-link login (single-use, 15 min TTL, hashed token, rate-limited)
 - [ ] Google OIDC login (link to existing account by verified email)
-- [ ] Sessions: httpOnly secure cookies, refresh rotation, revoke all sessions
+- [ ] Sessions: httpOnly secure cookies (web) and bearer tokens (mobile apps), refresh rotation, revoke all sessions
 - [ ] Real-money onboarding gate: 18+ confirmation, phone (M-Pesa), terms/RG acceptance
 - [ ] Config system: `config_settings` typed registry + DB overrides + Redis cache + audit log
 - [ ] Feature flags: `real_money_enabled`, `p2p_transfers_enabled`, `auto_payout_enabled`, `tournaments_enabled`, `referrals_enabled`
@@ -43,10 +45,14 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [ ] Quick Play matchmaking queue per stake tier
 - [ ] Private tables + invite links/codes
 
-## Phase 3 — Web
-- [ ] `web/` Next.js portal: auth, wallet, deposit, lobby, tables, profile
-- [ ] `webclient/` Vite + React + PixiJS table, protobuf over WSS (`ts-proto`)
-- [ ] Original visual identity (no PokerTH branding); PWA; mobile-first
+## Phase 3 — Player app (web + mobile) and site
+- [ ] pnpm workspace; `packages/api-client` (from OpenAPI), `packages/protocol` (ts-proto), `packages/ui` (tokens, components)
+- [ ] `apps/player/` Vite + React + TS: auth, wallet, deposit, lobby, tables, profile — mobile-first
+- [ ] PixiJS table screen, protobuf over WSS; portrait + landscape layouts, touch controls
+- [ ] Capacitor Android build: deep links (invites, magic links), push notifications, secure storage, native Google sign-in
+- [ ] Capacitor iOS build (after the licence is granted)
+- [ ] `apps/site/` Next.js: landing, SEO, legal and responsible-gaming pages
+- [ ] Original visual identity (no PokerTH branding); PWA
 
 ## Phase 4 — Withdrawals, KYC, admin
 - [ ] Payout destinations (M-Pesa `mobile_money`/`MPESA`, bank) via Paystack transfer recipients
