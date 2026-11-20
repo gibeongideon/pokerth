@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Platform dev dashboard</title>
+<style>
+  :root {
+    --bg: #0f1412; --panel: #17201c; --line: #26332d; --text: #e7efe9; --muted: #8fa39a;
+    --accent: #3fbf7f; --warn: #e0b341; --bad: #e0645a; --chip: #213029;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+           padding: 14px 20px; border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 16px; margin: 0 12px 0 0; letter-spacing: .02em; }
+  header .tag { color: var(--muted); font-size: 12px; }
+  main { display: grid; grid-template-columns: 1fr 320px; gap: 16px; padding: 16px 20px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+            padding: 14px; margin-bottom: 16px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+       margin: 0 0 10px; }
+  .tiers { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+  .tier { border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+  .tier .price { font-size: 18px; font-weight: 650; margin: 2px 0; }
+  .tier .meta { color: var(--muted); font-size: 12px; }
+  button { background: var(--chip); color: var(--text); border: 1px solid var(--line);
+           border-radius: 6px; padding: 5px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: #07140d; border-color: var(--accent); font-weight: 600; }
+  select { background: var(--chip); color: var(--text); border: 1px solid var(--line);
+           border-radius: 6px; padding: 5px 8px; font: inherit; }
+  .table { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .grow { flex: 1; }
+  .status { font-size: 11px; padding: 2px 8px; border-radius: 99px; background: var(--chip);
+            text-transform: uppercase; letter-spacing: .05em; }
+  .s-open { color: var(--accent); } .s-ready_check { color: var(--warn); }
+  .s-running { color: #6fb7ff; } .s-finished { color: var(--muted); } .s-cancelled { color: var(--bad); }
+  .seats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .seat { background: var(--chip); border-radius: 6px; padding: 3px 8px; font-size: 12px; }
+  .seat.ready { outline: 1px solid var(--warn); }
+  .seat .prize { color: var(--accent); margin-left: 4px; }
+  table.list { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.list td { padding: 4px 0; border-bottom: 1px solid var(--line); }
+  table.list td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  #log { font: 12px ui-monospace, monospace; color: var(--muted); white-space: pre-wrap;
+         max-height: 220px; overflow: auto; }
+  .err { color: var(--bad); } .ok { color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Platform · dev dashboard</h1>
+  <span class="tag">local only · stand-in game server</span>
+  <span class="grow"></span>
+  <label>Act as <select id="player"></select></label>
+  <button id="tick">Run timers now</button>
+</header>
+<main>
+  <div>
+    <section>
+      <h2>Stake levels — price shown once, nothing taken during play</h2>
+      <div class="tiers" id="tiers"></div>
+    </section>
+    <section>
+      <h2>Tables</h2>
+      <div id="tables"></div>
+    </section>
+  </div>
+  <div>
+    <section>
+      <h2>Wallets</h2>
+      <table class="list" id="wallets"></table>
+    </section>
+    <section>
+      <h2>House &amp; tax accounts</h2>
+      <table class="list" id="house"></table>
+    </section>
+    <section>
+      <h2>Activity</h2>
+      <div id="log"></div>
+    </section>
+  </div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const usd = (c) => (c < 0 ? "-" : "") + "$" + (Math.abs(c) / 100).toFixed(2);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (ch) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
+const tokens = {};
+
+function log(msg, cls = "") {
+  const line = document.createElement("div");
+  line.className = cls;
+  line.textContent = new Date().toLocaleTimeString() + "  " + msg;
+  $("log").prepend(line);
+}
+
+async function asPlayer(path, body) {
+  const who = $("player").value;
+  if (!tokens[who]) {
+    tokens[who] = (await (await fetch("/dev/token/" + who, { method: "POST" })).json()).access_token;
+  }
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: "Bearer " + tokens[who] },
+    body: JSON.stringify(body || {}),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) log(who + ": " + (data.detail?.message || res.status), "err");
+  else log(who + ": " + path.replace(/\/[0-9a-f-]{36}/, "/…") + " ok", "ok");
+  refresh();
+}
+
+async function post(path) {
+  const res = await fetch(path, { method: "POST" });
+  const data = await res.json().catch(() => ({}));
+  log(path.replace(/\/[0-9a-f-]{36}/, "/…") + (res.ok ? " ok" : " " + (data.detail?.message || res.status)),
+      res.ok ? "ok" : "err");
+  refresh();
+}
+
+function renderTiers(tiers) {
+  $("tiers").innerHTML = tiers.map((t) => `
+    <div class="tier">
+      <div class="meta">${esc(t.name)}</div>
+      <div class="price">${esc(t.price_label)}</div>
+      <div class="meta">≈ KES ${t.total_kes_reference.toLocaleString()} · ${t.seats} seats ·
+        pays ${t.payout_bps.map((b) => b / 100 + "%").join(" / ")}</div>
+      <div class="row" style="margin-top:8px">
+        <button class="primary" data-quick="${t.id}">Quick play</button>
+        <button data-private="${t.id}">Private table</button>
+      </div>
+    </div>`).join("");
+}
+
+function renderTables(tables) {
+  $("tables").innerHTML = tables.map((t) => {
+    const seats = t.seats.map((s) => `
+      <span class="seat ${s.ready && t.status === "ready_check" ? "ready" : ""}">${esc(s.username)}
+        ${s.finish_position ? "#" + s.finish_position : ""}
+        ${s.prize_cents ? `<span class="prize">+${usd(s.prize_cents)}</span>` : ""}
+      </span>`).join("");
+    const actions = {
+      open: `<button data-join="${t.id}">Join</button><button data-leave="${t.id}">Pull out</button>`,
+      ready_check: `<button class="primary" data-ready="${t.id}">I'm ready</button>`,
+      running: `<button class="primary" data-sim="${t.id}">Finish game (simulate)</button>`,
+    }[t.status] || "";
+    const deadline = t.ready_deadline
+      ? ` · ready check ends ${new Date(t.ready_deadline).toLocaleTimeString()}` : "";
+    return `
+      <div class="table">
+        <div class="row">
+          <strong>${esc(t.name)}</strong>
+          <span>${esc(t.price_label)}</span>
+          <span class="status s-${t.status}">${t.status.replace("_", " ")}</span>
+          ${t.is_private ? '<span class="status">private</span>' : ""}
+          <span class="grow"></span>
+          <span class="meta">${t.players}/${t.seats_total} · pool ${usd(t.prize_pool_cents)}${deadline}</span>
+          ${actions}
+        </div>
+        <div class="seats">${seats || '<span class="meta">No players yet</span>'}</div>
+      </div>`;
+  }).join("");
+}
+
+function renderList(el, rows, label, value) {
+  $(el).innerHTML = rows.map((r) =>
+    `<tr><td>${esc(r[label])}</td><td class="num">${usd(r[value])}</td></tr>`).join("");
+}
+
+async function refresh() {
+  const [tiers, state] = await Promise.all([
+    fetch("/lobby/tiers").then((r) => r.json()),
+    fetch("/dev/state").then((r) => r.json()),
+  ]);
+  renderTiers(tiers);
+  renderTables(state.tables);
+  renderList("wallets", state.wallets, "username", "balance_cents");
+  renderList("house", state.house, "account", "balance_cents");
+  const sel = $("player");
+  if (!sel.options.length) {
+    sel.innerHTML = state.players.map((p) => `<option>${esc(p)}</option>`).join("");
+  }
+}
+
+document.addEventListener("click", (e) => {
+  const d = e.target.dataset;
+  if (d.quick) asPlayer("/lobby/quick-play", { tier_id: Number(d.quick) });
+  if (d.private) asPlayer("/tables/private", { tier_id: Number(d.private) });
+  if (d.join) asPlayer(`/tables/${d.join}/join`);
+  if (d.leave) asPlayer(`/tables/${d.leave}/leave`);
+  if (d.ready) asPlayer(`/tables/${d.ready}/ready`);
+  if (d.sim) post(`/dev/tables/${d.sim}/simulate-result`);
+});
+$("tick").onclick = () => post("/dev/tick");
+refresh();
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>

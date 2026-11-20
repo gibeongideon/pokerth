@@ -4,10 +4,10 @@ Read this first when resuming. Update it at the end of every session.
 
 ## Current state (2026-11-20)
 - Branches: `stable` → `prod` → `dev`. **`dev` is checked out.** Nothing pushed to `origin`.
-- Phase 0 done. **Phase 1 done** except Smile ID (admins set KYC tiers by hand for now) and the FX exposure report (needs withdrawals).
-- Platform API now has: magic-link + Google sign-in, sessions (cookies for web, bearer for apps), profile + terms, admin settings with audit, double-entry ledger, Paystack card + M-Pesa deposits, webhook, fund-a-friend, wallet-to-wallet transfers, expiry + reconciliation jobs.
-- Decisions this session: D-011 to D-018 (mobile-portable app, USD wallet, entry-fee model, KYC tiers, local-then-VPS, configurable stake levels, KES rate 129, Phase 1 choices).
-- Next: Phase 2 — fee engine + stake levels + Sit & Go lifecycle in the platform, then game-server managed mode (seat tokens, internal API, result callbacks).
+- Phase 0 and Phase 1 done (Smile ID still manual). **Phase 2a done**: stake levels, fees, full Sit & Go lifecycle in the platform, with a stand-in game server.
+- Screenshots of the dev dashboard: `docs/platform/screenshots/phase2-desktop.png`, `phase2-mobile.png`.
+- **Next: Phase 2b (C++ game server managed mode).** Blocked locally: no CMake/Boost/Qt6 and ~1.5 GB free RAM. Decide: install build deps here, or build in Docker/CI.
+- The owner prefers screenshots at the end of each phase over a server left running (machine is short on memory).
 - To confirm with Paystack: USD card acceptance on the Kenya merchant account, gaming approval, Transfers enabled.
 
 ## API map (platform)
@@ -15,8 +15,17 @@ Read this first when resuming. Update it at the end of every session.
 - Me: `GET/PATCH /me`, `POST /me/accept-terms`
 - Wallet: `GET /wallet`, `/wallet/history`, `/wallet/deposits/quote`, `POST /wallet/deposits`, `GET /wallet/deposits/{ref}`, `POST /wallet/transfers`
 - Webhook: `POST /webhooks/paystack`
-- Admin: `GET /admin/settings`, `PUT /admin/settings/{key}`, `PUT /admin/users/{id}/kyc-tier`
+- Lobby/tables: `GET /lobby/tiers`, `GET /lobby/tables`, `POST /lobby/quick-play`, `POST /tables/private`, `GET /tables/mine`, `GET /tables/{id}`, `POST /tables/{id}/join|leave|ready`, `GET /tables/{id}/seat-token`
+- Internal (game server): `GET /internal/seat-token-key`, `POST /internal/games/{table_id}/result` (HMAC `X-Signature`)
+- Admin: `GET /admin/settings`, `PUT /admin/settings/{key}`, `PUT /admin/users/{id}/kyc-tier`, `GET/POST /admin/stake-tiers`, `PUT /admin/stake-tiers/{id}`, `POST /admin/tables` (scheduled), `POST /admin/tables/{id}/cancel`
+- Dev (PLATFORM_ENV=local only): `GET /dev/dashboard`, `/dev/state`, `POST /dev/token/{username}`, `/dev/tick`, `/dev/tables/{id}/simulate-result`
 - Interactive docs: http://localhost:8000/docs
+
+## See it locally (light: API only, no Docker build)
+1. `cd platform && docker compose up -d postgres redis`
+2. `. .venv/bin/activate && alembic upgrade head && python -m app.seed` (demo players alice…grace with $500 each)
+3. `uvicorn app.main:app --port 8000` → open http://localhost:8000/dev/dashboard
+4. Stop: Ctrl-C, then `docker compose stop`
 
 ## Trying payments locally
 1. Put Paystack **test** keys in `platform/.env` (`PLATFORM_PAYSTACK_SECRET_KEY`, `PLATFORM_PAYSTACK_PUBLIC_KEY`).

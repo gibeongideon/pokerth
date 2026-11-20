@@ -37,18 +37,25 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [ ] Daily FX exposure report (needs withdrawals, Phase 4)
 - Moved to Phase 2 (needs buy-ins): fee engine — entry fee per stake level, optional levers, tax lines
 
-## Phase 2 — Game server managed mode + Sit & Go
-- [ ] Fee engine: entry fee per stake level (flat/%/min/max), optional levers off by default, tax lines (excise, withholding)
+## Phase 2a — Sit & Go in the platform (done 2026-11-20)
+- [x] Fee engine: entry fee per stake level (flat/% with min/max), excise added to price, withholding on prizes — all configurable, default 0 tax
+- [x] `stake_tiers` + admin API (validated: seats 2-10, payouts sum 100 % and don't increase); dev seed Free/$1/$5/$20/$100
+- [x] Tables copy the stake level when opened, so admin edits never change an open table
+- [x] Sit & Go lifecycle: join → escrow + fee, pull-out window (full refund), ready check, start, cancel/refund, payout by place
+- [x] Ready-check timeout: no-shows removed and refunded (or fee kept, configurable); scheduled tables start or cancel
+- [x] Quick Play (fullest table first), private tables with invite codes, one open table kept per stake level
+- [x] Seat tokens (Ed25519 JWT) + public key endpoint; HMAC-signed result endpoint for the game server (idempotent)
+- [x] Worker timer every 5 s; local dev dashboard + seed + simulate-result (screenshots in `docs/platform/screenshots/`)
+
+## Phase 2b — Game server managed mode (C++)
+- [!] Local build blocked: no CMake/Boost/Qt6 on this machine and ~1.5 GB free RAM. Options: install build deps, or build in Docker (`docker/linux/Dockerfile*`) on a machine with more memory / in CI.
 - [ ] Proto: optional `platformToken` in `InitMessage` (backward compatible)
-- [ ] Game server: Ed25519 JWT verification for seat tokens
-- [ ] Game server: internal HTTP API (Boost.Beast, HMAC): create table, drain, health
-- [ ] Game server: result/elimination callbacks to the platform (signed, retried)
+- [ ] Game server: Ed25519 seat-token verification (public key from `GET /internal/seat-token-key`)
+- [ ] Game server: internal HTTP API (Boost.Beast, HMAC): create game from table config, drain, health
+- [ ] Game server: result callback to `POST /internal/games/{table_id}/result` (signed, retried)
+- [ ] Platform: real `GameGateway` replacing `LocalGateway` (`platform/app/services/game_gateway.py`)
 - [ ] RNG: refuse to deal if OpenSSL `RAND_bytes` fails when real money is on (`src/engine/local_engine/tools.cpp`)
 - [ ] Hand history persistence (for disputes and RNG certification)
-- [ ] `stake_tiers` table + admin CRUD (buy-in, fee, seats, min players, start mode, payouts, blinds, enabled); dev seed $1/$5/$20/$100
-- [ ] Sit & Go lifecycle: join→escrow, pull-out window, ready check, start, cancel/refund, settlement
-- [ ] Quick Play matchmaking queue per stake tier
-- [ ] Private tables + invite links/codes
 
 ## Phase 3 — Player app (web + mobile) and site
 - [ ] pnpm workspace; `packages/api-client` (from OpenAPI), `packages/protocol` (ts-proto), `packages/ui` (tokens, components)

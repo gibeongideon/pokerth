@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import admin, auth, health, me, wallet, webhooks
+from app.api import admin, auth, dev, health, internal, me, tables, wallet, webhooks
 from app.core.config import get_settings
 
 
@@ -22,8 +22,10 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
     )
-    for module in (health, auth, me, wallet, webhooks, admin):
+    for module in (health, auth, me, wallet, tables, webhooks, internal, admin):
         app.include_router(module.router)
+    if settings.env == "local":
+        app.include_router(dev.router)
     return app
 
 

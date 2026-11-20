@@ -73,6 +73,14 @@ The KES rate is a config setting `fx.usd_kes_rate`, default **129** KES per USD,
 - **Webhooks** are stored before processing (unique per event + id) and answer 500 on failure so Paystack retries.
 - **KYC** tiers are set by admins until Smile ID is integrated.
 
+### D-019 · 2026-11-20 · Accepted — Sit & Go rules as built (Phase 2a)
+- **Price = buy-in + entry fee (+ excise if set)**, shown once ("$100.00 + $0.50"). Buy-ins sit in a per-table escrow account; fees go to `house:fees` at join time; prizes are paid from escrow by place. Rounding leftovers go to 1st place. With fewer players than paid places, shares are scaled up.
+- **Pull-out:** free and fully refunded (fee included) within `table.unregister_grace_seconds` (default 120 s) and only while the table is still open.
+- **Ready check:** when a table fills, players have `table.ready_check_seconds` (default 60 s). No-shows are removed and refunded, or lose the fee if `table.no_show_policy=forfeit_fee`. The table re-opens for the rest; scheduled tables start with whoever is ready if that meets `min_players`, else cancel and refund.
+- **Tables copy their stake level** when opened, so admin changes only affect new tables.
+- **Free-play levels** (buy-in 0) work even with real money switched off.
+- **Game server is a stand-in** (`LocalGateway`) until Phase 2b; results can be simulated on the local dev dashboard.
+
 ---
 
 ## Open items (to decide)

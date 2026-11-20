@@ -19,7 +19,17 @@ from app.models import JournalTransaction, LedgerAccount, LedgerEntry
 HOUSE_FEES = "house:fees"
 PAYSTACK_CLEARING = "paystack:clearing"  # money held at Paystack; goes negative as users deposit
 
-_SYSTEM_ACCOUNTS = {HOUSE_FEES: False, PAYSTACK_CLEARING: True}
+TAX_EXCISE = "tax:excise"
+TAX_WITHHOLDING = "tax:withholding"
+DEV_CREDIT = "house:dev_credit"  # local seeding only; never used outside env=local
+
+_SYSTEM_ACCOUNTS = {
+    HOUSE_FEES: False,
+    PAYSTACK_CLEARING: True,
+    TAX_EXCISE: False,
+    TAX_WITHHOLDING: False,
+    DEV_CREDIT: True,
+}
 
 
 class LedgerError(Exception):
@@ -36,6 +46,11 @@ def user_available(user_id: uuid.UUID) -> str:
     return f"user:{user_id}:available"
 
 
+def table_escrow(table_id: uuid.UUID) -> str:
+    """Buy-ins held for one table until it is settled or cancelled."""
+    return f"table:{table_id}:escrow"
+
+
 @dataclass(frozen=True)
 class Leg:
     account: str
@@ -45,6 +60,8 @@ class Leg:
 async def _ensure_account(session: AsyncSession, code: str) -> None:
     if code in _SYSTEM_ACCOUNTS:
         values: dict[str, Any] = {"code": code, "allow_negative": _SYSTEM_ACCOUNTS[code]}
+    elif code.startswith("table:"):
+        values = {"code": code}
     elif code.startswith("user:"):
         values = {"code": code, "user_id": uuid.UUID(code.split(":")[1])}
     else:

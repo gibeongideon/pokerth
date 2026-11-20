@@ -27,6 +27,7 @@ class SettingDef:
     description: str
     min: int | Decimal | None = None
     max: int | Decimal | None = None
+    choices: tuple[str, ...] | None = None
 
 
 _DEFS = [
@@ -70,6 +71,59 @@ _DEFS = [
     ),
 ]
 
+_DEFS += [
+    # Tables / Sit & Go (Phase 2)
+    SettingDef("kyc.play_min_tier", int, 1, "KYC tier needed to join a paid table.", min=0, max=2),
+    SettingDef(
+        "table.unregister_grace_seconds",
+        int,
+        120,
+        "After joining, a player can pull out for free for this long.",
+        min=0,
+        max=3600,
+    ),
+    SettingDef(
+        "table.ready_check_seconds",
+        int,
+        60,
+        "When a table fills, players have this long to confirm they are ready.",
+        min=10,
+        max=600,
+    ),
+    SettingDef(
+        "table.no_show_policy",
+        str,
+        "refund",
+        "Player missing the ready check: refund everything, or keep the entry fee.",
+        choices=("refund", "forfeit_fee"),
+    ),
+    SettingDef(
+        "table.max_concurrent_per_user",
+        int,
+        3,
+        "Tables one player can be in at once.",
+        min=1,
+        max=20,
+    ),
+    # Taxes (D-013): configurable, confirm rates with a tax adviser before launch.
+    SettingDef(
+        "tax.excise_pct",
+        Decimal,
+        Decimal("0"),
+        "Excise on the stake, added to the price, in %.",
+        min=Decimal("0"),
+        max=Decimal("50"),
+    ),
+    SettingDef(
+        "tax.withholding_pct",
+        Decimal,
+        Decimal("0"),
+        "Withheld from prizes, in %.",
+        min=Decimal("0"),
+        max=Decimal("50"),
+    ),
+]
+
 REGISTRY: dict[str, SettingDef] = {d.key: d for d in _DEFS}
 
 
@@ -96,6 +150,8 @@ def _coerce(d: SettingDef, raw: Any) -> Any:
                 raise SettingError(f"{d.key} must be finite")
         else:
             value = str(raw)
+            if d.choices and value not in d.choices:
+                raise SettingError(f"{d.key} must be one of {', '.join(d.choices)}")
     except InvalidOperation as exc:
         raise SettingError(f"{d.key}: invalid decimal") from exc
     if d.min is not None and value < d.min:

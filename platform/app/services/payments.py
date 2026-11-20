@@ -11,7 +11,7 @@ import re
 import secrets
 from dataclasses import dataclass
 from datetime import timedelta
-from decimal import ROUND_CEILING, Decimal
+from decimal import ROUND_CEILING, ROUND_HALF_UP, Decimal
 from typing import Any, Literal
 
 from sqlalchemy import func, select
@@ -53,7 +53,7 @@ def normalize_ke_phone(raw: str) -> str:
 
 def kes_reference(usd_cents: int, rate: Decimal) -> int:
     """Whole KES shown next to a USD amount, for reference only."""
-    return int((Decimal(usd_cents) * rate / 100).to_integral_value())
+    return int((Decimal(usd_cents) * rate / 100).to_integral_value(rounding=ROUND_HALF_UP))
 
 
 @dataclass(frozen=True)

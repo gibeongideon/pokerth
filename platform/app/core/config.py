@@ -13,6 +13,7 @@ from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _DEV_JWT_SECRET = "dev-only-insecure-jwt-secret-change-me-0123456789"  # noqa: S105 (refused outside local/dev)
+_DEV_GAME_SECRET = "dev-only-insecure-game-secret"  # noqa: S105 (refused outside local/dev)
 
 
 class Settings(BaseSettings):
@@ -50,12 +51,26 @@ class Settings(BaseSettings):
     # Source IPs allowed to call the webhook; empty = no IP check (local only).
     paystack_webhook_ips: list[str] = []
 
+    # Game server integration (D-009)
+    # Ed25519 private key (PEM) that signs seat tokens. Empty in local = a key
+    # derived from jwt_secret, so every local process agrees.
+    seat_token_private_key: SecretStr = SecretStr("")
+    seat_token_ttl_seconds: int = Field(default=300, gt=0)
+    # Shared secret for HMAC-signed calls between platform and game server.
+    game_internal_secret: SecretStr = SecretStr(_DEV_GAME_SECRET)
+    # Where clients connect when no real game server is wired (local stand-in).
+    game_ws_url: str = "ws://localhost:7233"
+
     @model_validator(mode="after")
     def _no_dev_secrets_outside_local(self) -> "Settings":
         if self.env in ("staging", "prod"):
             secret = self.jwt_secret.get_secret_value()
             if secret == _DEV_JWT_SECRET or len(secret) < 32:
                 raise ValueError("PLATFORM_JWT_SECRET must be set (32+ chars) outside local/dev")
+            if self.game_internal_secret.get_secret_value() == _DEV_GAME_SECRET:
+                raise ValueError("PLATFORM_GAME_INTERNAL_SECRET must be set outside local/dev")
+            if not self.seat_token_private_key.get_secret_value():
+                raise ValueError("PLATFORM_SEAT_TOKEN_PRIVATE_KEY must be set outside local/dev")
         return self
 
     @property
