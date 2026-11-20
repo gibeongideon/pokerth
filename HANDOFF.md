@@ -6,7 +6,9 @@ Read this first when resuming. Update it at the end of every session.
 - Branches: `stable` → `prod` → `dev`, all at commit `52c05c31`. **`dev` is checked out.** Nothing pushed to `origin`.
 - Phase 0 almost done. Done: branches, production plan, tracking docs, `platform/` skeleton.
 - Client design changed to one mobile-portable player app + Capacitor (D-011).
-- Remaining Phase 0: CI workflow for `platform/`; owner to answer open items (wallet currency first).
+- Owner decided (2026-11-20): USD wallet with KES reference (D-012), entry fee shown once like "$100 + $0.50" (D-013), tiered KYC with Smile ID (D-014).
+- Remaining Phase 0: CI workflow for `platform/`. Open: default stake tiers (O-6), FX rate source (O-7).
+- To confirm with Paystack: USD card acceptance on the Kenya merchant account, gaming approval, Transfers enabled.
 - Next: Phase 1 — users + magic-link/Google auth, config registry, ledger, Paystack deposits.
 
 ## How to run

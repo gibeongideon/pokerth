@@ -15,14 +15,14 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [x] pytest + ruff + mypy configured and passing
 - [ ] CI workflow for `platform/` (GitHub Actions)
 - [x] Client design is mobile-portable: one player app + Capacitor (D-011)
-- [ ] Decide wallet currency (see DECISIONS open items)
+- [x] Decide wallet currency (USD, KES reference — D-012), fee model (D-013), KYC (D-014)
 
 ## Phase 1 — Identity, config, ledger, deposits
 - [ ] Users, profiles, unique username (table display name)
 - [ ] Email magic-link login (single-use, 15 min TTL, hashed token, rate-limited)
 - [ ] Google OIDC login (link to existing account by verified email)
 - [ ] Sessions: httpOnly secure cookies (web) and bearer tokens (mobile apps), refresh rotation, revoke all sessions
-- [ ] Real-money onboarding gate: 18+ confirmation, phone (M-Pesa), terms/RG acceptance
+- [ ] Real-money onboarding gate: terms/RG acceptance, then KYC Tier 1 on first deposit
 - [ ] Config system: `config_settings` typed registry + DB overrides + Redis cache + audit log
 - [ ] Feature flags: `real_money_enabled`, `p2p_transfers_enabled`, `auto_payout_enabled`, `tournaments_enabled`, `referrals_enabled`
 - [ ] Double-entry ledger (accounts, journal, entries), integer minor units, idempotency keys
@@ -31,7 +31,10 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [ ] Deposit: M-Pesa STK push (Charge API, `mobile_money`, provider `mpesa`) + pending poll
 - [ ] Webhook endpoint: HMAC-SHA512, event store (idempotent), amount + currency check, retry-friendly status codes
 - [ ] Fund-a-friend: pay on behalf of a user; wallet→wallet transfer (caps, flag)
-- [ ] Stale PENDING expiry job; daily reconciliation job
+- [ ] FX: USD/KES reference rate worker, configurable spread, quote-then-confirm for M-Pesa, rate stored per conversion
+- [ ] Fee engine: entry fee per stake tier (flat/%/min/max), optional levers off by default, tax lines (excise, withholding)
+- [ ] KYC tiers with Smile ID: Tier 1 ID-number check, Tier 2 selfie + liveness; tier gates on deposit/play/withdraw
+- [ ] Stale PENDING expiry job; daily reconciliation job; daily FX exposure report
 
 ## Phase 2 — Game server managed mode + Sit & Go
 - [ ] Proto: optional `platformToken` in `InitMessage` (backward compatible)

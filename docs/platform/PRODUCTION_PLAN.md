@@ -76,8 +76,8 @@ Decisions already made with the user:
 - The balance is always derived from ledger entries and never stored as a free float.
 
 **Sit & Go pools (core scenario)**
-1. Tables are created from table templates: stake tier (e.g. $100), seats (2–10), min players, start mode (`when_full` or `scheduled_at`), payout structure, rake %, blind structure.
-2. **Join:** buy-in plus fee moves to escrow.
+1. Tables are created from table templates: stake tier (e.g. $100), seats (2–10), min players, start mode (`when_full` or `scheduled_at`), payout structure, entry fee, blind structure.
+2. **Join:** the buy-in moves to escrow and the entry fee to `house:fees` (refunded if the table is cancelled).
 3. **Pull-out window:** free unregister within `unregister_grace_seconds`; after that, locked until start or cancel.
 4. **Full table:** a ready check with `ready_check_timeout`. No-shows are replaced from the waitlist, or forfeit or are refunded, depending on config.
 5. **Scheduled start below `min_players`:** auto-cancel and refund everyone.
@@ -167,10 +167,33 @@ Decisions already made with the user:
 | 5 | Scheduled tournaments, friends, referrals, responsible-gaming tools. |
 | 6 | Docker images, Helm, Argo CD, observability, load tests, security review, RNG certification and BCLB compliance pack, then production launch with `real_money_enabled` switched on. |
 
-## Open questions (to be resolved in DECISIONS.md, not blocking Phase 0)
-- **Wallet currency:** Paystack Kenya settles in KES and M-Pesa is KES, so I recommend a KES wallet with USD shown for reference. The alternative is a USD wallet with a configurable FX rate and spread captured on each deposit.
-- **Rake / fee model** and default stake tiers.
-- **KYC provider** (e.g. Smile ID) and the thresholds that trigger it.
+## Money, fees and identity (decided — D-012, D-013, D-014)
+
+**Wallet currency: USD, with KES shown for reference.**
+- All balances, buy-ins and prizes are USD cents. Every screen shows the KES equivalent underneath ("$100.00 · ≈ KES 12,950").
+- Card deposits charge USD directly (needs USD enabled on the Paystack Kenya merchant account — confirm with Paystack).
+- M-Pesa deposits and withdrawals are KES. They convert at the rate shown to the user before they confirm. The rate = reference rate (configurable source, refreshed by a worker) ± a configurable spread. The rate used is stored on every conversion.
+- Treasury: the house holds a KES float for M-Pesa payouts; daily report of USD liabilities vs KES/USD holdings.
+
+**House earnings: a small entry fee, shown once, nothing during play.**
+- Each table shows its price as **"$100 + $0.50"** on the join button and the receipt. Prize pool = sum of buy-ins; the fee goes to `house:fees`. Nothing is taken from pots or hands, so play itself is fee-free.
+- Fee per stake tier is configurable (flat or %, with min/max). Default ≈ 0.5 %.
+- Optional extra levers, **off by default**, each configurable and shown on the screen where it applies:
+  - FX spread on M-Pesa conversions (shown in the rate)
+  - withdrawal fee (flat, or pass-through of the Paystack transfer cost); free withdrawals above a threshold
+  - prize-pool cut (only if the entry fee is turned off)
+- Fees are never hidden: BCLB licensing and Kenyan consumer-protection law require disclosed charges. "Not noticeable while playing" is met by charging once, up front, in one familiar format.
+- Taxes: Kenya levies excise duty on stakes and withholding tax on winnings, with rates set by each Finance Act. Build them as configurable tax lines on the entry and payout journals; confirm rates with a tax adviser before launch.
+
+**Identity: tiered KYC, asked for only when needed (Smile ID).**
+| Tier | Unlocks | What the user does |
+|---|---|---|
+| 0 | Free play, browsing | Email magic link or Google |
+| 1 | Deposits and real-money play up to a configurable limit | Name, date of birth (18+), phone, national ID number — checked instantly against the national register (Smile ID Enhanced KYC); no photo |
+| 2 | Withdrawals above a threshold, higher limits | Selfie with liveness check matched to the ID (Smile ID Biometric KYC) |
+- Smile ID has a web SDK and Android/iOS SDKs, so it fits the player app and Capacitor builds.
+- One verified person per account: unique on national ID number; M-Pesa phone must belong to the verified user for withdrawals.
+- Thresholds, limits and which tier each action needs are all config settings.
 
 ## Verification
 - **Phase 0:**
