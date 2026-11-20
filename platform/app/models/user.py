@@ -28,4 +28,6 @@ class User(Base):
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Terms + responsible-gaming rules accepted and 18+ confirmed, in one step.
     terms_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Shareable code for referral links; created on first request.
+    referral_code: Mapped[str | None] = mapped_column(String(12), unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

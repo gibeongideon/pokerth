@@ -24,6 +24,7 @@ ClientKind = Literal["web", "app"]
 
 class MagicLinkRequest(BaseModel):
     email: EmailStr
+    ref: str | None = None  # referral code from the sign-up link
 
 
 class MagicLinkVerify(BaseModel):
@@ -34,6 +35,7 @@ class MagicLinkVerify(BaseModel):
 class GoogleSignIn(BaseModel):
     id_token: str
     client: ClientKind = "web"
+    ref: str | None = None
 
 
 class RefreshRequest(BaseModel):
@@ -95,7 +97,7 @@ async def request_magic_link(
 ) -> dict[str, str]:
     """Always 202, whether or not the email has an account (no enumeration)."""
     ip = request.client.host if request.client else None
-    await auth_svc.request_magic_link(session, mailer, body.email, ip)
+    await auth_svc.request_magic_link(session, mailer, body.email, ip, body.ref)
     return {"status": "sent"}
 
 
@@ -123,7 +125,7 @@ async def google_sign_in(
 ) -> SessionOut:
     try:
         claims = verifier.verify(body.id_token)
-        user = await auth_svc.sign_in_with_google(session, claims)
+        user = await auth_svc.sign_in_with_google(session, claims, body.ref)
     except auth_svc.AuthError as exc:
         await session.rollback()
         raise _auth_error(exc) from exc

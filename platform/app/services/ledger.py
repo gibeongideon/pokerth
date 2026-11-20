@@ -22,6 +22,7 @@ PAYSTACK_CLEARING = "paystack:clearing"  # money held at Paystack; goes negative
 TAX_EXCISE = "tax:excise"
 TAX_WITHHOLDING = "tax:withholding"
 PAYOUTS_PENDING = "payouts:pending"  # withdrawals confirmed but not yet paid out
+PROMOTIONS = "house:promotions"  # referral bonuses and other marketing spend
 DEV_CREDIT = "house:dev_credit"  # local seeding only; never used outside env=local
 
 _SYSTEM_ACCOUNTS = {
@@ -30,6 +31,7 @@ _SYSTEM_ACCOUNTS = {
     TAX_EXCISE: False,
     TAX_WITHHOLDING: False,
     PAYOUTS_PENDING: False,
+    PROMOTIONS: True,
     DEV_CREDIT: True,
 }
 

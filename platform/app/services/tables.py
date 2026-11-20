@@ -25,7 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import utcnow
 from app.models import GameTable, StakeTier, TableSeat, User
 from app.services import config_registry as cfg
-from app.services import ledger
+from app.services import ledger, referrals
 from app.services.game_gateway import GameGateway
 from app.services.ledger import Leg
 
@@ -528,6 +528,9 @@ async def settle(
             memo=f"{table.config['name']} prizes",
             meta={"table_id": str(table.id), "order": [str(u) for u in finishing_order]},
         )
+    if _price_of(table).total > 0:
+        for user_id in finishing_order:
+            await referrals.maybe_reward(session, user_id)
     table.status = "finished"
     table.finished_at = utcnow()
     return table

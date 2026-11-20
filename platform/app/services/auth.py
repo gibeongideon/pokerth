@@ -19,6 +19,7 @@ from app.core.config import get_settings
 from app.core.security import create_access_token, hash_token, new_opaque_token, utcnow
 from app.models import MagicLinkToken, RefreshToken, User
 from app.services import config_registry as cfg
+from app.services import referrals
 from app.services.mailer import Mailer
 
 
@@ -44,7 +45,7 @@ def normalize_email(email: str) -> str:
 
 
 async def request_magic_link(
-    session: AsyncSession, mailer: Mailer, email: str, ip: str | None
+    session: AsyncSession, mailer: Mailer, email: str, ip: str | None, ref: str | None = None
 ) -> None:
     """Create and email a sign-in link. Silently does nothing when rate limited,
     so callers can always answer 202 without revealing anything."""
@@ -67,6 +68,7 @@ async def request_magic_link(
             token_hash=hash_token(token),
             expires_at=utcnow() + timedelta(seconds=ttl),
             requester_ip=ip,
+            ref_code=(ref or "").strip().upper()[:16] or None,
         )
     )
     await session.commit()
@@ -96,6 +98,7 @@ async def verify_magic_link(session: AsyncSession, token: str) -> User:
         user = User(email=row.email, email_verified_at=utcnow())
         session.add(user)
         await session.flush()
+        await referrals.attach(session, user, row.ref_code)
     elif user.email_verified_at is None:
         user.email_verified_at = utcnow()
     _ensure_active(user)
@@ -137,7 +140,9 @@ class JwksGoogleVerifier:
         return claims
 
 
-async def sign_in_with_google(session: AsyncSession, claims: dict[str, Any]) -> User:
+async def sign_in_with_google(
+    session: AsyncSession, claims: dict[str, Any], ref: str | None = None
+) -> User:
     """Find or create the user for verified Google claims. Caller commits."""
     if not claims.get("email_verified"):
         raise AuthError("email_unverified", "Your Google email address is not verified.")
@@ -151,6 +156,7 @@ async def sign_in_with_google(session: AsyncSession, claims: dict[str, Any]) -> 
             user = User(email=email, email_verified_at=utcnow(), google_sub=sub)
             session.add(user)
             await session.flush()
+            await referrals.attach(session, user, ref)
         else:
             # Google verified this email, so linking to the existing account is safe.
             user.google_sub = sub

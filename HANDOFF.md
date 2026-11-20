@@ -5,7 +5,7 @@ Read this first when resuming. Update it at the end of every session.
 ## Current state (2026-11-20)
 - Branches: `stable` → `prod` → `dev`. **`dev` is checked out.** Nothing pushed to `origin`.
 - Phase 0 and Phase 1 done (Smile ID still manual). **Phase 2a done**: stake levels, fees, full Sit & Go lifecycle with a stand-in game server. **Phase 4 API done**: M-Pesa withdrawals with emailed code, review queue, admin users/reports.
-- Agreed order (D-020): non-UI tasks first (friend invites 5.1-5.5 done; next 5.6 referrals, 5.8 responsible gaming, 5.7 tournaments), then Phase 3 gamey UI, then Phase 2b C++.
+- Agreed order (D-020): non-UI tasks first (5.1-5.6 done: friends, invites, organized games, referrals; next 5.8 responsible gaming, then 5.7 tournaments), then Phase 3 gamey UI, then Phase 2b C++.
 - Screenshots of the dev dashboard: `docs/platform/screenshots/phase2-desktop.png`, `phase2-mobile.png`.
 - Phase 2b (C++ game server) waits until after the app; locally blocked (no CMake/Boost/Qt6, ~1.5 GB free RAM).
 - The owner prefers screenshots at the end of each phase over a server left running (machine is short on memory).
@@ -13,7 +13,7 @@ Read this first when resuming. Update it at the end of every session.
 
 ## API map (platform)
 - Auth: `POST /auth/magic-link`, `/auth/magic-link/verify`, `/auth/google`, `/auth/refresh`, `/auth/logout`, `/auth/logout-all`
-- Me: `GET/PATCH /me`, `POST /me/accept-terms`
+- Me: `GET/PATCH /me`, `POST /me/accept-terms`, `GET /me/referral`; sign-up takes optional `ref` (magic link and Google)
 - Wallet: `GET /wallet`, `/wallet/history`, `/wallet/deposits/quote`, `POST /wallet/deposits`, `GET /wallet/deposits/{ref}`, `POST /wallet/transfers`
 - Withdrawals: `GET/POST /wallet/payout-destinations`, `GET /wallet/withdrawals/quote`, `GET/POST /wallet/withdrawals`, `POST /wallet/withdrawals/{ref}/confirm|cancel`
 - Friends & invites: `GET /friends`, `POST /friends/requests`, `POST /friends/requests/{id}/accept|decline`, `DELETE /friends/{user_id}`, `POST/GET /tables/{id}/invites`, `GET /invites`, `POST /invites/{id}/accept|decline`, `GET /invites/code/{code}` (public preview), `POST /games/organize`, `POST /tables/{id}/cancel` (organizer)

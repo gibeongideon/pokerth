@@ -199,6 +199,32 @@ _DEFS += [
     ),
 ]
 
+_DEFS += [
+    # Referrals (Phase 5.6), off by default (D-013: no hidden levers)
+    SettingDef("referrals_enabled", bool, False, "Pay referral bonuses."),
+    SettingDef(
+        "referral.referrer_bonus_usd_cents",
+        int,
+        500,
+        "Paid to the referrer when the new player finishes a paid game.",
+        min=0,
+    ),
+    SettingDef(
+        "referral.referred_bonus_usd_cents",
+        int,
+        0,
+        "Paid to the new player at the same time.",
+        min=0,
+    ),
+    SettingDef(
+        "referral.max_rewards_per_referrer",
+        int,
+        100,
+        "Most bonuses one referrer can earn.",
+        min=0,
+    ),
+]
+
 REGISTRY: dict[str, SettingDef] = {d.key: d for d in _DEFS}
 
 

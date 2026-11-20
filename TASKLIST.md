@@ -84,7 +84,7 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [x] 5.3 Organized games: organizer sets title/message/start time/plays-or-not, invites a group, RSVP list, organizer cancel with refunds
 - [x] 5.4 Invite links: public preview by code, join after sign-in; email invites to people without an account
 - [x] 5.5 Invite expiry + anti-spam limits (per day, per table) as settings
-- [ ] 5.6 Referrals (configurable bonus, off by default)
+- [x] 5.6 Referrals: code + link per player, bonus after the new player's first paid game, both sides configurable, off by default, cap per referrer
 - [ ] 5.7 Scheduled tournaments (registration windows, late reg, guarantees, re-entry, payout tables)
 - [ ] 5.8 Responsible gaming: deposit/loss/session limits, self-exclusion
 

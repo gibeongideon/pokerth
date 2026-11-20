@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field, StringConstraints
@@ -9,6 +9,7 @@ from app.api.schemas import UserOut, user_out
 from app.core.errors import ApiError
 from app.core.security import utcnow
 from app.models import User
+from app.services import referrals
 from app.services.payments import PaymentError, normalize_ke_phone
 
 router = APIRouter(prefix="/me", tags=["me"])
@@ -58,3 +59,11 @@ async def accept_terms(body: AcceptTerms, user: CurrentUser, session: SessionDep
         user.terms_accepted_at = utcnow()
         await session.commit()
     return user_out(user)
+
+
+@router.get("/referral")
+async def referral(user: CurrentUser, session: SessionDep) -> dict[str, Any]:
+    """The player's invite-a-friend code, link and earnings."""
+    out = await referrals.summary(session, user)
+    await session.commit()  # saves a newly created code
+    return out
