@@ -6,6 +6,10 @@
 #
 # Needs: the compose Postgres/Redis, the seeded dev DB, the API on :8000, and
 # the server built with docker/server/Dockerfile.build (poker-server-build-cache).
+#
+# WEB_CLIENTS=N plays the first N seats through the TypeScript GameClient
+# (packages/protocol, the code the web and phone app use) over WebSocket :7233;
+# the remaining seats are C++ bots. Default 0 = bots only.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 . .venv/bin/activate
@@ -39,8 +43,18 @@ docker run -d --name poker-gs --network host -v poker-server-build-cache:/build:
   -e POKERTH_PLATFORM_URL=http://127.0.0.1:8000 -e POKERTH_PLATFORM_SECRET=dev-only-insecure-game-secret \
   poker-server-build /build/bin/pokerth_dedicated_server --foreground >/dev/null
 sleep 4
-docker run -d --name poker-bots --network host -v poker-server-build-cache:/build:ro \
-  poker-server-build /build/bin/pokerth_bot -s 127.0.0.1 --no-tls --platform-tokens "$TOKENS" >/dev/null
+WEB_CLIENTS=${WEB_CLIENTS:-0}
+IFS=, read -ra ALL <<< "$TOKENS"
+WEB_TOKENS=("${ALL[@]:0:$WEB_CLIENTS}")
+BOT_TOKENS=$(IFS=,; echo "${ALL[*]:$WEB_CLIENTS}")
+if [ -n "$BOT_TOKENS" ]; then
+  docker run -d --name poker-bots --network host -v poker-server-build-cache:/build:ro \
+    poker-server-build /build/bin/pokerth_bot -s 127.0.0.1 --no-tls --platform-tokens "$BOT_TOKENS" >/dev/null
+fi
+if [ "$WEB_CLIENTS" -gt 0 ]; then
+  echo "web clients: ${#WEB_TOKENS[@]} over ws://127.0.0.1:7233"
+  (cd ../packages/protocol && npm run --silent live -- ws://127.0.0.1:7233 "${WEB_TOKENS[@]}")
+fi
 
 echo "table $TABLE: game running, waiting for the result (up to 10 min)..."
 for _ in $(seq 1 120); do

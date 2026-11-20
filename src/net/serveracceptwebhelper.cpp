@@ -121,7 +121,8 @@ ValidateAndNegotiate(ConPtr con, const std::string &resource, const std::string 
 	bool ok = (resource.empty() || con->get_resource() == resource)
 			  && (origin.empty() ||
 				  (con->get_origin() != "null" &&
-				   (con->get_origin() == "http://" + origin || con->get_origin() == "http://www." + origin)));
+				   (con->get_origin() == "http://" + origin || con->get_origin() == "http://www." + origin
+				    || con->get_origin() == "https://" + origin || con->get_origin() == "https://www." + origin)));
 	if (ok) {
 		// If the client offered the length-prefix subprotocol, select it so it
 		// is echoed back in the handshake. Both sides then frame every packet

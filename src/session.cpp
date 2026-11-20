@@ -31,6 +31,7 @@
 #include <boost/asio.hpp>
 #include <net/socket_helper.h>
 #include "session.h"
+#include <net/platform.h>
 #include "game.h"
 #include "log.h"
 #include "guiinterface.h"
@@ -42,6 +43,7 @@
 #include <core/avatarmanager.h>
 #include <net/servermanagerfactory.h>
 
+#include <cstdlib>
 #include <sstream>
 
 #define NET_CLIENT_TERMINATE_TIMEOUT_MSEC	2000
@@ -373,7 +375,8 @@ void Session::startNetworkServer(bool dedicated)
 	myNetServer = ServerManagerFactory::CreateServerManager(*myConfig, *myGui, mode, *myAvatarManager);
 
 	int protocol = TRANSPORT_PROTOCOL_TCP;
-	if (dedicated && myConfig->readConfigInt("ServerUseWebSocket") == 1) {
+	// Platform mode always serves browsers (and the phone app) over WebSocket.
+	if (dedicated && (myConfig->readConfigInt("ServerUseWebSocket") == 1 || platform::Enabled())) {
 		protocol |= TRANSPORT_PROTOCOL_WEBSOCKET;
 	}
 	if (myConfig->readConfigInt("ServerUseSctp") == 1) {
@@ -388,7 +391,9 @@ void Session::startNetworkServer(bool dedicated)
 		protocol,
 		myQtToolsInterface->stringFromUtf8(myConfig->readConfigString("LogDir")),
 		myQtToolsInterface->stringFromUtf8(myConfig->readConfigString("ServerWebSocketResource")),
-		myQtToolsInterface->stringFromUtf8(myConfig->readConfigString("ServerWebSocketOrigin"))
+		// POKERTH_WS_ORIGIN (e.g. "play.example.com") restricts browser origins without a config file.
+		std::getenv("POKERTH_WS_ORIGIN") ? std::string(std::getenv("POKERTH_WS_ORIGIN"))
+		: myQtToolsInterface->stringFromUtf8(myConfig->readConfigString("ServerWebSocketOrigin"))
 	);
 
 	myNetServer->RunAll();

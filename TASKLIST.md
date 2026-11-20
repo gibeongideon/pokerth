@@ -60,7 +60,8 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [x] End-to-end verified: 3 bots played a real game on the C++ server, result reported and paid out correctly (`platform/scripts/e2e_game_server.sh`)
 - [ ] Runtime Docker image for the server (multi-stage, slim) for deployment
 - [ ] Hand history persistence (for disputes and RNG certification)
-- [ ] Reconnect: web client sends `myLastSessionId` and rejoins a running table
+- [x] WebSocket on automatically in platform mode; `POKERTH_WS_ORIGIN` restricts browser origins (http and https)
+- [ ] Reconnect: web client sends `myLastSessionId` and rejoins a running table (today a page reload mid-game shows "removed from the game"; the seat is auto-folded until the game ends) — **next, before real players**
 
 ## Phase 3 — Player app (web + mobile) and site
 - [x] npm workspace (pnpm is broken on this machine); `packages/api-client` typed from the OpenAPI schema (`npm run api:types`)
@@ -68,8 +69,11 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [x] PixiJS table: seats around the felt (you at the bottom), ready glow, chip stacks, pot, medals + prizes, demo deal while running; fits portrait and landscape
 - [x] Sounds (synthesized, mute toggle), reality-check reminder, toasts
 - [x] Screenshots: `docs/platform/screenshots/phase3/` (desktop + phone)
-- [ ] Live hands over the game-server protocol (`packages/protocol` from `pokerth.proto`, WSS, seat token) — after Phase 2b
-- [ ] Table controls for live play (fold/check/call/raise slider), timers, hand history
+- [x] Live hands over the game-server protocol: `packages/protocol` (generated from `pokerth.proto` with protoc-gen-es, `GameClient` over WebSocket with the seat token, pure `TableState` reducer + `legalActions`, 9 tests) (done 2026-11-21, D-026)
+- [x] Table controls for live play: fold / check / call / bet-raise with slider and Min · ½ Pot · Pot · Max, all-in, turn countdown, hand log; PixiJS live view (real cards, board, bets, stacks, dealer button, turn ring); sounds
+- [x] Verified end to end: alice played a full game in Chrome (desktop + phone size) against two C++ bots; the table settled (`docs/platform/screenshots/live/`). `WEB_CLIENTS=2 platform/scripts/e2e_game_server.sh` plays seats through the TS client headless
+- [ ] Error boundary around the table so a render bug can never drop the game connection
+- [ ] Code-split the table (Pixi + protobuf) out of the main bundle (612 kB)
 - [ ] Google sign-in button (needs a Google OAuth client ID)
 - [ ] PWA manifest + offline shell
 - [ ] Capacitor Android build: deep links (invites, magic links), push notifications, secure token storage, native Google sign-in

@@ -1,0 +1,21 @@
+{
+  "name": "@poker/protocol",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "generate": "protoc --plugin=protoc-gen-es=../../node_modules/.bin/protoc-gen-es --es_out=src/gen --es_opt=target=ts,import_extension=none -I ../.. ../../pokerth.proto",
+    "test": "esbuild test/reduce.test.ts --bundle --platform=node --format=esm --log-level=warning --outfile=.out/reduce.test.mjs && node .out/reduce.test.mjs",
+    "live": "esbuild test/live.ts --bundle --packages=external --platform=node --format=esm --log-level=warning --outfile=.out/live.mjs && node .out/live.mjs",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "2.2.3"
+  },
+  "devDependencies": {
+    "@bufbuild/protoc-gen-es": "2.2.3",
+    "ws": "^8.18.0"
+  }
+}

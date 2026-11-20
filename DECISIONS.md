@@ -118,6 +118,12 @@ The seat token already carries signed table settings (`cfg`: players, chips, sma
 - Packet limit raised from 384 to 1024 bytes (a login with a token is ~560 bytes); older clients are unaffected.
 - Result: finishing order (winner first). Players the server never saw are appended last by the platform (a no-show forfeits the seat).
 
+### D-026 · 2026-11-21 · Accepted — Browser/phone client protocol layer
+- `packages/protocol` holds everything game-protocol related for the player app (web and Capacitor share it): TypeScript generated from `pokerth.proto` with `@bufbuild/protobuf` + `protoc-gen-es` (committed under `src/gen`, CI checks it is current), a `GameClient` (WebSocket, one PokerTHMessage per binary frame, no length-prefix subprotocol), and a pure `reduce(state, message)` that turns server messages into `TableState`. UI code renders `TableState` only; the server stays the authority on every rule, `legalActions()` just limits what the buttons offer.
+- The client identifies as client type 3 (web), build 0.1.0, logs in with `unauthenticatedLogin` + `platformToken`, acknowledges `StartEvent` and answers timeout warnings.
+- Bet amounts on the wire are the chips added by this action (`myRelativeBet`); the UI works in "raise to" totals and converts.
+- Platform mode turns the WebSocket listener (port 7233) on without a config file. `POKERTH_WS_ORIGIN=play.example.com` limits browser origins; the check now accepts `https://` as well as `http://`. TLS is terminated by the ingress/Caddy in front (WSS).
+
 ---
 
 ## Open items (to decide)

@@ -3,7 +3,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Avatar, Ring, SeatDots, Spinner, StatusBadge } from "../components/bits";
 import { useToast } from "../components/Toast";
-import { TableCanvas, type CanvasSeat } from "../game/TableCanvas";
+import { ActionBar } from "../game/ActionBar";
+import { TableCanvas, type CanvasSeat, type LiveTable } from "../game/TableCanvas";
+import { useLiveGame } from "../game/useLiveGame";
+import { pot as potOf, type TableState } from "@poker/protocol";
 import { api, call, errorMessage } from "../lib/api";
 import { usd, when } from "../lib/format";
 import { useMe, useSecondsLeft } from "../lib/hooks";
@@ -105,6 +108,51 @@ function InvitePanel({ table, onClose }: { table: TableView; onClose: () => void
   );
 }
 
+/** Canvas view of the live game state (seat order, me at the bottom). */
+function toLiveTable(s: TableState): LiveTable {
+  return {
+    handKey: s.handNum,
+    board: s.board,
+    pot: potOf(s),
+    turnStartedAt: s.turnStartedAt,
+    turnSeconds: s.actionTimeoutSec,
+    seats: s.seats.map((p) => ({
+      id: p.playerId,
+      name: p.name,
+      me: p.playerId === s.myId,
+      cash: p.cash,
+      bet: p.bet,
+      folded: p.folded,
+      out: p.out,
+      allIn: p.allIn,
+      dealer: p.playerId === s.dealerId,
+      turn: !s.handOver && p.playerId === s.turnPlayerId,
+      inHand: s.handNum > 0 && !p.out,
+      cards: p.cards,
+      action: p.lastAction,
+      won: p.won,
+    })),
+  };
+}
+
+function HandLog({ lines }: { lines: string[] }) {
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // Scroll only the log box, never the page.
+    if (box.current) box.current.scrollTop = box.current.scrollHeight;
+  }, [lines.length]);
+  return (
+    <div ref={box} className="panel max-h-40 overflow-y-auto p-3 text-sm">
+      <div className="label">Hand history</div>
+      {lines.map((l, i) => (
+        <div key={i} className={l.startsWith("Hand #") ? "mt-1 font-display text-gold-300" : "text-cream/75"}>
+          {l}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Rsvp({ tableId }: { tableId: string }) {
   const rsvp = useQuery({
     queryKey: ["rsvp", tableId],
@@ -150,6 +198,9 @@ export function TableRoom() {
     [t?.me?.can_pull_out, t?.status],
   );
   const pullOutLeft = useSecondsLeft(pullOutDeadline);
+  const playing = t?.status === "running" && t.me?.status === "playing";
+  const live = useLiveGame(id, playing);
+  const liveTable = useMemo(() => (playing && live.state && live.state.phase !== "connecting" && live.state.seats.length ? toLiveTable(live.state) : null), [playing, live.state]);
 
   // Sounds on state changes.
   const lastStatus = useRef<string | undefined>(undefined);
@@ -217,7 +268,12 @@ export function TableRoom() {
       {t.message && <div className="panel px-4 py-3 text-cream/80">💬 {t.message}</div>}
 
       <div className="panel relative aspect-[4/5] overflow-hidden sm:aspect-[16/10]">
-        <TableCanvas seatsTotal={t.seats_total} seats={seats} phase={phase} potLabel={usd(t.prize_pool_cents)} />
+        <TableCanvas seatsTotal={t.seats_total} seats={seats} phase={phase} potLabel={usd(t.prize_pool_cents)} live={liveTable} />
+        {liveTable && live.state && (
+          <div className="pointer-events-none absolute left-3 top-3 rounded-lg bg-black/45 px-2.5 py-1 text-xs text-cream/80">
+            Hand #{live.state.handNum} · Blinds {live.state.smallBlind}/{live.state.smallBlind * 2}
+          </div>
+        )}
         {t.status === "ready_check" && t.me && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/35 backdrop-blur-[2px]">
             <div className="panel animate-pop flex flex-col items-center gap-3 p-6 text-center">
@@ -301,13 +357,42 @@ export function TableRoom() {
             </div>
           )}
 
-          {t.status === "running" && (
+          {t.status === "running" && playing && (
+            <>
+              {live.error ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex-1 text-cream/80">⚠️ {live.error}</div>
+                  <button className="btn-gold" onClick={live.retry}>
+                    Reconnect
+                  </button>
+                </div>
+              ) : !live.state || live.state.phase === "connecting" ? (
+                <div className="flex items-center gap-3 text-cream/70">
+                  <Spinner /> Connecting to your table…
+                </div>
+              ) : live.state.phase === "waiting" ? (
+                <div>
+                  <div className="title text-xl">Taking your seat…</div>
+                  <p className="mt-1 text-sm text-cream/60">
+                    {live.state.seats.length}/{t.players} players connected. The first hand is dealt when everyone is here.
+                  </p>
+                </div>
+              ) : live.state.phase === "ended" ? (
+                <div>
+                  <div className="title text-2xl">
+                    {live.state.winnerId === live.state.myId ? "🏆 You won the game!" : "Game over"}
+                  </div>
+                  <p className="mt-1 text-sm text-cream/60">Settling prizes… your wallet updates in a moment.</p>
+                </div>
+              ) : (
+                <ActionBar state={live.state} act={live.act} />
+              )}
+            </>
+          )}
+          {t.status === "running" && !playing && (
             <div className="flex flex-wrap items-center gap-3">
               <div className="title flex-1 text-xl">Game on! 🃏</div>
-              <span className="text-sm text-cream/60">Blinds rise every few minutes. Good luck.</span>
-              <span className="badge w-full justify-center bg-black/30 py-1 text-cream/60">
-                Demo hand · live play arrives with the game server
-              </span>
+              <span className="text-sm text-cream/60">Blinds rise every few minutes.</span>
             </div>
           )}
 
@@ -347,6 +432,7 @@ export function TableRoom() {
         </div>
 
         <div className="space-y-4">
+          {playing && live.state && live.state.log.length > 0 && <HandLog lines={live.state.log} />}
           <div className="panel p-4 text-sm">
             <div className="label">Payouts</div>
             {t.payout_bps.map((b, i) => (

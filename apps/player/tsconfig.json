@@ -15,5 +15,5 @@
     "noEmit": true,
     "types": ["vite/client"]
   },
-  "include": ["src", "../../packages/api-client/src"]
+  "include": ["src", "../../packages/api-client/src", "../../packages/protocol/src"]
 }

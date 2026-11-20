@@ -1,0 +1,41 @@
+name: Player app CI
+
+# Web/phone player app and its shared packages: protocol tests (wire format +
+# table reducer), type-check and production build. Also checks that the
+# generated protobuf code is up to date with pokerth.proto.
+
+on:
+  push:
+    branches: [dev, prod]
+    paths: ["apps/**", "packages/**", "pokerth.proto", "package.json", "package-lock.json", ".github/workflows/player-ci.yml"]
+  pull_request:
+    branches: [dev, prod]
+    paths: ["apps/**", "packages/**", "pokerth.proto", "package.json", "package-lock.json", ".github/workflows/player-ci.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: player-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Generated protocol code matches pokerth.proto
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq protobuf-compiler
+          npm run generate -w packages/protocol
+          git diff --exit-code packages/protocol/src/gen
+      - run: npm test -w packages/protocol
+      - run: npm run typecheck -w packages/protocol
+      - run: npm run build

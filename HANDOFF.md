@@ -2,12 +2,11 @@
 
 Read this first when resuming. Update it at the end of every session.
 
-## Current state (2026-11-20)
+## Current state (2026-11-21)
 - Branches: `stable` → `prod` → `dev`. **`dev` is checked out.** Nothing pushed to `origin`.
 - Phase 0 and Phase 1 done (Smile ID still manual). **Phase 2a done**: stake levels, fees, full Sit & Go lifecycle with a stand-in game server. **Phase 4 API done**: M-Pesa withdrawals with emailed code, review queue, admin users/reports.
-- Agreed order (D-020): non-UI tasks first (Phase 5 done except 5.7b late reg / re-entry / multi-table, which need the game server). **Phase 3 web player app built** (`apps/player`, screenshots in `docs/platform/screenshots/phase3/`). **Phase 2b done**: the C++ server runs in platform mode and an end-to-end bot game settled correctly. Next: live play in the web app (protobuf over WebSocket + table controls), then Capacitor Android., then Phase 3 gamey UI, then Phase 2b C++.
+- Agreed order (D-020): non-UI tasks first (Phase 5 done except 5.7b late reg / re-entry / multi-table, which need the game server). **Phase 3 web player app built** (`apps/player`, screenshots in `docs/platform/screenshots/phase3/`). **Phase 2b done**: the C++ server runs in platform mode and an end-to-end bot game settled correctly. **Live play in the web app done** (2026-11-21, D-026): players play real hands in the browser (desktop and phone) through `packages/protocol`; screenshots in `docs/platform/screenshots/live/`. **Next: reconnect/rejoin after a reload or dropped connection (needed before real players), then Capacitor Android**, then the server runtime image and hand history.
 - Screenshots of the dev dashboard: `docs/platform/screenshots/phase2-desktop.png`, `phase2-mobile.png`.
-- Phase 2b (C++ game server) waits until after the app; locally blocked (no CMake/Boost/Qt6, ~1.5 GB free RAM).
 - The owner prefers screenshots at the end of each phase over a server left running (machine is short on memory).
 - To confirm with Paystack: USD card acceptance on the Kenya merchant account, gaming approval, Transfers enabled.
 
@@ -29,6 +28,16 @@ Read this first when resuming. Update it at the end of every session.
 - Compile (incremental, ~3 min after header changes): `docker run --rm -v "$PWD":/src -v poker-server-build-cache:/build poker-server-build`
 - End-to-end with bots: start Postgres/Redis + seeded API on :8000, then `platform/scripts/e2e_game_server.sh` (takes ~3-5 min)
 - Run the server: `pokerth_dedicated_server --foreground` with `POKERTH_PLATFORM_MODE=1`, `POKERTH_SEAT_TOKEN_PUBLIC_KEY` (from `GET /internal/seat-token-key`), `POKERTH_PLATFORM_URL`, `POKERTH_PLATFORM_SECRET`. Logs: `~/.pokerth/log-files/server_messages.log`.
+
+## Play a live game locally (browser + game server)
+1. API and app as in "Run the web player app locally" below (Vite on :5173, API on :8000).
+2. Start the game server: `PUB=$(curl -s localhost:8000/internal/seat-token-key)` then
+   `docker run -d --name poker-gs --network host -v poker-server-build-cache:/build:ro -e POKERTH_PLATFORM_MODE=1 -e POKERTH_SEAT_TOKEN_PUBLIC_KEY="$PUB" -e POKERTH_PLATFORM_URL=http://127.0.0.1:8000 -e POKERTH_PLATFORM_SECRET=dev-only-insecure-game-secret poker-server-build /build/bin/pokerth_dedicated_server --foreground`
+   (WebSocket on :7233; `ws_url` comes from `PLATFORM_GAME_WS_URL`, default `ws://localhost:7233`).
+3. Fill a table (e.g. quick play as alice in the browser + bob/carol via `/dev/token`), press ready; the table page connects and deals.
+4. Bots for the other seats: `docker run --rm --network host -v poker-server-build-cache:/build:ro poker-server-build /build/bin/pokerth_bot -s 127.0.0.1 --no-tls --platform-tokens <tok1>,<tok2>` (tokens from `GET /tables/{id}/seat-token` as each player).
+5. Protocol tests: `npm test -w packages/protocol`. Regenerate after `pokerth.proto` changes: `npm run generate -w packages/protocol` (needs `protoc`).
+6. If a game gets stuck (someone reloaded mid-game), finish it with `POST /dev/tables/{id}/simulate-result` and `docker restart poker-gs`.
 
 ## Run the web player app locally
 1. `cd platform && docker compose up -d postgres redis mailpit && . .venv/bin/activate && alembic upgrade head && python -m app.seed`
