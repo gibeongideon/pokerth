@@ -1523,6 +1523,16 @@ ServerLobbyThread::HandleNetPacketInit(boost::shared_ptr<SessionData> session, c
 	if (initMessage.has_mylastsessionid()) {
 		tmpPlayerData->SetOldGuid(initMessage.mylastsessionid());
 	}
+	if (session->GetPlatformSeat()) {
+		// Managed mode: the signed seat token already proves who this is, so a
+		// player coming back (page reload, new device, dropped network) does not
+		// need the previous session id. If they still hold a seat in their
+		// table's running game, act as if they had sent it - the normal rejoin
+		// path (offer, StartEvent, id swap at the next hand) then takes over.
+		const std::string guid = GetPlatformRejoinGuid(*session->GetPlatformSeat());
+		if (!guid.empty())
+			tmpPlayerData->SetOldGuid(guid);
+	}
 
 	// Set player data for session.
 	m_sessionManager.SetSessionPlayerData(session->GetId(), tmpPlayerData);
@@ -1832,6 +1842,25 @@ ServerLobbyThread::PlacePlatformPlayer(boost::shared_ptr<SessionData> session)
 
 	game->AddPlatformPlayer(session->GetPlayerData()->GetUniqueId(), seat->userId);
 	MoveSessionToGame(game, session, false, false);
+}
+
+std::string
+ServerLobbyThread::GetPlatformRejoinGuid(const platform::SeatClaims &seat)
+{
+	std::map<std::string, unsigned>::const_iterator known = m_platformGames.find(seat.tableId);
+	if (known == m_platformGames.end())
+		return std::string();
+	GameMap::iterator pos = m_gameMap.find(known->second);
+	if (pos == m_gameMap.end())
+		return std::string();
+	boost::shared_ptr<PlayerInterface> player = pos->second->GetPlayerInterfaceFromGame(seat.username);
+	// An empty guid or a kicked seat means "released" (left, kicked, offline
+	// too long); busted players have no cash left to play with.
+	if (!player || player->getMyGuid().empty() || player->isKicked() || player->getMyCash() <= 0)
+		return std::string();
+	LOG_MSG("platform: \"" << seat.username << "\" returns to table " << seat.tableId
+			<< " (game " << known->second << ").");
+	return player->getMyGuid();
 }
 
 void

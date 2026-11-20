@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Avatar, Ring, SeatDots, Spinner, StatusBadge } from "../components/bits";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 import { useToast } from "../components/Toast";
 import { ActionBar } from "../game/ActionBar";
 import { TableCanvas, type CanvasSeat, type LiveTable } from "../game/TableCanvas";
@@ -200,7 +201,15 @@ export function TableRoom() {
   const pullOutLeft = useSecondsLeft(pullOutDeadline);
   const playing = t?.status === "running" && t.me?.status === "playing";
   const live = useLiveGame(id, playing);
-  const liveTable = useMemo(() => (playing && live.state && live.state.phase !== "connecting" && live.state.seats.length ? toLiveTable(live.state) : null), [playing, live.state]);
+  // While reconnecting or waiting to be dealt back in, keep showing the last table we had.
+  const lastLive = useRef<LiveTable | null>(null);
+  const liveTable = useMemo(() => {
+    if (!playing) return (lastLive.current = null);
+    const s = live.state;
+    const fresh = s && (s.phase === "playing" || s.phase === "ended") && s.seats.length && !s.rejoining ? toLiveTable(s) : null;
+    if (fresh) lastLive.current = fresh;
+    return fresh ?? lastLive.current;
+  }, [playing, live.state]);
 
   // Sounds on state changes.
   const lastStatus = useRef<string | undefined>(undefined);
@@ -268,7 +277,23 @@ export function TableRoom() {
       {t.message && <div className="panel px-4 py-3 text-cream/80">💬 {t.message}</div>}
 
       <div className="panel relative aspect-[4/5] overflow-hidden sm:aspect-[16/10]">
-        <TableCanvas seatsTotal={t.seats_total} seats={seats} phase={phase} potLabel={usd(t.prize_pool_cents)} live={liveTable} />
+        <ErrorBoundary label="table view">
+          <TableCanvas
+            seatsTotal={t.seats_total}
+            seats={seats}
+            // A seated player waiting for the live table sees seats, not the demo deal.
+            phase={playing && !liveTable ? "waiting" : phase}
+            potLabel={usd(t.prize_pool_cents)}
+            live={liveTable}
+          />
+        </ErrorBoundary>
+        {playing && (live.reconnecting || live.state?.rejoining) && (
+          <div className="pointer-events-none absolute inset-x-0 top-12 flex justify-center">
+            <div className="animate-pop rounded-full bg-black/70 px-4 py-2 font-display text-gold-300">
+              {live.reconnecting ? "Reconnecting…" : "Back at your seat · dealt in next hand"}
+            </div>
+          </div>
+        )}
         {liveTable && live.state && (
           <div className="pointer-events-none absolute left-3 top-3 rounded-lg bg-black/45 px-2.5 py-1 text-xs text-cream/80">
             Hand #{live.state.handNum} · Blinds {live.state.smallBlind}/{live.state.smallBlind * 2}
@@ -359,7 +384,11 @@ export function TableRoom() {
 
           {t.status === "running" && playing && (
             <>
-              {live.error ? (
+              {live.reconnecting ? (
+                <div className="flex items-center gap-3 text-cream/70">
+                  <Spinner /> Connection dropped — getting your seat back…
+                </div>
+              ) : live.error ? (
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="flex-1 text-cream/80">⚠️ {live.error}</div>
                   <button className="btn-gold" onClick={live.retry}>
@@ -369,6 +398,11 @@ export function TableRoom() {
               ) : !live.state || live.state.phase === "connecting" ? (
                 <div className="flex items-center gap-3 text-cream/70">
                   <Spinner /> Connecting to your table…
+                </div>
+              ) : live.state.rejoining ? (
+                <div>
+                  <div className="title text-xl">Welcome back 👋</div>
+                  <p className="mt-1 text-sm text-cream/60">Your seat and chips are safe. You're dealt in at the next hand.</p>
                 </div>
               ) : live.state.phase === "waiting" ? (
                 <div>
@@ -385,7 +419,9 @@ export function TableRoom() {
                   <p className="mt-1 text-sm text-cream/60">Settling prizes… your wallet updates in a moment.</p>
                 </div>
               ) : (
-                <ActionBar state={live.state} act={live.act} />
+                <ErrorBoundary label="betting controls">
+                  <ActionBar state={live.state} act={live.act} />
+                </ErrorBoundary>
               )}
             </>
           )}
@@ -469,41 +505,6 @@ export function TableRoom() {
         </div>
       </div>
       {inviting && <InvitePanel table={t} onClose={() => setInviting(false)} />}
-    </div>
-  );
-}
-
-export function MyTables() {
-  const tables = useQuery({
-    queryKey: ["my-tables"],
-    queryFn: () => call<TableView[]>(api.GET("/tables/mine")),
-    refetchInterval: 4000,
-  });
-  if (tables.isLoading) return <Spinner />;
-  return (
-    <div className="space-y-4">
-      <h1 className="title text-3xl">My tables</h1>
-      {!tables.data?.length ? (
-        <div className="panel p-6 text-center">
-          <div className="title text-xl">You're not at any table</div>
-          <Link to="/" className="btn-gold mt-4">
-            Find a game
-          </Link>
-        </div>
-      ) : (
-        tables.data.map((t) => (
-          <Link key={t.id} to={`/tables/${t.id}`} className="panel flex items-center gap-4 p-4 hover:border-gold-400/40">
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <span className="font-display text-xl">{t.title ?? t.name}</span>
-                <StatusBadge status={t.status} />
-              </div>
-              <div className="text-sm text-cream/60">{t.price_label}</div>
-            </div>
-            <SeatDots filled={t.players} total={t.seats_total} />
-          </Link>
-        ))
-      )}
     </div>
   );
 }

@@ -132,6 +132,8 @@ public:
 	// creating the game from the token's settings for the first arrival.
 	void PlacePlatformPlayer(boost::shared_ptr<SessionData> session);
 	// Called when a platform game has ended, so the table id is not reused.
+	// Managed mode: guid of the seat this seat-token holder still has in a running game, or "".
+	std::string GetPlatformRejoinGuid(const platform::SeatClaims &seat);
 	void ForgetPlatformGame(const std::string &tableId);
 
 	AvatarManager &GetAvatarManager();

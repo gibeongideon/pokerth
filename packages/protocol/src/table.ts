@@ -8,6 +8,7 @@ import {
   NetPlayerAction,
   NetPlayerState,
   PokerTHMessage_PokerTHMessageType as T,
+  RemovedFromGameMessage_RemovedFromGameReason as Removed,
   type PokerTHMessage,
 } from "./gen/pokerth_pb";
 
@@ -30,6 +31,10 @@ export interface Seat {
 export interface TableState {
   phase: Phase;
   error?: string;
+  /** Error that a fresh connection may fix (network drop); false for "seat opened elsewhere" etc. */
+  retryable?: boolean;
+  /** Came back into a running game; dealt in again from the next hand. */
+  rejoining: boolean;
   gameId: number;
   myId: number;
   title: string;
@@ -54,6 +59,7 @@ export interface TableState {
 
 export const initialTableState = (): TableState => ({
   phase: "connecting",
+  rejoining: false,
   gameId: 0,
   myId: 0,
   title: "",
@@ -106,6 +112,14 @@ const ERROR_TEXT: Partial<Record<ErrorMessage_ErrorReason, string>> = {
   [ErrorMessage_ErrorReason.sessionTimeout]: "You were disconnected for inactivity.",
   [ErrorMessage_ErrorReason.kickedFromServer]: "You were removed from the server.",
   [ErrorMessage_ErrorReason.invalidPacket]: "The game server rejected a message.",
+  [ErrorMessage_ErrorReason.initPlayerNameInUse]: "Your seat was opened somewhere else (another tab or device).",
+};
+
+const REMOVED_TEXT: Partial<Record<Removed, string>> = {
+  [Removed.gameIsRunning]: "This game is running without you — you were knocked out or away too long. Results appear here when it ends.",
+  [Removed.kickedFromGame]: "You were removed from the game.",
+  [Removed.gameTimeout]: "The game was closed because it did not start in time.",
+  [Removed.gameClosed]: "The game was closed.",
 };
 
 function seatFor(s: TableState, playerId: number): Seat {
@@ -140,8 +154,22 @@ function endStreet(s: TableState, street: Street, cards: number[]): TableState {
 /** Apply one server message. `now` is only used for the turn timer. */
 export function reduce(s: TableState, m: PokerTHMessage, now = Date.now()): TableState {
   switch (m.messageType) {
-    case T.Type_InitAckMessage:
-      return { ...s, myId: m.initAckMessage!.yourPlayerId, phase: "waiting" };
+    case T.Type_InitAckMessage: {
+      const a = m.initAckMessage!;
+      return { ...s, myId: a.yourPlayerId, phase: "waiting", rejoining: (a.rejoinGameId ?? 0) > 0 };
+    }
+
+    case T.Type_GameStartRejoinMessage: {
+      // Back in a running game: rebuild the table; cards come with the next hand.
+      const g = m.gameStartRejoinMessage!;
+      const seats = g.rejoinPlayerData.map((d) => ({
+        ...(s.seats.find((p) => p.playerId === d.playerId) ?? seatFor(s, d.playerId)),
+        cash: d.playerMoney,
+        out: d.playerMoney <= 0,
+        folded: d.playerMoney <= 0,
+      }));
+      return { ...s, phase: "playing", seats, handNum: g.handNum, dealerId: g.startDealerPlayerId, log: addLog(s, "You're back at the table") };
+    }
 
     case T.Type_JoinGameAckMessage: {
       const a = m.joinGameAckMessage!;
@@ -204,6 +232,7 @@ export function reduce(s: TableState, m: PokerTHMessage, now = Date.now()): Tabl
         minimumRaise: 0,
         turnPlayerId: 0,
         handOver: false,
+        rejoining: false,
         log: addLog(s, `Hand #${s.handNum + 1} · blinds ${h.smallBlind}/${h.smallBlind * 2}`),
       };
     }
@@ -295,12 +324,20 @@ export function reduce(s: TableState, m: PokerTHMessage, now = Date.now()): Tabl
       };
     }
 
-    case T.Type_RemovedFromGameMessage:
-      return s.phase === "ended" ? s : { ...s, phase: "error", error: "You were removed from the game." };
+    case T.Type_RemovedFromGameMessage: {
+      if (s.phase === "ended") return s;
+      const reason = m.removedFromGameMessage!.removedFromGameReason;
+      return { ...s, phase: "error", retryable: false, error: REMOVED_TEXT[reason] ?? "You were removed from the game." };
+    }
 
     case T.Type_ErrorMessage: {
       const reason = m.errorMessage!.errorReason;
-      return { ...s, phase: "error", error: ERROR_TEXT[reason] ?? `Game server error (${ErrorMessage_ErrorReason[reason] ?? reason}).` };
+      return {
+        ...s,
+        phase: "error",
+        retryable: reason === ErrorMessage_ErrorReason.sessionTimeout || reason === ErrorMessage_ErrorReason.initServerFull,
+        error: ERROR_TEXT[reason] ?? `Game server error (${ErrorMessage_ErrorReason[reason] ?? reason}).`,
+      };
     }
 
     default:

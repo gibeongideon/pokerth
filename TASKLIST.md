@@ -61,7 +61,8 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [ ] Runtime Docker image for the server (multi-stage, slim) for deployment
 - [ ] Hand history persistence (for disputes and RNG certification)
 - [x] WebSocket on automatically in platform mode; `POKERTH_WS_ORIGIN` restricts browser origins (http and https)
-- [ ] Reconnect: web client sends `myLastSessionId` and rejoins a running table (today a page reload mid-game shows "removed from the game"; the seat is auto-folded until the game ends) — **next, before real players**
+- [x] Reconnect/rejoin (done 2026-11-21, D-027): in platform mode the seat token itself unlocks the player's seat in their table's running game (no previous session id needed), so a page reload, a new device or a dropped network gets the seat back; dealt in again from the next hand. Client retries with backoff and at once on `online` / app resume. Verified in Chrome: reload mid-game and a cut connection (TCP relay) both returned alice to her seat and the game settled
+- [ ] Rejoin is refused after the seat is released (offline longer than the server's grace period, ~5 min); consider a platform-mode setting for it
 
 ## Phase 3 — Player app (web + mobile) and site
 - [x] npm workspace (pnpm is broken on this machine); `packages/api-client` typed from the OpenAPI schema (`npm run api:types`)
@@ -72,8 +73,8 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [x] Live hands over the game-server protocol: `packages/protocol` (generated from `pokerth.proto` with protoc-gen-es, `GameClient` over WebSocket with the seat token, pure `TableState` reducer + `legalActions`, 9 tests) (done 2026-11-21, D-026)
 - [x] Table controls for live play: fold / check / call / bet-raise with slider and Min · ½ Pot · Pot · Max, all-in, turn countdown, hand log; PixiJS live view (real cards, board, bets, stacks, dealer button, turn ring); sounds
 - [x] Verified end to end: alice played a full game in Chrome (desktop + phone size) against two C++ bots; the table settled (`docs/platform/screenshots/live/`). `WEB_CLIENTS=2 platform/scripts/e2e_game_server.sh` plays seats through the TS client headless
-- [ ] Error boundary around the table so a render bug can never drop the game connection
-- [ ] Code-split the table (Pixi + protobuf) out of the main bundle (612 kB)
+- [x] Error boundaries around the table view and betting controls (a render bug can't drop the game connection)
+- [x] Table page lazy-loaded: main bundle 612 kB → 258 kB; table chunk 359 kB loads on demand
 - [ ] Google sign-in button (needs a Google OAuth client ID)
 - [ ] PWA manifest + offline shell
 - [ ] Capacitor Android build: deep links (invites, magic links), push notifications, secure token storage, native Google sign-in

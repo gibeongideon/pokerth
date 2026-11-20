@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Spinner } from "./components/bits";
 import { Shell } from "./components/Shell";
@@ -6,9 +7,12 @@ import { AuthCallback, Login, Welcome, rememberReturn } from "./pages/Auth";
 import { Lobby } from "./pages/Lobby";
 import { Profile } from "./pages/Profile";
 import { Friends, JoinByCode, Organize } from "./pages/Social";
-import { MyTables, TableRoom } from "./pages/TableRoom";
+import { MyTables } from "./pages/MyTables";
 import { DepositReturn, WalletPage } from "./pages/Wallet";
 import { DevLogin } from "./pages/DevLogin";
+
+// The table (PixiJS + game protocol) is the heaviest screen: load it on demand.
+const TableRoom = lazy(() => import("./pages/TableRoom").then((m) => ({ default: m.TableRoom })));
 
 function Protected({ children }: { children: React.ReactNode }) {
   const me = useMe();
@@ -32,7 +36,7 @@ export function App() {
       <Route path="/join/:code" element={<Shell><JoinByCode /></Shell>} />
       <Route path="/" element={<Protected><Lobby /></Protected>} />
       <Route path="/tables" element={<Protected><MyTables /></Protected>} />
-      <Route path="/tables/:id" element={<Protected><TableRoom /></Protected>} />
+      <Route path="/tables/:id" element={<Protected><Suspense fallback={<Spinner />}><TableRoom /></Suspense></Protected>} />
       <Route path="/wallet" element={<Protected><WalletPage /></Protected>} />
       <Route path="/wallet/deposit/return" element={<Protected><DepositReturn /></Protected>} />
       <Route path="/friends" element={<Protected><Friends /></Protected>} />

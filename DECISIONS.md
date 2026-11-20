@@ -124,6 +124,11 @@ The seat token already carries signed table settings (`cfg`: players, chips, sma
 - Bet amounts on the wire are the chips added by this action (`myRelativeBet`); the UI works in "raise to" totals and converts.
 - Platform mode turns the WebSocket listener (port 7233) on without a config file. `POKERTH_WS_ORIGIN=play.example.com` limits browser origins; the check now accepts `https://` as well as `http://`. TLS is terminated by the ingress/Caddy in front (WSS).
 
+### D-027 · 2026-11-21 · Accepted — Rejoin by seat token
+- In platform mode a valid seat token for a table whose game is running, from a player who still holds a seat there (seat not released, not kicked, chips left), is treated as that seat's previous session id. The game server's existing rejoin path does the rest: rejoin offer in `InitAck`, the client sends `RejoinExistingGame`, acknowledges the start event, and is dealt in from the next hand (`GameStartRejoin` + player-id change). The token is bound to the table and the player, so it can't be used to take someone else's seat.
+- Opening the table in a second tab/device takes the seat over; the first one shows "Your seat was opened somewhere else" and does not auto-retry (no ping-pong). It can take the seat back with Reconnect.
+- Client: network drops and session timeouts retry automatically (1, 2, 4, 8, 15, 30 s; reset when seated again), and immediately on `online` and when the tab/app becomes visible (Capacitor resume). A 4xx from the seat-token endpoint (game over, no seat) is not retried.
+
 ---
 
 ## Open items (to decide)

@@ -52,7 +52,7 @@ export class GameClient {
     ws.onmessage = (ev) => this.receive(new Uint8Array(ev.data as ArrayBuffer));
     ws.onclose = () => {
       if (!this.closedByUser && this.state.phase !== "ended" && this.state.phase !== "error") {
-        this.set({ ...this.state, phase: "error", error: "Connection to the table was lost." });
+        this.set({ ...this.state, phase: "error", retryable: true, error: "Connection to the table was lost." });
       }
     };
     ws.onerror = () => {
@@ -159,6 +159,12 @@ export class GameClient {
           },
         });
         break;
+      case T.Type_InitAckMessage: {
+        // The server offers our seat back in a game that is already running.
+        const gameId = m.initAckMessage!.rejoinGameId ?? 0;
+        if (gameId > 0) this.send({ messageType: T.Type_RejoinExistingGameMessage, rejoinExistingGameMessage: { gameId, autoLeave: false } });
+        break;
+      }
       case T.Type_StartEventMessage:
         // The server waits for every client to acknowledge the start.
         this.send({ messageType: T.Type_StartEventAckMessage, startEventAckMessage: { gameId: m.startEventMessage!.gameId } });
@@ -174,7 +180,13 @@ export class GameClient {
     const next = reduce(this.state, m);
     if (next !== this.state) this.set(next);
 
-    if (m.messageType === T.Type_GamePlayerJoinedMessage || m.messageType === T.Type_GameStartInitialMessage || m.messageType === T.Type_JoinGameAckMessage) {
+    if (
+      m.messageType === T.Type_GamePlayerJoinedMessage ||
+      m.messageType === T.Type_GameStartInitialMessage ||
+      m.messageType === T.Type_GameStartRejoinMessage ||
+      m.messageType === T.Type_JoinGameAckMessage ||
+      m.messageType === T.Type_PlayerIdChangedMessage
+    ) {
       this.askNames(this.state.seats.map((p) => p.playerId));
     }
   }

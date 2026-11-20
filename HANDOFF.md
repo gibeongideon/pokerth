@@ -5,7 +5,7 @@ Read this first when resuming. Update it at the end of every session.
 ## Current state (2026-11-21)
 - Branches: `stable` → `prod` → `dev`. **`dev` is checked out.** Nothing pushed to `origin`.
 - Phase 0 and Phase 1 done (Smile ID still manual). **Phase 2a done**: stake levels, fees, full Sit & Go lifecycle with a stand-in game server. **Phase 4 API done**: M-Pesa withdrawals with emailed code, review queue, admin users/reports.
-- Agreed order (D-020): non-UI tasks first (Phase 5 done except 5.7b late reg / re-entry / multi-table, which need the game server). **Phase 3 web player app built** (`apps/player`, screenshots in `docs/platform/screenshots/phase3/`). **Phase 2b done**: the C++ server runs in platform mode and an end-to-end bot game settled correctly. **Live play in the web app done** (2026-11-21, D-026): players play real hands in the browser (desktop and phone) through `packages/protocol`; screenshots in `docs/platform/screenshots/live/`. **Next: reconnect/rejoin after a reload or dropped connection (needed before real players), then Capacitor Android**, then the server runtime image and hand history.
+- Agreed order (D-020): non-UI tasks first (Phase 5 done except 5.7b late reg / re-entry / multi-table, which need the game server). **Phase 3 web player app built** (`apps/player`, screenshots in `docs/platform/screenshots/phase3/`). **Phase 2b done**: the C++ server runs in platform mode and an end-to-end bot game settled correctly. **Live play in the web app done** (2026-11-21, D-026): players play real hands in the browser (desktop and phone) through `packages/protocol`; screenshots in `docs/platform/screenshots/live/`. **Reconnect/rejoin done** (D-027): reload, new device or dropped network gets the seat back; error boundaries; table page lazy-loaded. **Next: Capacitor Android** (the web app in a native shell, same code), then the server runtime image and hand history.
 - Screenshots of the dev dashboard: `docs/platform/screenshots/phase2-desktop.png`, `phase2-mobile.png`.
 - The owner prefers screenshots at the end of each phase over a server left running (machine is short on memory).
 - To confirm with Paystack: USD card acceptance on the Kenya merchant account, gaming approval, Transfers enabled.
@@ -37,7 +37,9 @@ Read this first when resuming. Update it at the end of every session.
 3. Fill a table (e.g. quick play as alice in the browser + bob/carol via `/dev/token`), press ready; the table page connects and deals.
 4. Bots for the other seats: `docker run --rm --network host -v poker-server-build-cache:/build:ro poker-server-build /build/bin/pokerth_bot -s 127.0.0.1 --no-tls --platform-tokens <tok1>,<tok2>` (tokens from `GET /tables/{id}/seat-token` as each player).
 5. Protocol tests: `npm test -w packages/protocol`. Regenerate after `pokerth.proto` changes: `npm run generate -w packages/protocol` (needs `protoc`).
-6. If a game gets stuck (someone reloaded mid-game), finish it with `POST /dev/tables/{id}/simulate-result` and `docker restart poker-gs`.
+6. A player who reloads mid-game gets their seat back (dealt in next hand). If a game is stuck anyway (e.g. the game server was restarted), finish it with `POST /dev/tables/{id}/simulate-result`.
+7. Test a network drop: run a TCP relay in front of :7233 and start the API with `PLATFORM_GAME_WS_URL=ws://localhost:<relay port>`, then cut the relay's connections mid-game.
+8. Don't `pkill -f "uvicorn app.main"` in the same command that starts it — the pattern matches your own shell and kills it (exit 144).
 
 ## Run the web player app locally
 1. `cd platform && docker compose up -d postgres redis mailpit && . .venv/bin/activate && alembic upgrade head && python -m app.seed`

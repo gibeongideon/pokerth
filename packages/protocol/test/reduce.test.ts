@@ -133,4 +133,43 @@ test("server errors become readable text", () => {
   assert.match(e.error!, /seat pass/);
 });
 
+test("rejoin a running game: offer, table rebuilt, dealt in next hand", () => {
+  let r = apply(initialTableState(),
+    { messageType: T.Type_InitAckMessage, initAckMessage: { yourSessionId: new Uint8Array([2]), yourPlayerId: 12, rejoinGameId: 1 } },
+    { messageType: T.Type_JoinGameAckMessage, joinGameAckMessage: { gameId: 1, areYouGameAdmin: false, gameInfo } },
+    { messageType: T.Type_PlayerInfoReplyMessage, playerInfoReplyMessage: { playerId: 12, playerInfoData: { playerName: "alice", isHuman: true, playerRights: 2 } } },
+  );
+  assert.equal(r.rejoining, true);
+  assert.equal(r.phase, "waiting");
+  r = apply(r, {
+    messageType: T.Type_GameStartRejoinMessage,
+    gameStartRejoinMessage: { gameId: 1, startDealerPlayerId: 9, handNum: 6, rejoinPlayerData: [
+      { playerId: 9, playerMoney: 700 }, { playerId: 12, playerMoney: 1250 }, { playerId: 8, playerMoney: 0 },
+    ] },
+  });
+  assert.equal(r.phase, "playing");
+  assert.deepEqual(r.seats.map((p) => [p.playerId, p.cash]), [[9, 700], [12, 1250], [8, 0]]);
+  assert.equal(r.seats[1].name, "alice");
+  assert.equal(r.seats[2].out, true);
+  assert.equal(r.handNum, 6);
+  r = apply(r, { messageType: T.Type_HandStartMessage, handStartMessage: { gameId: 1, smallBlind: 40, plainCards: { plainCard1: 1, plainCard2: 2 }, seatStates: [0, 0, 2] } });
+  assert.equal(r.handNum, 7, "hand number continues from the server's");
+  assert.equal(r.rejoining, false);
+  assert.deepEqual(r.seats[1].cards, [1, 2]);
+});
+
+test("others' id changes keep their name", () => {
+  const r = apply(s, { messageType: T.Type_PlayerIdChangedMessage, playerIdChangedMessage: { oldPlayerId: 8, newPlayerId: 20 } });
+  assert.equal(r.seats.find((p) => p.playerId === 20)?.name, "bob");
+});
+
+test("seat opened elsewhere is not retried automatically; network loss is", () => {
+  const e = apply(initialTableState(), { messageType: T.Type_ErrorMessage, errorMessage: { errorReason: 4 } });
+  assert.equal(e.retryable, false);
+  assert.match(e.error!, /somewhere else/);
+  const k = apply(initialTableState(), { messageType: T.Type_RemovedFromGameMessage, removedFromGameMessage: { gameId: 1, removedFromGameReason: 3 } });
+  assert.equal(k.retryable, false);
+  assert.match(k.error!, /knocked out/);
+});
+
 console.log(`${tests} tests passed`);
