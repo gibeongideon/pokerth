@@ -65,6 +65,14 @@ Stake levels are rows in a `stake_tiers` table managed from the admin back offic
 ### D-017 · 2026-11-20 · Accepted — USD/KES rate: fixed, configurable, default 129 (resolves O-7)
 The KES rate is a config setting `fx.usd_kes_rate`, default **129** KES per USD, changed by an admin (audit-logged), no live feed for now. Used for KES reference amounts and M-Pesa conversions; the rate in force is stored on every conversion. Spread `fx.spread_pct` defaults to 0 (D-013 keeps it off). A live rate source can be added later behind the same setting.
 
+### D-018 · 2026-11-20 · Accepted — Phase 1 implementation choices
+- **Running balance column.** `ledger_accounts.balance` is updated only by `ledger.post`, under a row lock, in the same DB transaction as the entries, so overdraft checks are one row read. A DB check constraint forbids negative balances on user accounts; tests check balance = sum of entries.
+- **Sessions.** Access token = HS256 JWT, 15 min. Refresh token = random opaque string stored as SHA-256, 30 days, rotated on every use; replaying a rotated token revokes the whole family. Web gets httpOnly SameSite=Lax cookies (refresh cookie scoped to `/auth`); apps get tokens in the body (`client: "app"`).
+- **Business settings** live in the code-declared registry (`app/services/config_registry.py`) with DB overrides and an audit table, cached 5 s per process. No Redis cache needed yet.
+- **Deposits** are credited only by `settle_deposit` (status success + exact amount + exact currency). Mismatches become `mismatch` and are never credited. A late success still credits an `expired` deposit, because the money was received.
+- **Webhooks** are stored before processing (unique per event + id) and answer 500 on failure so Paystack retries.
+- **KYC** tiers are set by admins until Smile ID is integrated.
+
 ---
 
 ## Open items (to decide)

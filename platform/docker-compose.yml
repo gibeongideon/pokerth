@@ -3,20 +3,39 @@ services:
   api:
     build: .
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
-    environment:
+    environment: &app-env
       PLATFORM_ENV: local
       PLATFORM_DATABASE_URL: postgresql+asyncpg://platform:platform@postgres:5432/platform
       PLATFORM_REDIS_URL: redis://redis:6379/0
-    env_file:
+      PLATFORM_SMTP_HOST: mailpit
+      PLATFORM_SMTP_PORT: "1025"
+    env_file: &app-env-file
       - path: .env
         required: false
     ports: ["${API_PORT:-8000}:8000"]
-    volumes:
+    volumes: &app-volumes
       - ./app:/srv/app
       - ./alembic:/srv/alembic
-    depends_on:
+    depends_on: &app-deps
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
+
+  # Background jobs: deposit expiry (every 5 min), daily reconciliation.
+  worker:
+    build: .
+    command: celery -A app.worker worker --loglevel=info --concurrency=2
+    environment: *app-env
+    env_file: *app-env-file
+    volumes: *app-volumes
+    depends_on: *app-deps
+
+  beat:
+    build: .
+    command: celery -A app.worker beat --loglevel=info --schedule=/tmp/celerybeat-schedule
+    environment: *app-env
+    env_file: *app-env-file
+    volumes: *app-volumes
+    depends_on: *app-deps
 
   postgres:
     image: postgres:17-alpine

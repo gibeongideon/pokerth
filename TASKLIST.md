@@ -18,25 +18,27 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [x] Decide wallet currency (USD, KES reference — D-012), fee model (D-013), KYC (D-014)
 
 ## Phase 1 — Identity, config, ledger, deposits
-- [ ] Users, profiles, unique username (table display name)
-- [ ] Email magic-link login (single-use, 15 min TTL, hashed token, rate-limited)
-- [ ] Google OIDC login (link to existing account by verified email)
-- [ ] Sessions: httpOnly secure cookies (web) and bearer tokens (mobile apps), refresh rotation, revoke all sessions
-- [ ] Real-money onboarding gate: terms/RG acceptance, then KYC Tier 1 on first deposit
-- [ ] Config system: `config_settings` typed registry + DB overrides + Redis cache + audit log
-- [ ] Feature flags: `real_money_enabled`, `p2p_transfers_enabled`, `auto_payout_enabled`, `tournaments_enabled`, `referrals_enabled`
-- [ ] Double-entry ledger (accounts, journal, entries), integer minor units, idempotency keys
-- [ ] Paystack async client (port of dafeapp `subscriptions/paystack.py`, with timeouts and error handling)
-- [ ] Deposit: card (initialize → Popup/redirect → verify)
-- [ ] Deposit: M-Pesa STK push (Charge API, `mobile_money`, provider `mpesa`) + pending poll
-- [ ] Webhook endpoint: HMAC-SHA512, event store (idempotent), amount + currency check, retry-friendly status codes
-- [ ] Fund-a-friend: pay on behalf of a user; wallet→wallet transfer (caps, flag)
-- [ ] FX: `fx.usd_kes_rate` setting (default 129), `fx.spread_pct` (default 0), quote-then-confirm for M-Pesa, rate stored per conversion
-- [ ] Fee engine: entry fee per stake tier (flat/%/min/max), optional levers off by default, tax lines (excise, withholding)
-- [ ] KYC tiers with Smile ID: Tier 1 ID-number check, Tier 2 selfie + liveness; tier gates on deposit/play/withdraw
-- [ ] Stale PENDING expiry job; daily reconciliation job; daily FX exposure report
+- [x] Users, profiles, unique username (table display name) — `/me`, `PATCH /me`
+- [x] Email magic-link login (single-use, 15 min TTL, hashed token, rate-limited silently, no account enumeration)
+- [x] Google sign-in (ID token checked against Google keys; links to existing account by verified email)
+- [x] Sessions: httpOnly cookies (web) and bearer tokens (apps), refresh rotation with reuse detection, logout / logout-all
+- [x] Real-money onboarding gate: terms + 18+ (`/me/accept-terms`), KYC tier gate on deposit and transfers
+- [x] Config system: typed registry + DB overrides + audit log + 5 s per-process cache; admin API `/admin/settings`
+- [x] Feature flags now: `real_money_enabled`, `p2p_transfers_enabled`, `deposit_on_behalf_enabled` (others are added with their features)
+- [x] Double-entry ledger (accounts, journal, entries), integer cents, idempotency keys, row locks; concurrency test
+- [x] Paystack async client (timeouts, non-JSON handling, disabled when no secret)
+- [x] Deposit: card (initialize → redirect/Popup → webhook or poll)
+- [x] Deposit: M-Pesa STK push (Charge API, `mobile_money`/`mpesa`) + pending poll that verifies with Paystack
+- [x] Webhook: HMAC-SHA512, optional IP allowlist, event store (idempotent), amount + currency check, 500 on failure so Paystack retries
+- [x] Fund-a-friend: deposit for another player (by username/email); wallet→wallet transfer (flag, per-tx and daily caps, idempotent)
+- [x] FX: `fx.usd_kes_rate` (default 129), `fx.spread_pct` (default 0), quote endpoint, rate stored per deposit
+- [x] Jobs (Celery worker + beat): stale pending expiry every 5 min; daily reconciliation against Paystack
+- [ ] Smile ID integration for KYC tiers (for now admins set tiers via `PUT /admin/users/{id}/kyc-tier`)
+- [ ] Daily FX exposure report (needs withdrawals, Phase 4)
+- Moved to Phase 2 (needs buy-ins): fee engine — entry fee per stake level, optional levers, tax lines
 
 ## Phase 2 — Game server managed mode + Sit & Go
+- [ ] Fee engine: entry fee per stake level (flat/%/min/max), optional levers off by default, tax lines (excise, withholding)
 - [ ] Proto: optional `platformToken` in `InitMessage` (backward compatible)
 - [ ] Game server: Ed25519 JWT verification for seat tokens
 - [ ] Game server: internal HTTP API (Boost.Beast, HMAC): create table, drain, health

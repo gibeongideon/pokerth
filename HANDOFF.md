@@ -3,20 +3,34 @@
 Read this first when resuming. Update it at the end of every session.
 
 ## Current state (2026-11-20)
-- Branches: `stable` → `prod` → `dev`, all at commit `52c05c31`. **`dev` is checked out.** Nothing pushed to `origin`.
-- Phase 0 done. Done: branches, production plan, tracking docs, `platform/` skeleton.
-- Client design changed to one mobile-portable player app + Capacitor (D-011).
-- Owner decided (2026-11-20): USD wallet with KES reference (D-012), entry fee shown once like "$100 + $0.50" (D-013), tiered KYC with Smile ID (D-014).
-- Deployment path (D-015): local Docker Compose until MVP, then one VPS deployed by GitHub Actions on push to `prod`; Kubernetes after launch.
-- Phase 0 complete (CI added: `.github/workflows/platform-ci.yml`; runs on push/PR to `dev`/`prod` touching `platform/`; not yet run on GitHub because nothing is pushed). Stake levels are admin-configurable (D-016); USD/KES fixed at 129, configurable (D-017). VPS provider parked (O-8).
+- Branches: `stable` → `prod` → `dev`. **`dev` is checked out.** Nothing pushed to `origin`.
+- Phase 0 done. **Phase 1 done** except Smile ID (admins set KYC tiers by hand for now) and the FX exposure report (needs withdrawals).
+- Platform API now has: magic-link + Google sign-in, sessions (cookies for web, bearer for apps), profile + terms, admin settings with audit, double-entry ledger, Paystack card + M-Pesa deposits, webhook, fund-a-friend, wallet-to-wallet transfers, expiry + reconciliation jobs.
+- Decisions this session: D-011 to D-018 (mobile-portable app, USD wallet, entry-fee model, KYC tiers, local-then-VPS, configurable stake levels, KES rate 129, Phase 1 choices).
+- Next: Phase 2 — fee engine + stake levels + Sit & Go lifecycle in the platform, then game-server managed mode (seat tokens, internal API, result callbacks).
 - To confirm with Paystack: USD card acceptance on the Kenya merchant account, gaming approval, Transfers enabled.
-- Next: Phase 1 — users + magic-link/Google auth, config registry, ledger, Paystack deposits.
+
+## API map (platform)
+- Auth: `POST /auth/magic-link`, `/auth/magic-link/verify`, `/auth/google`, `/auth/refresh`, `/auth/logout`, `/auth/logout-all`
+- Me: `GET/PATCH /me`, `POST /me/accept-terms`
+- Wallet: `GET /wallet`, `/wallet/history`, `/wallet/deposits/quote`, `POST /wallet/deposits`, `GET /wallet/deposits/{ref}`, `POST /wallet/transfers`
+- Webhook: `POST /webhooks/paystack`
+- Admin: `GET /admin/settings`, `PUT /admin/settings/{key}`, `PUT /admin/users/{id}/kyc-tier`
+- Interactive docs: http://localhost:8000/docs
+
+## Trying payments locally
+1. Put Paystack **test** keys in `platform/.env` (`PLATFORM_PAYSTACK_SECRET_KEY`, `PLATFORM_PAYSTACK_PUBLIC_KEY`).
+2. Make yourself admin: `docker compose exec postgres psql -U platform -c "update users set is_admin=true, kyc_tier=1 where email='you@example.com'"`.
+3. Turn on real money: `PUT /admin/settings/real_money_enabled {"value": true}`.
+4. Expose the webhook: `cloudflared tunnel --url http://localhost:8000` and set the Paystack test webhook URL to `<tunnel>/webhooks/paystack`.
 
 ## How to run
 - `cd platform && docker compose up --build` → `curl localhost:8000/readyz`.
 - Host ports are moved off the defaults because this machine already runs Postgres/Redis/Mailpit (and another project uses 55432):
   Postgres 55433, Redis 56379, Mailpit UI 58025, SMTP 51025, API 8000. Override with `PG_PORT`, `REDIS_PORT`, etc.
-- Tests without Docker: `cd platform && . .venv/bin/activate && pytest && ruff check . && mypy app`.
+- Tests: `cd platform && . .venv/bin/activate && PLATFORM_TEST_SERVICES=1 pytest` (needs the compose Postgres + Redis; uses a separate `platform_test` DB). Without services, DB tests are skipped.
+- Lint/types: `ruff check . && ruff format --check . && mypy app`.
+- Worker/beat run in compose; trigger a job by hand: `docker compose exec worker celery -A app.worker call app.worker.expire_stale_deposits`.
 
 ## Where things are
 - Plan: `docs/platform/PRODUCTION_PLAN.md`
