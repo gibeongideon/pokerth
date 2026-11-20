@@ -13,7 +13,7 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [x] SQLAlchemy 2 async + Alembic set up (no tables yet; first migration comes with Phase 1 models)
 - [x] `platform/docker-compose.yml` (api, postgres, redis, mailpit) — verified `/readyz` ok
 - [x] pytest + ruff + mypy configured and passing
-- [ ] CI workflow for `platform/` (GitHub Actions)
+- [x] CI workflow for `platform/` (`.github/workflows/platform-ci.yml`: ruff, mypy, migrations, pytest with Postgres + Redis, Docker build)
 - [x] Client design is mobile-portable: one player app + Capacitor (D-011)
 - [x] Decide wallet currency (USD, KES reference — D-012), fee model (D-013), KYC (D-014)
 

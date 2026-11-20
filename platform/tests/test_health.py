@@ -1,6 +1,22 @@
+import os
+
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import create_app
+
+needs_services = pytest.mark.skipif(
+    os.environ.get("PLATFORM_TEST_SERVICES") != "1",
+    reason="set PLATFORM_TEST_SERVICES=1 with Postgres and Redis running",
+)
+
+
+@needs_services
+def test_readyz_ok_with_real_services() -> None:
+    client = TestClient(create_app())
+    resp = client.get("/readyz")
+    assert resp.status_code == 200
+    assert resp.json() == {"postgres": "ok", "redis": "ok"}
 
 
 def test_healthz_ok() -> None:
