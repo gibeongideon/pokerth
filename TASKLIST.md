@@ -66,12 +66,17 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [ ] `apps/site/` Next.js: landing, SEO, legal and responsible-gaming pages
 - [ ] Original visual identity (no PokerTH branding); PWA
 
-## Phase 4 — Withdrawals, KYC, admin
-- [ ] Payout destinations (M-Pesa `mobile_money`/`MPESA`, bank) via Paystack transfer recipients
-- [ ] Withdrawal rules: min/max, daily/monthly limits, fee, post-deposit cooldown, KYC tier
-- [ ] Approval: auto below threshold, manual above; email OTP step-up
-- [ ] Transfer webhooks: success / failed / reversed
-- [ ] Admin back office (RBAC + 2FA): users, KYC, ledger, approvals, templates, settings, reports
+## Phase 4 — Withdrawals, KYC, admin (API done 2026-11-20)
+- [x] Payout destinations: M-Pesa via Paystack transfer recipients; number must match the profile phone
+- [x] Withdrawal rules: min/max, daily/monthly limits, fee (flat/%/free-above, default off), KYC tier (tier 2 above $500)
+- [x] Approval: automatic below $200, admin review above or after a recent deposit; emailed 6-digit code to confirm
+- [x] Money held in `payouts:pending`; refunded in full on reject/cancel/failed/reversed
+- [x] Transfer webhooks (success/failed/reversed) + worker: expire codes, retry sends, verify stuck transfers
+- [x] Admin API: withdrawal review queue, user search/detail/suspend, liabilities + FX exposure report
+- [ ] Bank payouts (only M-Pesa now)
+- [ ] Admin back office UI, admin roles + 2FA (with Phase 3 UI work)
+- [ ] Smile ID integration (tiers still set by admins)
+- [ ] Confirm with Paystack in test mode: M-Pesa recipient number format, transfer OTP disabled
 
 ## Phase 5 — Social & tournaments
 - [ ] Scheduled tournaments (registration windows, late reg, guarantees, re-entry, payout tables)

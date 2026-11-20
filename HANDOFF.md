@@ -4,9 +4,10 @@ Read this first when resuming. Update it at the end of every session.
 
 ## Current state (2026-11-20)
 - Branches: `stable` → `prod` → `dev`. **`dev` is checked out.** Nothing pushed to `origin`.
-- Phase 0 and Phase 1 done (Smile ID still manual). **Phase 2a done**: stake levels, fees, full Sit & Go lifecycle in the platform, with a stand-in game server.
+- Phase 0 and Phase 1 done (Smile ID still manual). **Phase 2a done**: stake levels, fees, full Sit & Go lifecycle with a stand-in game server. **Phase 4 API done**: M-Pesa withdrawals with emailed code, review queue, admin users/reports.
+- Agreed order (D-020): non-UI tasks first (now: friend invites — personal and organized games), then Phase 3 gamey UI, then Phase 2b C++.
 - Screenshots of the dev dashboard: `docs/platform/screenshots/phase2-desktop.png`, `phase2-mobile.png`.
-- **Next: Phase 2b (C++ game server managed mode).** Blocked locally: no CMake/Boost/Qt6 and ~1.5 GB free RAM. Decide: install build deps here, or build in Docker/CI.
+- Phase 2b (C++ game server) waits until after the app; locally blocked (no CMake/Boost/Qt6, ~1.5 GB free RAM).
 - The owner prefers screenshots at the end of each phase over a server left running (machine is short on memory).
 - To confirm with Paystack: USD card acceptance on the Kenya merchant account, gaming approval, Transfers enabled.
 
@@ -14,10 +15,11 @@ Read this first when resuming. Update it at the end of every session.
 - Auth: `POST /auth/magic-link`, `/auth/magic-link/verify`, `/auth/google`, `/auth/refresh`, `/auth/logout`, `/auth/logout-all`
 - Me: `GET/PATCH /me`, `POST /me/accept-terms`
 - Wallet: `GET /wallet`, `/wallet/history`, `/wallet/deposits/quote`, `POST /wallet/deposits`, `GET /wallet/deposits/{ref}`, `POST /wallet/transfers`
-- Webhook: `POST /webhooks/paystack`
+- Withdrawals: `GET/POST /wallet/payout-destinations`, `GET /wallet/withdrawals/quote`, `GET/POST /wallet/withdrawals`, `POST /wallet/withdrawals/{ref}/confirm|cancel`
+- Webhook: `POST /webhooks/paystack` (charge.success, transfer.success/failed/reversed)
 - Lobby/tables: `GET /lobby/tiers`, `GET /lobby/tables`, `POST /lobby/quick-play`, `POST /tables/private`, `GET /tables/mine`, `GET /tables/{id}`, `POST /tables/{id}/join|leave|ready`, `GET /tables/{id}/seat-token`
 - Internal (game server): `GET /internal/seat-token-key`, `POST /internal/games/{table_id}/result` (HMAC `X-Signature`)
-- Admin: `GET /admin/settings`, `PUT /admin/settings/{key}`, `PUT /admin/users/{id}/kyc-tier`, `GET/POST /admin/stake-tiers`, `PUT /admin/stake-tiers/{id}`, `POST /admin/tables` (scheduled), `POST /admin/tables/{id}/cancel`
+- Admin: `GET /admin/settings`, `PUT /admin/settings/{key}`, `PUT /admin/users/{id}/kyc-tier`, `GET/POST /admin/stake-tiers`, `PUT /admin/stake-tiers/{id}`, `POST /admin/tables` (scheduled), `POST /admin/tables/{id}/cancel`, `GET /admin/withdrawals`, `POST /admin/withdrawals/{ref}/approve|reject`, `GET /admin/users`, `GET /admin/users/{id}`, `PUT /admin/users/{id}/status`, `GET /admin/reports/liabilities`
 - Dev (PLATFORM_ENV=local only): `GET /dev/dashboard`, `/dev/state`, `POST /dev/token/{username}`, `/dev/tick`, `/dev/tables/{id}/simulate-result`
 - Interactive docs: http://localhost:8000/docs
 

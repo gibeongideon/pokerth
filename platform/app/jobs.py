@@ -9,9 +9,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.security import utcnow
-from app.models import Deposit
+from app.models import Deposit, Withdrawal
 from app.services import config_registry as cfg
 from app.services import payments as pay
+from app.services import payouts
 from app.services.paystack import PaystackClient, PaystackError
 
 log = logging.getLogger(__name__)
@@ -104,3 +105,58 @@ async def reconcile_deposits(
     else:
         log.info("deposit reconciliation ok: %s", report)
     return report
+
+
+async def process_withdrawals(
+    sessions: async_sessionmaker[AsyncSession], paystack: PaystackClient
+) -> dict[str, int]:
+    """Expire unconfirmed withdrawals, (re)send approved ones, and ask Paystack
+    about transfers that have been processing for a while (lost webhooks)."""
+    counts = {"expired": 0, "sent": 0, "resolved": 0}
+    now = utcnow()
+    async with sessions() as session:
+        stale = (
+            await session.scalars(
+                select(Withdrawal).where(
+                    Withdrawal.status == "awaiting_confirmation", Withdrawal.otp_expires_at < now
+                )
+            )
+        ).all()
+        for w in stale:
+            w.status = "expired"
+            counts["expired"] += 1
+        await session.commit()
+
+        approved = (
+            await session.scalars(
+                select(Withdrawal.reference)
+                .where(Withdrawal.status == "approved", Withdrawal.send_attempts < 10)
+                .limit(100)
+            )
+        ).all()
+        processing = (
+            await session.scalars(
+                select(Withdrawal.reference)
+                .where(Withdrawal.status == "processing")
+                .where(Withdrawal.sent_at < now - timedelta(minutes=10))
+                .limit(100)
+            )
+        ).all()
+
+    for ref in approved:
+        async with sessions() as session:
+            w = await payouts.send(session, paystack, ref)
+            if w.status != "approved":
+                counts["sent"] += 1
+            await session.commit()
+    for ref in processing:
+        try:
+            data = await paystack.verify_transfer(ref)
+        except PaystackError:
+            continue
+        async with sessions() as session:
+            if await payouts.apply_result(session, ref, data):
+                counts["resolved"] += 1
+            await session.commit()
+    log.info("process_withdrawals %s", counts)
+    return counts

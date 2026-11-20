@@ -124,6 +124,67 @@ _DEFS += [
     ),
 ]
 
+_DEFS += [
+    # Withdrawals (Phase 4). Amounts in USD cents. Fees are off by default (D-013).
+    SettingDef("withdrawals_enabled", bool, True, "Allow withdrawals (also needs real money on)."),
+    SettingDef("withdraw.min_usd_cents", int, 500, "Smallest withdrawal.", min=1),
+    SettingDef("withdraw.max_usd_cents", int, 100_000, "Largest single withdrawal.", min=1),
+    SettingDef("withdraw.daily_max_usd_cents", int, 200_000, "Max withdrawn per 24h.", min=1),
+    SettingDef(
+        "withdraw.monthly_max_usd_cents", int, 1_000_000, "Max withdrawn per 30 days.", min=1
+    ),
+    SettingDef("withdraw.fee_flat_usd_cents", int, 0, "Flat withdrawal fee.", min=0),
+    SettingDef(
+        "withdraw.fee_pct",
+        Decimal,
+        Decimal("0"),
+        "Percentage withdrawal fee.",
+        min=Decimal("0"),
+        max=Decimal("10"),
+    ),
+    SettingDef(
+        "withdraw.free_above_usd_cents",
+        int,
+        0,
+        "Withdrawals at or above this are free (0 = never).",
+        min=0,
+    ),
+    SettingDef(
+        "withdraw.auto_approve_max_usd_cents",
+        int,
+        20_000,
+        "Above this, an admin must approve.",
+        min=0,
+    ),
+    SettingDef(
+        "withdraw.deposit_review_hours",
+        int,
+        24,
+        "A withdrawal within this many hours of a deposit goes to review.",
+        min=0,
+        max=720,
+    ),
+    SettingDef("kyc.withdraw_min_tier", int, 1, "KYC tier needed to withdraw.", min=0, max=2),
+    SettingDef(
+        "kyc.withdraw_tier2_above_usd_cents",
+        int,
+        50_000,
+        "Withdrawals above this need KYC tier 2.",
+        min=0,
+    ),
+    SettingDef(
+        "withdraw.require_email_code", bool, True, "Confirm withdrawals with an emailed code."
+    ),
+    SettingDef(
+        "withdraw.code_ttl_seconds",
+        int,
+        600,
+        "How long the emailed code works.",
+        min=60,
+        max=3600,
+    ),
+]
+
 REGISTRY: dict[str, SettingDef] = {d.key: d for d in _DEFS}
 
 

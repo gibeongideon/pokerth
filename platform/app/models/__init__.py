@@ -5,6 +5,7 @@ from app.models.auth import MagicLinkToken, RefreshToken
 from app.models.config import ConfigAudit, ConfigSetting
 from app.models.ledger import JournalTransaction, LedgerAccount, LedgerEntry
 from app.models.payments import Deposit, WebhookEvent
+from app.models.payouts import PayoutDestination, Withdrawal
 from app.models.tables import GameTable, StakeTier, TableSeat
 from app.models.user import User
 
@@ -17,9 +18,11 @@ __all__ = [
     "LedgerAccount",
     "LedgerEntry",
     "MagicLinkToken",
+    "PayoutDestination",
     "RefreshToken",
     "StakeTier",
     "TableSeat",
     "User",
     "WebhookEvent",
+    "Withdrawal",
 ]

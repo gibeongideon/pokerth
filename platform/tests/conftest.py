@@ -60,6 +60,8 @@ class FakePaystack:
         self.verify_results: dict[str, dict[str, Any]] = {}
         self.listed: list[dict[str, Any]] = []
         self.fail_next: str | None = None
+        self.transfer_status = "pending"  # what POST /transfer answers
+        self.transfers: dict[str, dict[str, Any]] = {}  # reference -> transfer
 
     def handler(self, request: httpx.Request) -> httpx.Response:
         body = json.loads(request.content) if request.content else None
@@ -99,6 +101,27 @@ class FakePaystack:
             return httpx.Response(
                 400, json={"status": False, "message": "Transaction reference not found"}
             )
+        if path == "/transferrecipient":
+            return httpx.Response(
+                200, json={"status": True, "data": {"recipient_code": "RCP_test"}}
+            )
+        if path == "/transfer":
+            assert body is not None
+            if body["reference"] in self.transfers:
+                return httpx.Response(400, json={"status": False, "message": "Duplicate reference"})
+            t = {
+                "reference": body["reference"],
+                "amount": body["amount"],
+                "transfer_code": f"TRF_{len(self.transfers)}",
+                "status": self.transfer_status,
+            }
+            self.transfers[body["reference"]] = t
+            return httpx.Response(200, json={"status": True, "data": t})
+        if path.startswith("/transfer/verify/"):
+            ref = path.rsplit("/", 1)[1]
+            if ref in self.transfers:
+                return httpx.Response(200, json={"status": True, "data": self.transfers[ref]})
+            return httpx.Response(404, json={"status": False, "message": "Transfer not found"})
         if path == "/transaction":
             return httpx.Response(
                 200,

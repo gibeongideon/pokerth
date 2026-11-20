@@ -5,15 +5,27 @@ from typing import Any, Literal
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 
-from app.api.deps import AdminUser, SessionDep
+from app.api.deps import AdminUser, PaystackDep, SessionDep
 from app.api.schemas import UserOut, user_out
 from app.core.errors import ApiError
 from app.core.security import utcnow
-from app.models import GameTable, StakeTier, User
+from app.models import (
+    Deposit,
+    GameTable,
+    JournalTransaction,
+    LedgerAccount,
+    LedgerEntry,
+    StakeTier,
+    User,
+    Withdrawal,
+)
+from app.services import auth as auth_svc
 from app.services import config_registry as cfg
+from app.services import ledger, payouts
 from app.services import tables as table_svc
+from app.services.payments import PaymentError, deposit_view
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -175,3 +187,194 @@ async def cancel_table(
         raise ApiError(exc.status_code, exc.code, str(exc)) from exc
     await session.commit()
     return await table_svc.table_view(session, table)
+
+
+# ----------------------------------------------------------- withdrawals review
+
+
+class ReviewIn(BaseModel):
+    note: str | None = Field(default=None, max_length=500)
+
+
+@router.get("/withdrawals")
+async def list_withdrawals(
+    _admin: AdminUser, session: SessionDep, status: str | None = "pending_review"
+) -> list[dict[str, Any]]:
+    q = (
+        select(Withdrawal, User.email, User.username)
+        .join(User, User.id == Withdrawal.user_id)
+        .order_by(Withdrawal.created_at)
+        .limit(200)
+    )
+    if status:
+        q = q.where(Withdrawal.status == status)
+    return [
+        {**payouts.view(w), "email": email, "username": username}
+        for w, email, username in (await session.execute(q)).all()
+    ]
+
+
+async def _review(
+    reference: str,
+    approve: bool,
+    body: ReviewIn,
+    admin: User,
+    session: SessionDep,
+    paystack: PaystackDep,
+) -> dict[str, Any]:
+    try:
+        w = await payouts.review(session, admin, reference, approve=approve, note=body.note)
+    except PaymentError as exc:
+        await session.rollback()
+        raise ApiError(exc.status_code, exc.code, str(exc)) from exc
+    await session.commit()
+    if w.status == "approved":
+        w = await payouts.send(session, paystack, reference)
+        await session.commit()
+    return payouts.view(w)
+
+
+@router.post("/withdrawals/{reference}/approve")
+async def approve_withdrawal(
+    reference: str, body: ReviewIn, admin: AdminUser, session: SessionDep, paystack: PaystackDep
+) -> dict[str, Any]:
+    return await _review(reference, True, body, admin, session, paystack)
+
+
+@router.post("/withdrawals/{reference}/reject")
+async def reject_withdrawal(
+    reference: str, body: ReviewIn, admin: AdminUser, session: SessionDep, paystack: PaystackDep
+) -> dict[str, Any]:
+    return await _review(reference, False, body, admin, session, paystack)
+
+
+# ------------------------------------------------------------------- users
+
+
+class UserStatusIn(BaseModel):
+    status: Literal["active", "suspended", "self_excluded"]
+
+
+@router.get("/users")
+async def search_users(_admin: AdminUser, session: SessionDep, q: str = "") -> list[dict[str, Any]]:
+    stmt = select(User).order_by(User.created_at.desc()).limit(50)
+    if q:
+        like = f"%{q.lower()}%"
+        stmt = stmt.where(or_(User.email.like(like), User.username.like(like)))
+    users = (await session.scalars(stmt)).all()
+    out = []
+    for u in users:
+        out.append(
+            {
+                **user_out(u).model_dump(mode="json"),
+                "status": u.status,
+                "balance_cents": await ledger.balance(session, ledger.user_available(u.id)),
+            }
+        )
+    return out
+
+
+@router.get("/users/{user_id}")
+async def user_detail(user_id: uuid.UUID, _admin: AdminUser, session: SessionDep) -> dict[str, Any]:
+    u = await session.get(User, user_id)
+    if u is None:
+        raise ApiError(404, "not_found", "User not found.")
+    entries = (
+        await session.execute(
+            select(
+                JournalTransaction.id,
+                JournalTransaction.kind,
+                JournalTransaction.memo,
+                JournalTransaction.created_at,
+                LedgerEntry.amount,
+            )
+            .join(LedgerEntry, LedgerEntry.transaction_id == JournalTransaction.id)
+            .join(LedgerAccount, LedgerAccount.id == LedgerEntry.account_id)
+            .where(LedgerAccount.code == ledger.user_available(u.id))
+            .order_by(JournalTransaction.id.desc())
+            .limit(100)
+        )
+    ).all()
+    deposits = (
+        await session.scalars(
+            select(Deposit)
+            .where(Deposit.beneficiary_id == u.id)
+            .order_by(Deposit.created_at.desc())
+            .limit(50)
+        )
+    ).all()
+    withdrawals = (
+        await session.scalars(
+            select(Withdrawal)
+            .where(Withdrawal.user_id == u.id)
+            .order_by(Withdrawal.created_at.desc())
+            .limit(50)
+        )
+    ).all()
+    return {
+        "user": {**user_out(u).model_dump(mode="json"), "status": u.status},
+        "balance_cents": await ledger.balance(session, ledger.user_available(u.id)),
+        "ledger": [
+            {
+                "transaction_id": e.id,
+                "kind": e.kind,
+                "memo": e.memo,
+                "amount_cents": e.amount,
+                "at": e.created_at.isoformat(),
+            }
+            for e in entries
+        ],
+        "deposits": [deposit_view(d) for d in deposits],
+        "withdrawals": [payouts.view(w) for w in withdrawals],
+    }
+
+
+@router.put("/users/{user_id}/status")
+async def set_user_status(
+    user_id: uuid.UUID, body: UserStatusIn, admin: AdminUser, session: SessionDep
+) -> dict[str, Any]:
+    u = await session.get(User, user_id)
+    if u is None:
+        raise ApiError(404, "not_found", "User not found.")
+    if u.id == admin.id:
+        raise ApiError(409, "self_change", "You can't change your own status.")
+    u.status = body.status
+    if body.status != "active":
+        await auth_svc.revoke_all_for_user(session, u.id)
+    await session.commit()
+    return {**user_out(u).model_dump(mode="json"), "status": u.status}
+
+
+# ----------------------------------------------------------------- reports
+
+
+@router.get("/reports/liabilities")
+async def liabilities(_admin: AdminUser, session: SessionDep) -> dict[str, Any]:
+    """What the house owes players right now vs. what it holds (D-012 FX exposure)."""
+
+    async def total(pattern: str) -> int:
+        value = await session.scalar(
+            select(func.coalesce(func.sum(LedgerAccount.balance), 0)).where(
+                LedgerAccount.code.like(pattern)
+            )
+        )
+        return int(value or 0)
+
+    wallets = await total("user:%")
+    escrow = await total("table:%")
+    pending = await ledger.balance(session, ledger.PAYOUTS_PENDING)
+    owed = wallets + escrow + pending
+    rate = await cfg.get_decimal(session, "fx.usd_kes_rate")
+    clearing = await ledger.balance(session, ledger.PAYSTACK_CLEARING)
+    return {
+        "player_wallets_cents": wallets,
+        "table_escrow_cents": escrow,
+        "payouts_pending_cents": pending,
+        "total_owed_cents": owed,
+        "total_owed_kes_at_rate": int(Decimal(owed) * rate / 100),
+        "usd_kes_rate": str(rate),
+        "net_received_via_paystack_cents": -clearing,
+        "house_fees_cents": await ledger.balance(session, ledger.HOUSE_FEES),
+        "tax_excise_cents": await ledger.balance(session, ledger.TAX_EXCISE),
+        "tax_withholding_cents": await ledger.balance(session, ledger.TAX_WITHHOLDING),
+    }

@@ -31,6 +31,10 @@ celery_app.conf.update(
             "task": "app.worker.expire_stale_deposits",
             "schedule": 300.0,
         },
+        "process-withdrawals": {
+            "task": "app.worker.process_withdrawals",
+            "schedule": 60.0,
+        },
         "tick-tables": {
             "task": "app.worker.tick_tables",
             "schedule": 5.0,
@@ -78,3 +82,8 @@ async def _tick(sessions: async_sessionmaker[Any]) -> dict[str, int]:
 def tick_tables() -> dict[str, int]:
     """Ready-check timeouts, scheduled starts, keep an open table per level."""
     return _run(_tick)
+
+
+@celery_app.task(name="app.worker.process_withdrawals")
+def process_withdrawals() -> dict[str, int]:
+    return _run(lambda s: jobs.process_withdrawals(s, get_paystack()))

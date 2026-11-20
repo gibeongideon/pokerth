@@ -152,6 +152,44 @@ class PaystackClient:
         meta = body.get("meta") or {}
         return list(body.get("data") or []), int(meta.get("pageCount") or 1)
 
+    async def create_mpesa_recipient(self, *, name: str, phone: str) -> str:
+        """Returns the recipient_code for an M-Pesa number (KES)."""
+        body = await self._request(
+            "POST",
+            "/transferrecipient",
+            json={
+                "type": "mobile_money",
+                "name": name,
+                "account_number": phone,
+                "bank_code": "MPESA",
+                "currency": "KES",
+            },
+        )
+        return str(body["data"]["recipient_code"])
+
+    async def initiate_transfer(
+        self, *, amount: int, recipient: str, reference: str, reason: str
+    ) -> dict[str, Any]:
+        body = await self._request(
+            "POST",
+            "/transfer",
+            json={
+                "source": "balance",
+                "amount": amount,
+                "currency": "KES",
+                "recipient": recipient,
+                "reference": reference,
+                "reason": reason,
+            },
+        )
+        data: dict[str, Any] = body["data"]
+        return data
+
+    async def verify_transfer(self, reference: str) -> dict[str, Any]:
+        body = await self._request("GET", f"/transfer/verify/{reference}")
+        data: dict[str, Any] = body["data"]
+        return data
+
 
 def get_paystack() -> PaystackClient:
     return PaystackClient(get_settings())

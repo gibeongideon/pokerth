@@ -21,6 +21,7 @@ from app.core.errors import ApiError
 from app.core.security import utcnow
 from app.models import WebhookEvent
 from app.services import payments as pay
+from app.services import payouts
 from app.services.paystack import verify_signature
 
 log = logging.getLogger(__name__)
@@ -36,7 +37,11 @@ async def _process(session: SessionDep, event: str, data: dict[str, Any]) -> Non
     reference = str(data.get("reference") or "")
     if event == "charge.success" and reference.startswith(pay.DEPOSIT_PREFIX):
         await pay.settle_deposit(session, reference, data)
-    # Transfer (payout) events arrive in Phase 4.
+    elif event in ("transfer.success", "transfer.failed", "transfer.reversed") and (
+        reference.startswith(payouts.PREFIX)
+    ):
+        # The event name is authoritative for the outcome.
+        await payouts.apply_result(session, reference, {**data, "status": event.split(".")[1]})
 
 
 @router.post("/paystack")

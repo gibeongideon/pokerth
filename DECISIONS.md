@@ -81,6 +81,17 @@ The KES rate is a config setting `fx.usd_kes_rate`, default **129** KES per USD,
 - **Free-play levels** (buy-in 0) work even with real money switched off.
 - **Game server is a stand-in** (`LocalGateway`) until Phase 2b; results can be simulated on the local dev dashboard.
 
+### D-020 · 2026-11-20 · Accepted — Gamey visual style; order of work
+- The player app (Phase 3) gets a **gamey** look: felt table, chip stacks, glowing call-to-action buttons, motion and sound, not a plain dashboard style. Design tokens go in `packages/ui` so web and mobile match.
+- Order agreed with the owner: finish the non-UI task list first (Phase 4 withdrawals/admin, Phase 5 social/tournaments back end), then Phase 3 UI, then Phase 2b (C++ game server) after the app exists.
+
+### D-021 · 2026-11-20 · Accepted — Withdrawal rules as built (Phase 4)
+- M-Pesa only for now; the payout number must equal the phone on the player's profile.
+- The player confirms with a 6-digit code emailed to them (10 min, 5 tries). Money moves from the wallet to `payouts:pending` only on confirmation.
+- Automatic approval up to `withdraw.auto_approve_max_usd_cents` ($200); above that, or within `withdraw.deposit_review_hours` (24 h) of a deposit, an admin reviews. KYC tier 2 above $500.
+- Conversion uses the same rate (129) minus the optional spread, rounded down to whole shillings. Fees default to 0.
+- Transfer sends are retried by the worker; before a retry the worker asks Paystack whether the transfer already exists (reference = withdrawal reference), so nobody is paid twice.
+
 ---
 
 ## Open items (to decide)
