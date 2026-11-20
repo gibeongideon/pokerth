@@ -5,7 +5,7 @@ Read this first when resuming. Update it at the end of every session.
 ## Current state (2026-11-20)
 - Branches: `stable` → `prod` → `dev`. **`dev` is checked out.** Nothing pushed to `origin`.
 - Phase 0 and Phase 1 done (Smile ID still manual). **Phase 2a done**: stake levels, fees, full Sit & Go lifecycle with a stand-in game server. **Phase 4 API done**: M-Pesa withdrawals with emailed code, review queue, admin users/reports.
-- Agreed order (D-020): non-UI tasks first (5.1-5.6 and 5.8 done; next 5.7 tournaments: the parts that don't need the game server), then Phase 3 gamey UI, then Phase 2b C++.
+- Agreed order (D-020): non-UI tasks first (Phase 5 done except 5.7b late reg / re-entry / multi-table, which need the game server). **Next: Phase 3 — gamey player app (web + Capacitor).**, then Phase 3 gamey UI, then Phase 2b C++.
 - Screenshots of the dev dashboard: `docs/platform/screenshots/phase2-desktop.png`, `phase2-mobile.png`.
 - Phase 2b (C++ game server) waits until after the app; locally blocked (no CMake/Boost/Qt6, ~1.5 GB free RAM).
 - The owner prefers screenshots at the end of each phase over a server left running (machine is short on memory).

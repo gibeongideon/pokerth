@@ -433,3 +433,60 @@ async def test_admin_stake_levels(client: httpx.AsyncClient, make_user: MakeUser
     assert bad.status_code == 422
     tiers = (await client.get("/lobby/tiers")).json()
     assert tiers[-1]["price_label"] == "$500.00 + $1.50"
+
+
+# ------------------------------------------------------- 5.7 tournaments
+
+
+async def test_scheduled_tournament_with_guarantee_and_registration_window(
+    client: httpx.AsyncClient,
+    sessions: async_sessionmaker[AsyncSession],
+    make_user: MakeUser,
+    real_money: None,
+) -> None:
+    tier = await _tier(sessions, seats=6, min_players=2, payout_bps=[6500, 3500])
+    _, admin = await make_user(is_admin=True)
+    start = utcnow() + timedelta(hours=2)
+    body = {
+        "tier_id": tier.id,
+        "title": "Sunday $500 guaranteed",
+        "scheduled_start_at": start.isoformat(),
+        "guaranteed_prize_cents": 50_000,
+        "registration_opens_at": (utcnow() + timedelta(hours=1)).isoformat(),
+    }
+    t = (await client.post("/admin/tables", json=body, headers=admin)).json()
+    assert t["prize_pool_cents"] == 50_000 and t["title"] == "Sunday $500 guaranteed"
+
+    a, ha = await _player(sessions, make_user, "early_a")
+    b, hb = await _player(sessions, make_user, "early_b")
+    resp = await client.post(f"/tables/{t['id']}/join", json={}, headers=ha)
+    assert resp.json()["detail"]["code"] == "registration_not_open"
+
+    async with sessions() as s:
+        table = await s.get(GameTable, uuid.UUID(t["id"]))
+        assert table is not None
+        table.config = {**table.config, "registration_opens_at": None}
+        await s.commit()
+    for h in (ha, hb):
+        assert (await client.post(f"/tables/{t['id']}/join", json={}, headers=h)).status_code == 200
+
+    async with sessions() as s:
+        table = await s.get(GameTable, uuid.UUID(t["id"]))
+        assert table is not None
+        table.status = "running"
+        for seat in (await s.scalars(select(TableSeat))).all():
+            seat.status = "playing"
+        await s.commit()
+        await svc.settle(s, table.id, [b.id, a.id])
+        await s.commit()
+    # Only $200 came in; the house topped the pool up to $500.
+    assert await _bal(sessions, ledger.user_available(b.id)) == 20_000 - 10_050 + 32_500
+    assert await _bal(sessions, ledger.user_available(a.id)) == 20_000 - 10_050 + 17_500
+    assert await _bal(sessions, ledger.PROMOTIONS) == -30_000
+
+    bad = await client.post(
+        "/admin/tables",
+        json={**body, "registration_opens_at": (start + timedelta(hours=1)).isoformat()},
+        headers=admin,
+    )
+    assert bad.status_code == 422

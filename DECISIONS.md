@@ -99,6 +99,12 @@ The KES rate is a config setting `fx.usd_kes_rate`, default **129** KES per USD,
 - Unknown emails get a sign-up invite; the invite appears when they sign in with that email. Friend requests to unknown emails answer "sent" so emails can't be probed.
 - Limits: 50 invites per player per day, 30 per table, 72 h expiry; invites also close when the table starts or is cancelled.
 
+### D-023 · 2026-11-20 · Accepted — Responsible gaming and tournaments as built (Phase 5)
+- **Limits** are player-set deposit and loss limits over rolling 24 h / 7 d / 30 d. Tighter applies at once; looser or removed applies after `rg.limit_increase_delay_hours` (24 h). Loss = buy-ins minus refunds and prizes in the window; joining checks that the full price could still fit.
+- **Self-exclusion** (24h, 7d, 30d, 6m, permanent) can only be extended. It blocks deposits, transfers and paid play, refunds open seats at once, and still allows sign-in and withdrawals. Ready-check seats of an excluded player become no-shows.
+- **Referral bonuses** and **guaranteed prize top-ups** are paid from `house:promotions`, so marketing spend is visible in one account.
+- **Tournaments** for now are scheduled single tables (2-10 players) with a registration window and optional guarantee. Late registration, re-entry and multi-table events wait for the game server work.
+
 ---
 
 ## Open items (to decide)

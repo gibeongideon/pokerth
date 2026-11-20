@@ -152,6 +152,11 @@ async def update_tier(
 class ScheduledTableIn(BaseModel):
     tier_id: int
     scheduled_start_at: datetime
+    title: str | None = Field(default=None, max_length=80)
+    # The house tops prizes up to this if entries fall short (paid from promotions).
+    guaranteed_prize_cents: int | None = Field(default=None, gt=0)
+    # Sign-ups open at this time (default: now); they close when the game starts.
+    registration_opens_at: datetime | None = None
 
 
 @router.post("/tables", status_code=201)
@@ -164,9 +169,18 @@ async def schedule_table(
         raise ApiError(404, "not_found", "Stake level not found.")
     if body.scheduled_start_at.tzinfo is None or body.scheduled_start_at <= utcnow():
         raise ApiError(422, "bad_time", "Give a future start time with a timezone.")
+    opens = body.registration_opens_at
+    if opens is not None and (opens.tzinfo is None or opens >= body.scheduled_start_at):
+        raise ApiError(422, "bad_time", "Registration must open (with a timezone) before start.")
     table = await table_svc.open_table(
         session, tier, scheduled_start_at=body.scheduled_start_at, created_by=admin.id
     )
+    table.title = body.title
+    table.config = {
+        **table.config,
+        "guaranteed_prize_cents": body.guaranteed_prize_cents,
+        "registration_opens_at": opens.isoformat() if opens else None,
+    }
     await session.commit()
     return await table_svc.table_view(session, table)
 

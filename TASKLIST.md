@@ -85,7 +85,8 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [x] 5.4 Invite links: public preview by code, join after sign-in; email invites to people without an account
 - [x] 5.5 Invite expiry + anti-spam limits (per day, per table) as settings
 - [x] 5.6 Referrals: code + link per player, bonus after the new player's first paid game, both sides configurable, off by default, cap per referrer
-- [ ] 5.7 Scheduled tournaments (registration windows, late reg, guarantees, re-entry, payout tables)
+- [x] 5.7a Scheduled tournaments: admin-scheduled tables with title, registration window, guaranteed prize pool (house tops up from promotions), payout tables per stake level
+- [ ] 5.7b Late registration, re-entry, multi-table (>10 players) — need the game server (after Phase 2b)
 - [x] 5.8 Responsible gaming: deposit and loss limits (day/week/month, tighten now, loosen after 24 h), self-exclusion (24h to permanent, auto-refund open seats), reality-check reminder setting
 
 ## MVP checkpoint (all local)

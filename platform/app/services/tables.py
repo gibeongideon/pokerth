@@ -15,7 +15,7 @@ import logging
 import secrets
 import uuid
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
@@ -299,6 +299,9 @@ async def join(
     table = await _lock_table(session, table_id)
     if table.status != "open":
         raise TableError("table_not_open", "This table is no longer taking players.", 409)
+    opens = table.config.get("registration_opens_at")
+    if opens and utcnow() < datetime.fromisoformat(opens):
+        raise TableError("registration_not_open", f"Registration opens at {opens}.", 409)
     if table.is_private and not hmac.compare_digest(
         (invite_code or "").upper(), table.invite_code or ""
     ):
@@ -531,10 +534,15 @@ async def settle(
         raise TableError("bad_result", "The result must list every player exactly once.", 422)
 
     pool = await ledger.balance(session, ledger.table_escrow(table.id))
-    prizes = split_prizes(pool, list(table.config["payout_bps"]), len(finishing_order))
+    # Guaranteed prize pool: the house tops up the difference (D-023).
+    topup = max(0, int(table.config.get("guaranteed_prize_cents") or 0) - pool)
+    total_prizes = pool + topup
+    prizes = split_prizes(total_prizes, list(table.config["payout_bps"]), len(finishing_order))
     withholding_pct = await cfg.get_decimal(session, "tax.withholding_pct")
 
     legs = [Leg(ledger.table_escrow(table.id), -pool)] if pool else []
+    if topup:
+        legs.append(Leg(ledger.PROMOTIONS, -topup))
     withheld_total = 0
     for place, user_id in enumerate(finishing_order, start=1):
         gross = prizes[place - 1] if place <= len(prizes) else 0
@@ -547,7 +555,7 @@ async def settle(
         seat.status, seat.finish_position, seat.prize_cents = "finished", place, net
     if withheld_total:
         legs.append(Leg(ledger.TAX_WITHHOLDING, withheld_total))
-    if pool:
+    if total_prizes:
         await ledger.post(
             session,
             idempotency_key=f"settle:{table.id}",
@@ -646,7 +654,9 @@ async def table_view(
         "seats_total": c["seats"],
         "min_players": c["min_players"],
         "players": players,
-        "prize_pool_cents": c["buy_in_cents"] * players,
+        "prize_pool_cents": max(c["buy_in_cents"] * players, c.get("guaranteed_prize_cents") or 0),
+        "guaranteed_prize_cents": c.get("guaranteed_prize_cents"),
+        "registration_opens_at": c.get("registration_opens_at"),
         "payout_bps": c["payout_bps"],
         "start_mode": c["start_mode"],
         "is_private": table.is_private,
