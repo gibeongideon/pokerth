@@ -86,7 +86,13 @@ Decisions already made with the user:
 
 **Quick Play:** a matchmaking queue per stake tier that seats you at the next filling table.
 
-**Private tables and friend invites:** invite link or code (shareable on WhatsApp), a friends list, and invite-only stakes.
+**Friends and invites** (owner request, 2026-11-20):
+- **Friends list:** send a request by username or email; accept, decline or remove.
+- **Personal invites:** a player at a table invites one or more friends ("come join me"). Works for public and private tables. Friends get an in-app invite and an email; accepting seats them (paying the buy-in like any join).
+- **Organized games:** an organizer sets up a private game from a stake level: title, optional message, start time (or start when full), whether they play themselves. They invite a group, see who accepted / declined / hasn't answered, and can cancel before it starts (everyone refunded).
+- **Invite links:** every private table has a code and a shareable link (WhatsApp etc.). Anyone with the link sees a preview (name, price, organizer, players, start time) and joins after signing in.
+- **Email invites to people without an account:** the email links to sign-up; the invite waits for them and appears once they sign in with that email.
+- Invites expire when the table starts, is cancelled, or after a configurable time. Anti-spam limits per day and per table.
 
 **Tournaments**
 - Scheduled, with registration open/close, late registration, guaranteed prize pool, re-entry config and payout tables.

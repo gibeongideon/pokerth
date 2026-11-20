@@ -79,9 +79,14 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [ ] Confirm with Paystack in test mode: M-Pesa recipient number format, transfer OTP disabled
 
 ## Phase 5 — Social & tournaments
-- [ ] Scheduled tournaments (registration windows, late reg, guarantees, re-entry, payout tables)
-- [ ] Friends list, invites, referrals (configurable bonus)
-- [ ] Responsible gaming: deposit/loss/session limits, self-exclusion
+- [ ] 5.1 Friends list: requests by username/email, accept/decline/remove
+- [ ] 5.2 Personal invites to a table (one or many friends), in-app inbox + email, accept = join, decline
+- [ ] 5.3 Organized games: organizer sets title/message/start time/plays-or-not, invites a group, RSVP list, organizer cancel with refunds
+- [ ] 5.4 Invite links: public preview by code, join after sign-in; email invites to people without an account
+- [ ] 5.5 Invite expiry + anti-spam limits (per day, per table) as settings
+- [ ] 5.6 Referrals (configurable bonus, off by default)
+- [ ] 5.7 Scheduled tournaments (registration windows, late reg, guarantees, re-entry, payout tables)
+- [ ] 5.8 Responsible gaming: deposit/loss/session limits, self-exclusion
 
 ## MVP checkpoint (all local)
 - [ ] Sign in → deposit (card + M-Pesa, test keys, via tunnel) → join Sit & Go → play in browser → prize in wallet
