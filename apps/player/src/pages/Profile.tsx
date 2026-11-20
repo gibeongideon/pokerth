@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Avatar } from "../components/bits";
 import { useToast } from "../components/Toast";
-import { api, call, errorMessage, setToken } from "../lib/api";
+import { api, call, errorMessage, signOut as endSession } from "../lib/api";
 import { usd, when } from "../lib/format";
 import { useMe } from "../lib/hooks";
 import { play } from "../lib/sound";
@@ -106,8 +106,7 @@ export function Profile() {
     }
   };
   const signOut = async () => {
-    await fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => undefined);
-    setToken(null);
+    await endSession();
     qc.clear();
     navigate("/login");
   };

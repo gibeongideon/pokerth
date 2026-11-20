@@ -98,3 +98,10 @@ pokerth-play-screenshots-tablet.zip
 node_modules/
 apps/*/dist/
 *.tsbuildinfo
+
+# Player app env files (API URLs, never secrets in the client, but keep local values local)
+apps/player/.env*
+!apps/player/.env.*.example
+
+# The C++ rule "lib/" above must not hide the player app source.
+!apps/player/src/lib/

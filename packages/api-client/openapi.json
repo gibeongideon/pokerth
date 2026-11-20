@@ -142,6 +142,48 @@
         }
       }
     },
+    "/auth/magic-link/verify-code": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Verify Magic Code",
+        "description": "Sign in with the 6-digit code from the sign-in email (phone app).",
+        "operationId": "verify_magic_code_auth_magic_link_verify_code_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MagicCodeVerify"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/google": {
       "post": {
         "tags": [
@@ -3378,6 +3420,36 @@
           "period"
         ],
         "title": "LimitIn"
+      },
+      "MagicCodeVerify": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 12,
+            "minLength": 6,
+            "title": "Code"
+          },
+          "client": {
+            "type": "string",
+            "enum": [
+              "web",
+              "app"
+            ],
+            "title": "Client",
+            "default": "app"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "code"
+        ],
+        "title": "MagicCodeVerify"
       },
       "MagicLinkRequest": {
         "properties": {

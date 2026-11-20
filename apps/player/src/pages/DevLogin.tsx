@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { setToken } from "../lib/api";
+import { API_BASE } from "../lib/native";
 
 /** Local dev only (not in production builds): sign in as a seeded demo player
  * and go to ?next=. Used for screenshots and quick manual testing. */
@@ -14,7 +15,7 @@ export function DevLogin() {
   useEffect(() => {
     if (once.current) return;
     once.current = true;
-    fetch(`/api/dev/token/${name}`, { method: "POST" })
+    fetch(`${API_BASE}/dev/token/${name}`, { method: "POST" })
       .then((r) => r.json())
       .then(async (d: { access_token: string }) => {
         setToken(d.access_token);

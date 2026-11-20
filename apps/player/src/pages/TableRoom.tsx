@@ -10,6 +10,7 @@ import { TableCanvas, type CanvasSeat, type LiveTable } from "../game/TableCanva
 import { useLiveGame } from "../game/useLiveGame";
 import { pot as potOf, type TableState } from "@poker/protocol";
 import { api, call, errorMessage } from "../lib/api";
+import { PUBLIC_URL } from "../lib/native";
 import { usd, when } from "../lib/format";
 import { useMe, useSecondsLeft } from "../lib/hooks";
 import { play } from "../lib/sound";
@@ -27,7 +28,7 @@ function InvitePanel({ table, onClose }: { table: TableView; onClose: () => void
   const referral = useQuery({ queryKey: ["referral"], queryFn: () => call<{ code: string }>(api.GET("/me/referral")) });
   // Newcomers who sign up from this link are credited to you (and become your friend).
   const ref = referral.data?.code ? `?ref=${referral.data.code}` : "";
-  const link = table.invite_code ? `${location.origin}/join/${table.invite_code}${ref}` : `${location.origin}/tables/${table.id}`;
+  const link = table.invite_code ? `${PUBLIC_URL}/join/${table.invite_code}${ref}` : `${PUBLIC_URL}/tables/${table.id}`;
 
   const send = async () => {
     const handles = [...picked, ...extra.split(/[\s,]+/).filter(Boolean)];

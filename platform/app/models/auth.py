@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, func
+from sqlalchemy import DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -19,6 +19,10 @@ class MagicLinkToken(Base):
     requester_ip: Mapped[str | None] = mapped_column(String(45))
     # Referral code from the sign-up link, applied if this creates a new account.
     ref_code: Mapped[str | None] = mapped_column(String(16))
+    # 6-digit code from the same email, typed into the phone app (no deep link
+    # needed). Stored as a keyed hash; wrong guesses are counted.
+    code_hash: Mapped[str | None] = mapped_column(String(64))
+    code_attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )

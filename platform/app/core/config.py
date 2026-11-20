@@ -23,7 +23,13 @@ class Settings(BaseSettings):
     debug: bool = False
     # Where the player app lives; magic links and payment callbacks point here.
     public_base_url: str = "http://localhost:5173"
-    cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    # The Capacitor apps load from https://localhost (Android) and capacitor://localhost (iOS).
+    cors_origins: list[str] = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "https://localhost",
+        "capacitor://localhost",
+    ]
     # Path the API is served under on the app's origin ("/api" behind Vite/Caddy);
     # the refresh cookie is scoped to <prefix>/auth so the browser sends it there.
     cookie_path_prefix: str = ""

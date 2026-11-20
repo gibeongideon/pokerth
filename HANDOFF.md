@@ -5,7 +5,7 @@ Read this first when resuming. Update it at the end of every session.
 ## Current state (2026-11-21)
 - Branches: `stable` → `prod` → `dev`. **`dev` is checked out.** Nothing pushed to `origin`.
 - Phase 0 and Phase 1 done (Smile ID still manual). **Phase 2a done**: stake levels, fees, full Sit & Go lifecycle with a stand-in game server. **Phase 4 API done**: M-Pesa withdrawals with emailed code, review queue, admin users/reports.
-- Agreed order (D-020): non-UI tasks first (Phase 5 done except 5.7b late reg / re-entry / multi-table, which need the game server). **Phase 3 web player app built** (`apps/player`, screenshots in `docs/platform/screenshots/phase3/`). **Phase 2b done**: the C++ server runs in platform mode and an end-to-end bot game settled correctly. **Live play in the web app done** (2026-11-21, D-026): players play real hands in the browser (desktop and phone) through `packages/protocol`; screenshots in `docs/platform/screenshots/live/`. **Reconnect/rejoin done** (D-027): reload, new device or dropped network gets the seat back; error boundaries; table page lazy-loaded. **Visual redesign done** (`docs/platform/screenshots/ui-v2/`). **Quick invites done** (D-028: `/i/<code>` sign-up page, email invites tracked by email, table links that sign newcomers up). **Next: Capacitor Android** (the web app in a native shell, same code), then the server runtime image and hand history.
+- Agreed order (D-020): non-UI tasks first (Phase 5 done except 5.7b late reg / re-entry / multi-table, which need the game server). **Phase 3 web player app built** (`apps/player`, screenshots in `docs/platform/screenshots/phase3/`). **Phase 2b done**: the C++ server runs in platform mode and an end-to-end bot game settled correctly. **Live play in the web app done** (2026-11-21, D-026): players play real hands in the browser (desktop and phone) through `packages/protocol`; screenshots in `docs/platform/screenshots/live/`. **Reconnect/rejoin done** (D-027): reload, new device or dropped network gets the seat back; error boundaries; table page lazy-loaded. **Visual redesign done** (`docs/platform/screenshots/ui-v2/`). **Quick invites done** (D-028: `/i/<code>` sign-up page, email invites tracked by email, table links that sign newcomers up). **Capacitor Android project done** (D-029; sign-in by emailed code, deep links, icons/splash, CI APK build). **Local APK build is blocked on a JDK** (none installed; `sudo apt install openjdk-21-jdk`). **Next:** build + try the APK on a phone, then the server runtime image and hand history.
 - Screenshots of the dev dashboard: `docs/platform/screenshots/phase2-desktop.png`, `phase2-mobile.png`.
 - The owner prefers screenshots at the end of each phase over a server left running (machine is short on memory).
 - To confirm with Paystack: USD card acceptance on the Kenya merchant account, gaming approval, Transfers enabled.
@@ -40,6 +40,13 @@ Read this first when resuming. Update it at the end of every session.
 6. A player who reloads mid-game gets their seat back (dealt in next hand). If a game is stuck anyway (e.g. the game server was restarted), finish it with `POST /dev/tables/{id}/simulate-result`.
 7. Test a network drop: run a TCP relay in front of :7233 and start the API with `PLATFORM_GAME_WS_URL=ws://localhost:<relay port>`, then cut the relay's connections mid-game.
 8. Don't `pkill -f "uvicorn app.main"` in the same command that starts it — the pattern matches your own shell and kills it (exit 144).
+
+## Build the Android app
+1. JDK 21 (`sudo apt install openjdk-21-jdk`); Android SDK is in `~/Android/Sdk` (platforms 35/36). Put `sdk.dir=/home/rock/Android/Sdk` in `apps/player/android/local.properties` (git-ignored).
+2. `cp apps/player/.env.app.example apps/player/.env.app` and set the API/site URLs your phone can reach (LAN IP of this machine; the API must listen on 0.0.0.0 and its `PLATFORM_CORS_ORIGINS` must include `https://localhost`).
+3. `cd apps/player && CAP_DEV=1 npm run android:debug` (CAP_DEV allows http/ws to LAN servers in a debug build) → `android/app/build/outputs/apk/debug/app-debug.apk` → `adb install -r ...`.
+4. Sign in with the 6-digit code from the email. Icons/splash: `python scripts/gen_android_assets.py` after changing `public/logo.svg`.
+5. CI: `.github/workflows/player-android.yml` builds the debug APK (repository variables `PLAYER_API_BASE_URL`, `PLAYER_PUBLIC_URL`).
 
 ## Run the web player app locally
 1. `cd platform && docker compose up -d postgres redis mailpit && . .venv/bin/activate && alembic upgrade head && python -m app.seed`

@@ -5,7 +5,8 @@ import { Avatar, Chip } from "../components/bits";
 import { CardFan, LogoMark } from "../components/Brand";
 import { Icon, type IconName } from "../components/Icon";
 import { useToast } from "../components/Toast";
-import { api, call, errorMessage, setToken } from "../lib/api";
+import { api, call, errorMessage, setToken, storeSession } from "../lib/api";
+import { API_BASE, isNative } from "../lib/native";
 import { useMe } from "../lib/hooks";
 import { play } from "../lib/sound";
 
@@ -52,6 +53,17 @@ export function safeNext(path: string | null): string | null {
   return path && path.startsWith("/") && !path.startsWith("//") && path.length <= 200 ? path : null;
 }
 
+/** After any sign-in: new players see the welcome step first, then `next`. */
+function finishSignIn(res: unknown, next: string | null, navigate: (to: string, o?: { replace?: boolean }) => void) {
+  const user = (res as { user?: { username: string | null; terms_accepted: boolean } }).user;
+  if (!(user?.username && user.terms_accepted)) {
+    if (next) rememberReturn(next);
+    return navigate("/welcome", { replace: true });
+  }
+  if (next) afterSignIn(); // drop any older same-device fallback
+  navigate(next ?? afterSignIn(), { replace: true });
+}
+
 /**
  * Email -> magic link. Used by the sign-in page and by invite pages, so a
  * newcomer can sign up right where the invite landed them. The link carries
@@ -66,7 +78,26 @@ export function EmailSignIn({ refCode, next, cta = "Email me a sign-in link", co
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [code, setCode] = useState("");
   const toast = useToast();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+
+  const signInWithCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const res = await call(api.POST("/auth/magic-link/verify-code", { body: { email, code, client: isNative ? "app" : "web" } }));
+      await storeSession(res as { access_token?: string; refresh_token?: string });
+      await qc.invalidateQueries();
+      play("ready");
+      finishSignIn(res, safeNext(next ?? null), navigate);
+    } catch (err) {
+      toast(errorMessage(err), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,8 +124,24 @@ export function EmailSignIn({ refCode, next, cta = "Email me a sign-in link", co
         </span>
         <h2 className="title text-2xl">Check your email</h2>
         <p className="text-cream/70">
-          We sent a sign-in link to <b className="text-cream">{email}</b>. Tap it on any device — it works once and expires in 15 minutes.
+          We sent a sign-in link to <b className="text-cream">{email}</b>.{" "}
+          {isNative ? "Type the 6-digit code from it below." : "Tap it on any device, or type the 6-digit code from it here."}
         </p>
+        <form onSubmit={signInWithCode} className="space-y-2 text-left">
+          <input
+            className="input text-center font-display text-3xl tracking-[0.4em]"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            placeholder="••••••"
+            maxLength={7}
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/[^0-9 ]/g, ""))}
+            aria-label="6-digit code"
+          />
+          <button className="btn-gold w-full py-3 text-lg" disabled={busy || code.replace(/\D/g, "").length !== 6}>
+            {busy ? "Checking…" : "Sign in with code"}
+          </button>
+        </form>
         <button className="btn-ghost" onClick={() => setSent(false)}>
           Use another email
         </button>
@@ -170,7 +217,7 @@ export function Login() {
   useEffect(() => remember(REF_KEY, params.get("ref")), [params]);
 
   const demo = async (name: string) => {
-    const res = await fetch(`/api/dev/token/${name}`, { method: "POST" });
+    const res = await fetch(`${API_BASE}/dev/token/${name}`, { method: "POST" });
     if (!res.ok) return toast("Demo players need the local seed (python -m app.seed).", "error");
     setToken(((await res.json()) as { access_token: string }).access_token);
     await qc.invalidateQueries();
@@ -251,21 +298,14 @@ export function AuthCallback() {
     once.current = true;
     const token = params.get("token");
     if (!token) return setError("This link is missing its token.");
-    call(api.POST("/auth/magic-link/verify", { body: { token, client: "web" } }))
+    call(api.POST("/auth/magic-link/verify", { body: { token, client: isNative ? "app" : "web" } }))
       .then(async (res) => {
         setToken(null);
+        await storeSession(res as { access_token?: string; refresh_token?: string }); // app only
         await qc.invalidateQueries();
         play("ready");
         // `next` came in the link itself, so it works on another device too.
-        // New players see the welcome step (username, 18+) first, then `next`.
-        const next = safeNext(params.get("next"));
-        const user = (res as { user?: { username: string | null; terms_accepted: boolean } }).user;
-        if (next && !(user?.username && user.terms_accepted)) {
-          rememberReturn(next);
-          return navigate("/welcome", { replace: true });
-        }
-        if (next) afterSignIn(); // drop any older same-device fallback
-        navigate(next ?? afterSignIn(), { replace: true });
+        finishSignIn(res, safeNext(params.get("next")), navigate);
       })
       .catch((e) => setError(errorMessage(e)));
   }, [params, navigate, qc]);

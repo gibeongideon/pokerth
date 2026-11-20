@@ -65,6 +65,7 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [ ] Rejoin is refused after the seat is released (offline longer than the server's grace period, ~5 min); consider a platform-mode setting for it
 
 ## Phase 3 — Player app (web + mobile) and site
+- [x] Fixed: root `.gitignore` rule `lib/` (C++) hid `apps/player/src/lib/` — those files are now committed
 - [x] npm workspace (pnpm is broken on this machine); `packages/api-client` typed from the OpenAPI schema (`npm run api:types`)
 - [x] `apps/player/` Vite + React + TS + Tailwind, gamey look (D-020): sign-in (magic link), welcome (username + 18+/terms), lobby, quick play, private tables, table room, wallet (M-Pesa/card deposit, fund a friend, withdraw with code, history), friends + invites inbox, organize a game, invite-link page, profile (phone, referral link, limits, reality check, take a break) — mobile-first with bottom tabs, side rail on desktop
 - [x] PixiJS table: seats around the felt (you at the bottom), ready glow, chip stacks, pot, medals + prizes, demo deal while running; fits portrait and landscape
@@ -78,7 +79,12 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [x] Visual redesign (2026-11-21): SVG icon set + crown-chip logo, glass panels, redesigned shell, lobby, sign-in, wallet, table canvas (lit felt, real card faces, striped chips), action bar timer (`docs/platform/screenshots/ui-v2/`)
 - [ ] Google sign-in button (needs a Google OAuth client ID)
 - [ ] PWA manifest + offline shell
-- [ ] Capacitor Android build: deep links (invites, magic links), push notifications, secure token storage, native Google sign-in
+- [x] Capacitor Android project (`apps/player/android`, Capacitor 7, appId `app.feltkings.player`): app-mode API base URL + public URL, bearer sessions with the refresh token on the device (single-flight refresh), sign-in with the 6-digit code from the email (D-029), deep links (App Links for `/i/`, `/join/`, `/auth/callback` + `feltkings://`), back button, status bar, splash, launcher icons generated from the logo (`scripts/gen_android_assets.py`), CORS for `https://localhost`, CI workflow `player-android.yml` (debug APK artifact) (2026-11-21)
+- [ ] Build and run the APK locally — blocked: no JDK on this machine (`sudo apt install openjdk-21-jdk`, then `npm run android:debug` in apps/player); test on a real phone with `adb install`
+- [ ] Secure token storage (Android Keystore / iOS Keychain) instead of Preferences
+- [ ] Card deposits in the app: open Paystack in the in-app browser and return via deep link
+- [ ] Push notifications (table filling, your turn, invites), native Google sign-in
+- [ ] Release signing + AAB for Play; publish `/.well-known/assetlinks.json` (template `deploy/assetlinks.json.example`)
 - [ ] Capacitor iOS build (after the licence is granted)
 - [ ] `apps/site/` Next.js: landing, SEO, legal and responsible-gaming pages; admin back office UI
 - [ ] Final name and visual identity ("Felt Kings" is a working title, O-5)

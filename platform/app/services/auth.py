@@ -5,6 +5,8 @@ rotate on every use; reuse of an already-rotated token is treated as theft and
 revokes the whole token family.
 """
 
+import hmac
+import secrets
 import uuid
 from dataclasses import dataclass
 from datetime import timedelta
@@ -67,10 +69,12 @@ async def request_magic_link(
 
     ttl = await cfg.get_int(session, "auth.magic_link_ttl_seconds")
     token = new_opaque_token()
+    code = f"{secrets.randbelow(1_000_000):06d}"
     session.add(
         MagicLinkToken(
             email=email,
             token_hash=hash_token(token),
+            code_hash=_code_hash(email, code),
             expires_at=utcnow() + timedelta(seconds=ttl),
             requester_ip=ip,
             ref_code=(ref or "").strip().upper()[:16] or None,
@@ -88,8 +92,41 @@ async def request_magic_link(
         email,
         "Your sign-in link",
         f"Tap the link below to sign in. It works once and expires in {ttl // 60} minutes.\n\n"
-        f"{link}\n\nIf you didn't ask for this, ignore this email.",
+        f"{link}\n\n"
+        f"In the Felt Kings app? Enter this code instead: {code[:3]} {code[3:]}\n\n"
+        "If you didn't ask for this, ignore this email.",
     )
+
+
+def _code_hash(email: str, code: str) -> str:
+    # Keyed with the server secret: a leaked table can't be brute-forced offline.
+    return hash_token(f"{get_settings().jwt_secret.get_secret_value()}:{email}:{code}")
+
+
+MAX_CODE_ATTEMPTS = 5
+
+
+async def verify_magic_code(session: AsyncSession, email: str, code: str) -> User:
+    """Sign in with the 6-digit code from the newest unused link for this email.
+    Five wrong codes burn that link. Caller commits."""
+    email = normalize_email(email)
+    row = await session.scalar(
+        select(MagicLinkToken)
+        .where(MagicLinkToken.email == email, MagicLinkToken.used_at.is_(None))
+        .where(MagicLinkToken.expires_at > utcnow(), MagicLinkToken.code_hash.is_not(None))
+        .order_by(MagicLinkToken.created_at.desc())
+        .limit(1)
+        .with_for_update()
+    )
+    digits = "".join(ch for ch in code if ch.isdigit())
+    if row is None:
+        raise AuthError("invalid_code", "That code is invalid or has expired. Ask for a new email.")
+    if not hmac.compare_digest(row.code_hash or "", _code_hash(email, digits)):
+        row.code_attempts += 1
+        if row.code_attempts >= MAX_CODE_ATTEMPTS:
+            row.used_at = utcnow()
+        raise AuthError("invalid_code", "That code is invalid or has expired. Ask for a new email.")
+    return await _consume(session, row)
 
 
 async def verify_magic_link(session: AsyncSession, token: str) -> User:
@@ -101,6 +138,10 @@ async def verify_magic_link(session: AsyncSession, token: str) -> User:
     )
     if row is None or row.used_at is not None or row.expires_at <= utcnow():
         raise AuthError("invalid_link", "This sign-in link is invalid or has expired.")
+    return await _consume(session, row)
+
+
+async def _consume(session: AsyncSession, row: MagicLinkToken) -> User:
     row.used_at = utcnow()
 
     user = await session.scalar(select(User).where(User.email == row.email))

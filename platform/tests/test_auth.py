@@ -1,3 +1,4 @@
+import re
 from datetime import timedelta
 
 import httpx
@@ -162,3 +163,49 @@ async def test_requires_auth(client: httpx.AsyncClient) -> None:
     assert resp.status_code == 401
     resp = await client.get("/me", headers={"Authorization": "Bearer not-a-jwt"})
     assert resp.status_code == 401
+
+
+def _code(mailer: FakeMailer) -> str:
+    m = re.search(r"Enter this code instead: (\d{3}) (\d{3})", mailer.sent[-1]["body"])
+    assert m, "no code in email"
+    return m.group(1) + m.group(2)
+
+
+async def test_app_signs_in_with_the_emailed_code(
+    client: httpx.AsyncClient, mailer: FakeMailer
+) -> None:
+    await client.post("/auth/magic-link", json={"email": "Phone@Example.com"})
+    code = _code(mailer)
+    wrong = "000000" if code != "000000" else "111111"
+    bad = await client.post(
+        "/auth/magic-link/verify-code", json={"email": "phone@example.com", "code": wrong}
+    )
+    assert bad.status_code == 400 and bad.json()["detail"]["code"] == "invalid_code"
+    ok = await client.post(
+        "/auth/magic-link/verify-code",
+        json={"email": "phone@example.com", "code": f"{code[:3]} {code[3:]}"},
+    )
+    assert ok.status_code == 200
+    body = ok.json()
+    assert body["access_token"] and body["refresh_token"]  # app client: tokens in the body
+    assert body["user"]["email"] == "phone@example.com"
+    # The link from the same email is now used up.
+    again = await client.post("/auth/magic-link/verify", json={"token": mailer.last_token()})
+    assert again.status_code == 401
+
+
+async def test_five_wrong_codes_burn_the_link(
+    client: httpx.AsyncClient, mailer: FakeMailer
+) -> None:
+    await client.post("/auth/magic-link", json={"email": "guess@example.com"})
+    code = _code(mailer)
+    wrong = [f"{(int(code) + i) % 1_000_000:06d}" for i in range(1, 6)]
+    for w in wrong:
+        r = await client.post(
+            "/auth/magic-link/verify-code", json={"email": "guess@example.com", "code": w}
+        )
+        assert r.status_code == 400
+    r = await client.post(
+        "/auth/magic-link/verify-code", json={"email": "guess@example.com", "code": code}
+    )
+    assert r.status_code == 400  # even the right code no longer works

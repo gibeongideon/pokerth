@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Spinner } from "./components/bits";
 import { Logo } from "./components/Brand";
+import { NativeBridge } from "./components/NativeBridge";
 import { Shell } from "./components/Shell";
 import { useMe } from "./lib/hooks";
 import { AuthCallback, Login, Welcome, rememberRef, rememberReturn } from "./pages/Auth";
@@ -48,6 +49,8 @@ function MaybeShell({ children }: { children: React.ReactNode }) {
 
 export function App() {
   return (
+    <>
+    <NativeBridge />
     <Routes>
       <Route path="/login" element={<Login />} />
       {import.meta.env.DEV && <Route path="/dev-login/:name" element={<DevLogin />} />}
@@ -65,5 +68,6 @@ export function App() {
       <Route path="/profile" element={<Protected><Profile /></Protected>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 }

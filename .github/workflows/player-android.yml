@@ -1,0 +1,56 @@
+name: Player app (Android)
+
+# Builds the Capacitor Android app (debug APK) from apps/player and uploads it
+# as an artifact. The API/site URLs come from repository variables:
+#   PLAYER_API_BASE_URL  e.g. https://api.example.com
+#   PLAYER_PUBLIC_URL    e.g. https://play.example.com   (its host also gets the App Links)
+# Release signing (AAB for Play) is added once the keystore exists (Phase 6).
+
+on:
+  push:
+    branches: [dev, prod]
+    paths: ["apps/player/**", "packages/**", "package-lock.json", ".github/workflows/player-android.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: player-android-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      VITE_API_BASE_URL: ${{ vars.PLAYER_API_BASE_URL }}
+      VITE_PUBLIC_URL: ${{ vars.PLAYER_PUBLIC_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - run: npm ci
+      - name: Build the web bundle for the app
+        working-directory: apps/player
+        run: npm run build:app
+      - name: Sync into the Android project
+        working-directory: apps/player
+        run: npx cap sync android
+      - name: Assemble debug APK
+        working-directory: apps/player/android
+        run: |
+          HOST=$(echo "${VITE_PUBLIC_URL:-https://play.feltkings.app}" | sed -E 's#^https?://([^/:]+).*#\1#')
+          ./gradlew --no-daemon assembleDebug -PappLinkHost="$HOST"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: felt-kings-debug-apk
+          path: apps/player/android/app/build/outputs/apk/debug/*.apk
+          retention-days: 14

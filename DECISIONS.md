@@ -135,6 +135,13 @@ The seat token already carries signed table settings (`cfg`: players, chips, sma
 - Table links carry `?ref=<inviter code>` (and fall back to the organizer's code), so a newcomer who signs up from a shared table link is credited too and is returned to the table after the welcome step.
 - Magic links carry `next` (a same-site path; `//host` and schemes are refused server- and client-side), so the flow works when the email is opened on another device.
 
+### D-029 · 2026-11-21 · Accepted — Phone app: same web app in Capacitor, code sign-in
+- The Android app is the player app built in "app" mode (`npm run build:app`, `VITE_API_BASE_URL`, `VITE_PUBLIC_URL`) inside Capacitor 7. One codebase; `src/lib/native.ts` holds the differences.
+- Sessions in the app use bearer tokens (`client: "app"`): access token in memory, refresh token on the device; refreshes are single-flight because refresh tokens rotate and a duplicate would trigger reuse detection.
+- Sign-in in the app: the sign-in email now also carries a 6-digit code (keyed hash, expires with the link, 5 wrong tries burn it). Typing it works without deep links, on any device. Links still open the app when App Links are verified (`assetlinks.json` on the site's domain).
+- Shared links always use the public site URL, never the app's own origin.
+- appId `app.feltkings.player` follows the working brand; it cannot change after the first Play upload (decide O-5 first).
+
 ---
 
 ## Open items (to decide)

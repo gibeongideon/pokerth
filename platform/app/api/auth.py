@@ -42,6 +42,12 @@ class MagicLinkVerify(BaseModel):
     client: ClientKind = "web"
 
 
+class MagicCodeVerify(BaseModel):
+    email: EmailStr
+    code: str = Field(min_length=6, max_length=12)
+    client: ClientKind = "app"
+
+
 class GoogleSignIn(BaseModel):
     id_token: str
     client: ClientKind = "web"
@@ -97,7 +103,9 @@ def _clear_cookies(response: Response) -> None:
 
 
 def _auth_error(exc: auth_svc.AuthError) -> ApiError:
-    status = 403 if exc.code == "account_suspended" else 401
+    # A wrong code is a 400, not a 401: clients refresh-and-retry on 401,
+    # which would burn another attempt.
+    status = 403 if exc.code == "account_suspended" else 400 if exc.code == "invalid_code" else 401
     return ApiError(status, exc.code, str(exc))
 
 
@@ -122,6 +130,21 @@ async def verify_magic_link(
         user = await auth_svc.verify_magic_link(session, body.token)
     except auth_svc.AuthError as exc:
         await session.rollback()
+        raise _auth_error(exc) from exc
+    issued = await auth_svc.issue_session(session, user, request.headers.get("user-agent"))
+    await session.commit()
+    return _respond(response, issued, body.client)
+
+
+@router.post("/magic-link/verify-code")
+async def verify_magic_code(
+    body: MagicCodeVerify, request: Request, response: Response, session: SessionDep
+) -> SessionOut:
+    """Sign in with the 6-digit code from the sign-in email (phone app)."""
+    try:
+        user = await auth_svc.verify_magic_code(session, body.email, body.code)
+    except auth_svc.AuthError as exc:
+        await session.commit()  # keep the wrong-attempt count
         raise _auth_error(exc) from exc
     issued = await auth_svc.issue_session(session, user, request.headers.get("user-agent"))
     await session.commit()

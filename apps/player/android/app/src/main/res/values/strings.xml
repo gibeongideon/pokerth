@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Felt Kings</string>
+    <string name="title_activity_main">Felt Kings</string>
+    <string name="package_name">app.feltkings.player</string>
+    <string name="custom_url_scheme">app.feltkings.player</string>
+</resources>

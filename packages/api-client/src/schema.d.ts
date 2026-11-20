@@ -75,6 +75,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/magic-link/verify-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify Magic Code
+         * @description Sign in with the 6-digit code from the sign-in email (phone app).
+         */
+        post: operations["verify_magic_code_auth_magic_link_verify_code_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/google": {
         parameters: {
             query?: never;
@@ -1393,6 +1413,22 @@ export interface components {
             /** Amount Cents */
             amount_cents?: number | null;
         };
+        /** MagicCodeVerify */
+        MagicCodeVerify: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** Code */
+            code: string;
+            /**
+             * Client
+             * @default app
+             * @enum {string}
+             */
+            client: "web" | "app";
+        };
         /** MagicLinkRequest */
         MagicLinkRequest: {
             /**
@@ -1760,6 +1796,39 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["MagicLinkVerify"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_magic_code_auth_magic_link_verify_code_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MagicCodeVerify"];
             };
         };
         responses: {

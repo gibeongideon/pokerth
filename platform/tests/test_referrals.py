@@ -165,8 +165,10 @@ async def test_email_invite_is_tracked_by_email(
     assert mail["to"] == "wanjiru@example.com" and "/i/" in mail["body"]
 
     # Same email again within a day: not re-sent.
-    again = (await client.post("/me/invites", headers=ah, json={"emails": ["wanjiru@example.com"]}))
-    assert again.json()["skipped"] == [{"handle": "wanjiru@example.com", "reason": "already_invited"}]
+    again = await client.post("/me/invites", headers=ah, json={"emails": ["wanjiru@example.com"]})
+    assert again.json()["skipped"] == [
+        {"handle": "wanjiru@example.com", "reason": "already_invited"}
+    ]
     # A second player invites the same person too.
     await client.post("/me/invites", headers=bh, json={"emails": ["wanjiru@example.com"]})
     assert (await client.get("/me/invites", headers=ah)).json()[0]["status"] == "pending"
