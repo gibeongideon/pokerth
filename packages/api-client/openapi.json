@@ -1,0 +1,3949 @@
+{
+ "openapi": "3.1.0",
+ "info": {
+  "title": "Poker Platform API",
+  "version": "0.1.0"
+ },
+ "paths": {
+  "/healthz": {
+   "get": {
+    "tags": [
+     "health"
+    ],
+    "summary": "Healthz",
+    "operationId": "healthz_healthz_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": {
+          "type": "string"
+         },
+         "type": "object",
+         "title": "Response Healthz Healthz Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/readyz": {
+   "get": {
+    "tags": [
+     "health"
+    ],
+    "summary": "Readyz",
+    "operationId": "readyz_readyz_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": {
+          "type": "string"
+         },
+         "type": "object",
+         "title": "Response Readyz Readyz Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/auth/magic-link": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Request Magic Link",
+    "description": "Always 202, whether or not the email has an account (no enumeration).",
+    "operationId": "request_magic_link_auth_magic_link_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MagicLinkRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": {
+          "type": "string"
+         },
+         "type": "object",
+         "title": "Response Request Magic Link Auth Magic Link Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/auth/magic-link/verify": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Verify Magic Link",
+    "operationId": "verify_magic_link_auth_magic_link_verify_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MagicLinkVerify"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SessionOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/auth/google": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Google Sign In",
+    "operationId": "google_sign_in_auth_google_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/GoogleSignIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SessionOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/auth/refresh": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Refresh",
+    "operationId": "refresh_auth_refresh_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RefreshRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SessionOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/auth/logout": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Logout",
+    "operationId": "logout_auth_logout_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "anyOf": [
+         {
+          "$ref": "#/components/schemas/RefreshRequest"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Body"
+       }
+      }
+     }
+    },
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/auth/logout-all": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "summary": "Logout All",
+    "description": "Sign out on every device.",
+    "operationId": "logout_all_auth_logout_all_post",
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     }
+    }
+   }
+  },
+  "/me": {
+   "get": {
+    "tags": [
+     "me"
+    ],
+    "summary": "Me",
+    "operationId": "me_me_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UserOut"
+        }
+       }
+      }
+     }
+    }
+   },
+   "patch": {
+    "tags": [
+     "me"
+    ],
+    "summary": "Update Me",
+    "operationId": "update_me_me_patch",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ProfileUpdate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UserOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/me/accept-terms": {
+   "post": {
+    "tags": [
+     "me"
+    ],
+    "summary": "Accept Terms",
+    "operationId": "accept_terms_me_accept_terms_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AcceptTerms"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UserOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/me/referral": {
+   "get": {
+    "tags": [
+     "me"
+    ],
+    "summary": "Referral",
+    "description": "The player's invite-a-friend code, link and earnings.",
+    "operationId": "referral_me_referral_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Referral Me Referral Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/me/limits": {
+   "get": {
+    "tags": [
+     "me"
+    ],
+    "summary": "Limits",
+    "operationId": "limits_me_limits_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Limits Me Limits Get"
+        }
+       }
+      }
+     }
+    }
+   },
+   "put": {
+    "tags": [
+     "me"
+    ],
+    "summary": "Set Limit",
+    "description": "Lowering a limit applies now; raising or removing it waits 24 h.",
+    "operationId": "set_limit_me_limits_put",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/LimitIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Set Limit Me Limits Put"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/me/self-exclude": {
+   "post": {
+    "tags": [
+     "me"
+    ],
+    "summary": "Self Exclude",
+    "description": "Take a break from real-money play. It can't be shortened or undone.",
+    "operationId": "self_exclude_me_self_exclude_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SelfExcludeIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Self Exclude Me Self Exclude Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/me/reality-check": {
+   "put": {
+    "tags": [
+     "me"
+    ],
+    "summary": "Reality Check",
+    "operationId": "reality_check_me_reality_check_put",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RealityCheckIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UserOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/wallet": {
+   "get": {
+    "tags": [
+     "wallet"
+    ],
+    "summary": "Wallet",
+    "operationId": "wallet_wallet_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Wallet Wallet Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/wallet/history": {
+   "get": {
+    "tags": [
+     "wallet"
+    ],
+    "summary": "History",
+    "operationId": "history_wallet_history_get",
+    "parameters": [
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 200,
+       "minimum": 1,
+       "default": 50,
+       "title": "Limit"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "additionalProperties": true
+         },
+         "title": "Response History Wallet History Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/wallet/deposits/quote": {
+   "get": {
+    "tags": [
+     "wallet"
+    ],
+    "summary": "Deposit Quote",
+    "description": "Show exactly what will be charged before the user confirms.",
+    "operationId": "deposit_quote_wallet_deposits_quote_get",
+    "parameters": [
+     {
+      "name": "channel",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "enum": [
+        "card",
+        "mpesa"
+       ],
+       "type": "string",
+       "title": "Channel"
+      }
+     },
+     {
+      "name": "amount_usd_cents",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "exclusiveMinimum": 0,
+       "title": "Amount Usd Cents"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Deposit Quote Wallet Deposits Quote Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/wallet/deposits": {
+   "post": {
+    "tags": [
+     "wallet"
+    ],
+    "summary": "Create Deposit",
+    "operationId": "create_deposit_wallet_deposits_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DepositRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Create Deposit Wallet Deposits Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/wallet/deposits/{reference}": {
+   "get": {
+    "tags": [
+     "wallet"
+    ],
+    "summary": "Get Deposit",
+    "description": "Apps poll this after redirect / STK push until status leaves ``pending``.",
+    "operationId": "get_deposit_wallet_deposits__reference__get",
+    "parameters": [
+     {
+      "name": "reference",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Reference"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Get Deposit Wallet Deposits  Reference  Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/wallet/transfers": {
+   "post": {
+    "tags": [
+     "wallet"
+    ],
+    "summary": "Transfer",
+    "operationId": "transfer_wallet_transfers_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TransferRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Transfer Wallet Transfers Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/wallet/payout-destinations": {
+   "get": {
+    "tags": [
+     "withdrawals"
+    ],
+    "summary": "Destinations",
+    "operationId": "destinations_wallet_payout_destinations_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "type": "array",
+         "title": "Response Destinations Wallet Payout Destinations Get"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "withdrawals"
+    ],
+    "summary": "Add Destination",
+    "operationId": "add_destination_wallet_payout_destinations_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DestinationIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Add Destination Wallet Payout Destinations Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/wallet/withdrawals/quote": {
+   "get": {
+    "tags": [
+     "withdrawals"
+    ],
+    "summary": "Quote",
+    "operationId": "quote_wallet_withdrawals_quote_get",
+    "parameters": [
+     {
+      "name": "amount_usd_cents",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "exclusiveMinimum": 0,
+       "title": "Amount Usd Cents"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Quote Wallet Withdrawals Quote Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/wallet/withdrawals": {
+   "get": {
+    "tags": [
+     "withdrawals"
+    ],
+    "summary": "List Withdrawals",
+    "operationId": "list_withdrawals_wallet_withdrawals_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "type": "array",
+         "title": "Response List Withdrawals Wallet Withdrawals Get"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "withdrawals"
+    ],
+    "summary": "Request Withdrawal",
+    "description": "Starts a withdrawal. Usually answers ``awaiting_confirmation``: the\nplayer then sends the emailed code to ``/confirm``.",
+    "operationId": "request_withdrawal_wallet_withdrawals_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/WithdrawalIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Request Withdrawal Wallet Withdrawals Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/wallet/withdrawals/{reference}/confirm": {
+   "post": {
+    "tags": [
+     "withdrawals"
+    ],
+    "summary": "Confirm",
+    "operationId": "confirm_wallet_withdrawals__reference__confirm_post",
+    "parameters": [
+     {
+      "name": "reference",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Reference"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ConfirmIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Confirm Wallet Withdrawals  Reference  Confirm Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/wallet/withdrawals/{reference}/cancel": {
+   "post": {
+    "tags": [
+     "withdrawals"
+    ],
+    "summary": "Cancel",
+    "operationId": "cancel_wallet_withdrawals__reference__cancel_post",
+    "parameters": [
+     {
+      "name": "reference",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Reference"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Cancel Wallet Withdrawals  Reference  Cancel Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/lobby/tiers": {
+   "get": {
+    "tags": [
+     "tables"
+    ],
+    "summary": "Tiers",
+    "description": "Stake levels as players see them: one price, shown once.",
+    "operationId": "tiers_lobby_tiers_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "type": "array",
+         "title": "Response Tiers Lobby Tiers Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/lobby/tables": {
+   "get": {
+    "tags": [
+     "tables"
+    ],
+    "summary": "Lobby Tables",
+    "operationId": "lobby_tables_lobby_tables_get",
+    "parameters": [
+     {
+      "name": "tier_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Tier Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "additionalProperties": true
+         },
+         "title": "Response Lobby Tables Lobby Tables Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/tables/mine": {
+   "get": {
+    "tags": [
+     "tables"
+    ],
+    "summary": "My Tables",
+    "operationId": "my_tables_tables_mine_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "type": "array",
+         "title": "Response My Tables Tables Mine Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/tables/{table_id}": {
+   "get": {
+    "tags": [
+     "tables"
+    ],
+    "summary": "Get Table",
+    "operationId": "get_table_tables__table_id__get",
+    "parameters": [
+     {
+      "name": "table_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Table Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Get Table Tables  Table Id  Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/tables/{table_id}/join": {
+   "post": {
+    "tags": [
+     "tables"
+    ],
+    "summary": "Join",
+    "operationId": "join_tables__table_id__join_post",
+    "parameters": [
+     {
+      "name": "table_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Table Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/JoinRequest"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Join Tables  Table Id  Join Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/tables/{table_id}/leave": {
+   "post": {
+    "tags": [
+     "tables"
+    ],
+    "summary": "Leave",
+    "operationId": "leave_tables__table_id__leave_post",
+    "parameters": [
+     {
+      "name": "table_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Table Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Leave Tables  Table Id  Leave Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/tables/{table_id}/ready": {
+   "post": {
+    "tags": [
+     "tables"
+    ],
+    "summary": "Ready",
+    "operationId": "ready_tables__table_id__ready_post",
+    "parameters": [
+     {
+      "name": "table_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Table Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Ready Tables  Table Id  Ready Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/lobby/quick-play": {
+   "post": {
+    "tags": [
+     "tables"
+    ],
+    "summary": "Quick Play",
+    "operationId": "quick_play_lobby_quick_play_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/QuickPlayRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Quick Play Lobby Quick Play Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/tables/private": {
+   "post": {
+    "tags": [
+     "tables"
+    ],
+    "summary": "Create Private",
+    "description": "Open a private table for friends; share the invite code. The creator is seated.",
+    "operationId": "create_private_tables_private_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PrivateTableRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Create Private Tables Private Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/tables/{table_id}/seat-token": {
+   "get": {
+    "tags": [
+     "tables"
+    ],
+    "summary": "Seat Token",
+    "description": "What the table client needs to connect to the game server.",
+    "operationId": "seat_token_tables__table_id__seat_token_get",
+    "parameters": [
+     {
+      "name": "table_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Table Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Seat Token Tables  Table Id  Seat Token Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/friends": {
+   "get": {
+    "tags": [
+     "friends & invites"
+    ],
+    "summary": "Friends",
+    "operationId": "friends_friends_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Friends Friends Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/friends/requests": {
+   "post": {
+    "tags": [
+     "friends & invites"
+    ],
+    "summary": "Request Friend",
+    "operationId": "request_friend_friends_requests_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/FriendRequestIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": {
+          "type": "string"
+         },
+         "type": "object",
+         "title": "Response Request Friend Friends Requests Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/friends/requests/{request_id}/accept": {
+   "post": {
+    "tags": [
+     "friends & invites"
+    ],
+    "summary": "Accept Friend",
+    "operationId": "accept_friend_friends_requests__request_id__accept_post",
+    "parameters": [
+     {
+      "name": "request_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Request Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/friends/requests/{request_id}/decline": {
+   "post": {
+    "tags": [
+     "friends & invites"
+    ],
+    "summary": "Decline Friend",
+    "operationId": "decline_friend_friends_requests__request_id__decline_post",
+    "parameters": [
+     {
+      "name": "request_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Request Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/friends/{friend_id}": {
+   "delete": {
+    "tags": [
+     "friends & invites"
+    ],
+    "summary": "Remove Friend",
+    "operationId": "remove_friend_friends__friend_id__delete",
+    "parameters": [
+     {
+      "name": "friend_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Friend Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/tables/{table_id}/invites": {
+   "post": {
+    "tags": [
+     "friends & invites"
+    ],
+    "summary": "Invite To Table",
+    "description": "Invite friends (usernames or emails) to a table you're at or organized.",
+    "operationId": "invite_to_table_tables__table_id__invites_post",
+    "parameters": [
+     {
+      "name": "table_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Table Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/InviteIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Invite To Table Tables  Table Id  Invites Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "get": {
+    "tags": [
+     "friends & invites"
+    ],
+    "summary": "List Table Invites",
+    "description": "Who was invited and who answered (the organizer's RSVP list).",
+    "operationId": "list_table_invites_tables__table_id__invites_get",
+    "parameters": [
+     {
+      "name": "table_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Table Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "additionalProperties": true
+         },
+         "title": "Response List Table Invites Tables  Table Id  Invites Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/invites": {
+   "get": {
+    "tags": [
+     "friends & invites"
+    ],
+    "summary": "My Invites",
+    "operationId": "my_invites_invites_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "type": "array",
+         "title": "Response My Invites Invites Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/invites/{invite_id}/accept": {
+   "post": {
+    "tags": [
+     "friends & invites"
+    ],
+    "summary": "Accept Invite",
+    "operationId": "accept_invite_invites__invite_id__accept_post",
+    "parameters": [
+     {
+      "name": "invite_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Invite Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Accept Invite Invites  Invite Id  Accept Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/invites/{invite_id}/decline": {
+   "post": {
+    "tags": [
+     "friends & invites"
+    ],
+    "summary": "Decline Invite",
+    "operationId": "decline_invite_invites__invite_id__decline_post",
+    "parameters": [
+     {
+      "name": "invite_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Invite Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/invites/code/{code}": {
+   "get": {
+    "tags": [
+     "friends & invites"
+    ],
+    "summary": "Invite Preview",
+    "description": "Public preview behind a shared link (works before signing in).",
+    "operationId": "invite_preview_invites_code__code__get",
+    "parameters": [
+     {
+      "name": "code",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Code"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Invite Preview Invites Code  Code  Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/games/organize": {
+   "post": {
+    "tags": [
+     "friends & invites"
+    ],
+    "summary": "Organize",
+    "operationId": "organize_games_organize_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/OrganizeIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Organize Games Organize Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/tables/{table_id}/cancel": {
+   "post": {
+    "tags": [
+     "friends & invites"
+    ],
+    "summary": "Organizer Cancel",
+    "description": "The organizer calls the game off before it starts; everyone is refunded.",
+    "operationId": "organizer_cancel_tables__table_id__cancel_post",
+    "parameters": [
+     {
+      "name": "table_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Table Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Organizer Cancel Tables  Table Id  Cancel Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/webhooks/paystack": {
+   "post": {
+    "tags": [
+     "webhooks"
+    ],
+    "summary": "Paystack Webhook",
+    "operationId": "paystack_webhook_webhooks_paystack_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     }
+    }
+   }
+  },
+  "/internal/seat-token-key": {
+   "get": {
+    "tags": [
+     "internal"
+    ],
+    "summary": "Seat Token Key",
+    "description": "Public key the game server uses to check seat tokens.",
+    "operationId": "seat_token_key_internal_seat_token_key_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "text/plain": {
+        "schema": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/internal/games/{table_id}/result": {
+   "post": {
+    "tags": [
+     "internal"
+    ],
+    "summary": "Game Result",
+    "operationId": "game_result_internal_games__table_id__result_post",
+    "parameters": [
+     {
+      "name": "table_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Table Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {
+          "type": "string"
+         },
+         "title": "Response Game Result Internal Games  Table Id  Result Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/settings": {
+   "get": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "List Settings",
+    "operationId": "list_settings_admin_settings_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "type": "array",
+         "title": "Response List Settings Admin Settings Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/settings/{key}": {
+   "put": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Update Setting",
+    "operationId": "update_setting_admin_settings__key__put",
+    "parameters": [
+     {
+      "name": "key",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Key"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SettingUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Update Setting Admin Settings  Key  Put"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/users/{user_id}/kyc-tier": {
+   "put": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Set Kyc Tier",
+    "description": "Manual KYC override until the Smile ID integration lands.",
+    "operationId": "set_kyc_tier_admin_users__user_id__kyc_tier_put",
+    "parameters": [
+     {
+      "name": "user_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "User Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/KycTierUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UserOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/stake-tiers": {
+   "get": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "List Tiers",
+    "operationId": "list_tiers_admin_stake_tiers_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "type": "array",
+         "title": "Response List Tiers Admin Stake Tiers Get"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Create Tier",
+    "operationId": "create_tier_admin_stake_tiers_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/StakeTierIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Create Tier Admin Stake Tiers Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/stake-tiers/{tier_id}": {
+   "put": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Update Tier",
+    "description": "Changes apply to tables opened from now on; open tables keep their copy.",
+    "operationId": "update_tier_admin_stake_tiers__tier_id__put",
+    "parameters": [
+     {
+      "name": "tier_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Tier Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/StakeTierIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Update Tier Admin Stake Tiers  Tier Id  Put"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/tables": {
+   "post": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Schedule Table",
+    "description": "Open a table that starts at a set time (needs min_players by then).",
+    "operationId": "schedule_table_admin_tables_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ScheduledTableIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Schedule Table Admin Tables Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/tables/{table_id}/cancel": {
+   "post": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Cancel Table",
+    "operationId": "cancel_table_admin_tables__table_id__cancel_post",
+    "parameters": [
+     {
+      "name": "table_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Table Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Cancel Table Admin Tables  Table Id  Cancel Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/withdrawals": {
+   "get": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "List Withdrawals",
+    "operationId": "list_withdrawals_admin_withdrawals_get",
+    "parameters": [
+     {
+      "name": "status",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": "pending_review",
+       "title": "Status"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "additionalProperties": true
+         },
+         "title": "Response List Withdrawals Admin Withdrawals Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/withdrawals/{reference}/approve": {
+   "post": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Approve Withdrawal",
+    "operationId": "approve_withdrawal_admin_withdrawals__reference__approve_post",
+    "parameters": [
+     {
+      "name": "reference",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Reference"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ReviewIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Approve Withdrawal Admin Withdrawals  Reference  Approve Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/withdrawals/{reference}/reject": {
+   "post": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Reject Withdrawal",
+    "operationId": "reject_withdrawal_admin_withdrawals__reference__reject_post",
+    "parameters": [
+     {
+      "name": "reference",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Reference"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ReviewIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Reject Withdrawal Admin Withdrawals  Reference  Reject Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/users": {
+   "get": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Search Users",
+    "operationId": "search_users_admin_users_get",
+    "parameters": [
+     {
+      "name": "q",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string",
+       "default": "",
+       "title": "Q"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "additionalProperties": true
+         },
+         "title": "Response Search Users Admin Users Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/users/{user_id}": {
+   "get": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "User Detail",
+    "operationId": "user_detail_admin_users__user_id__get",
+    "parameters": [
+     {
+      "name": "user_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "User Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response User Detail Admin Users  User Id  Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/users/{user_id}/status": {
+   "put": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Set User Status",
+    "operationId": "set_user_status_admin_users__user_id__status_put",
+    "parameters": [
+     {
+      "name": "user_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "User Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/UserStatusIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Set User Status Admin Users  User Id  Status Put"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/admin/reports/liabilities": {
+   "get": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Liabilities",
+    "description": "What the house owes players right now vs. what it holds (D-012 FX exposure).",
+    "operationId": "liabilities_admin_reports_liabilities_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Liabilities Admin Reports Liabilities Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/dev/dashboard": {
+   "get": {
+    "tags": [
+     "dev (local only)"
+    ],
+    "summary": "Dashboard",
+    "operationId": "dashboard_dev_dashboard_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "text/html": {
+        "schema": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/dev/token/{username}": {
+   "post": {
+    "tags": [
+     "dev (local only)"
+    ],
+    "summary": "Token For",
+    "description": "Act as a demo player (local only).",
+    "operationId": "token_for_dev_token__username__post",
+    "parameters": [
+     {
+      "name": "username",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Username"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": {
+          "type": "string"
+         },
+         "title": "Response Token For Dev Token  Username  Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/dev/tick": {
+   "post": {
+    "tags": [
+     "dev (local only)"
+    ],
+    "summary": "Tick",
+    "operationId": "tick_dev_tick_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": {
+          "type": "integer"
+         },
+         "type": "object",
+         "title": "Response Tick Dev Tick Post"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/dev/tables/{table_id}/simulate-result": {
+   "post": {
+    "tags": [
+     "dev (local only)"
+    ],
+    "summary": "Simulate Result",
+    "description": "Finish a running game with a random finishing order.",
+    "operationId": "simulate_result_dev_tables__table_id__simulate_result_post",
+    "parameters": [
+     {
+      "name": "table_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Table Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Simulate Result Dev Tables  Table Id  Simulate Result Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/dev/state": {
+   "get": {
+    "tags": [
+     "dev (local only)"
+    ],
+    "summary": "State",
+    "operationId": "state_dev_state_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response State Dev State Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "components": {
+  "schemas": {
+   "AcceptTerms": {
+    "properties": {
+     "confirm_over_18": {
+      "type": "boolean",
+      "title": "Confirm Over 18"
+     },
+     "accept_terms": {
+      "type": "boolean",
+      "title": "Accept Terms"
+     }
+    },
+    "type": "object",
+    "required": [
+     "confirm_over_18",
+     "accept_terms"
+    ],
+    "title": "AcceptTerms"
+   },
+   "ConfirmIn": {
+    "properties": {
+     "code": {
+      "type": "string",
+      "maxLength": 6,
+      "minLength": 6,
+      "title": "Code"
+     }
+    },
+    "type": "object",
+    "required": [
+     "code"
+    ],
+    "title": "ConfirmIn"
+   },
+   "DepositRequest": {
+    "properties": {
+     "channel": {
+      "type": "string",
+      "enum": [
+       "card",
+       "mpesa"
+      ],
+      "title": "Channel"
+     },
+     "amount_usd_cents": {
+      "type": "integer",
+      "exclusiveMinimum": 0.0,
+      "title": "Amount Usd Cents"
+     },
+     "phone": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Phone"
+     },
+     "recipient": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Recipient"
+     }
+    },
+    "type": "object",
+    "required": [
+     "channel",
+     "amount_usd_cents"
+    ],
+    "title": "DepositRequest"
+   },
+   "DestinationIn": {
+    "properties": {
+     "phone": {
+      "type": "string",
+      "title": "Phone"
+     }
+    },
+    "type": "object",
+    "required": [
+     "phone"
+    ],
+    "title": "DestinationIn"
+   },
+   "FriendRequestIn": {
+    "properties": {
+     "handle": {
+      "type": "string",
+      "maxLength": 320,
+      "minLength": 1,
+      "title": "Handle"
+     }
+    },
+    "type": "object",
+    "required": [
+     "handle"
+    ],
+    "title": "FriendRequestIn"
+   },
+   "GoogleSignIn": {
+    "properties": {
+     "id_token": {
+      "type": "string",
+      "title": "Id Token"
+     },
+     "client": {
+      "type": "string",
+      "enum": [
+       "web",
+       "app"
+      ],
+      "title": "Client",
+      "default": "web"
+     },
+     "ref": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ref"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id_token"
+    ],
+    "title": "GoogleSignIn"
+   },
+   "HTTPValidationError": {
+    "properties": {
+     "detail": {
+      "items": {
+       "$ref": "#/components/schemas/ValidationError"
+      },
+      "type": "array",
+      "title": "Detail"
+     }
+    },
+    "type": "object",
+    "title": "HTTPValidationError"
+   },
+   "InviteIn": {
+    "properties": {
+     "handles": {
+      "items": {
+       "type": "string",
+       "maxLength": 320,
+       "minLength": 1
+      },
+      "type": "array",
+      "maxItems": 20,
+      "minItems": 1,
+      "title": "Handles"
+     },
+     "message": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 500
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Message"
+     }
+    },
+    "type": "object",
+    "required": [
+     "handles"
+    ],
+    "title": "InviteIn"
+   },
+   "JoinRequest": {
+    "properties": {
+     "invite_code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Invite Code"
+     }
+    },
+    "type": "object",
+    "title": "JoinRequest"
+   },
+   "KycTierUpdate": {
+    "properties": {
+     "kyc_tier": {
+      "type": "integer",
+      "maximum": 2.0,
+      "minimum": 0.0,
+      "title": "Kyc Tier"
+     }
+    },
+    "type": "object",
+    "required": [
+     "kyc_tier"
+    ],
+    "title": "KycTierUpdate"
+   },
+   "LimitIn": {
+    "properties": {
+     "kind": {
+      "type": "string",
+      "enum": [
+       "deposit",
+       "loss"
+      ],
+      "title": "Kind"
+     },
+     "period": {
+      "type": "string",
+      "enum": [
+       "day",
+       "week",
+       "month"
+      ],
+      "title": "Period"
+     },
+     "amount_cents": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Amount Cents"
+     }
+    },
+    "type": "object",
+    "required": [
+     "kind",
+     "period"
+    ],
+    "title": "LimitIn"
+   },
+   "MagicLinkRequest": {
+    "properties": {
+     "email": {
+      "type": "string",
+      "format": "email",
+      "title": "Email"
+     },
+     "ref": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ref"
+     }
+    },
+    "type": "object",
+    "required": [
+     "email"
+    ],
+    "title": "MagicLinkRequest"
+   },
+   "MagicLinkVerify": {
+    "properties": {
+     "token": {
+      "type": "string",
+      "title": "Token"
+     },
+     "client": {
+      "type": "string",
+      "enum": [
+       "web",
+       "app"
+      ],
+      "title": "Client",
+      "default": "web"
+     }
+    },
+    "type": "object",
+    "required": [
+     "token"
+    ],
+    "title": "MagicLinkVerify"
+   },
+   "OrganizeIn": {
+    "properties": {
+     "tier_id": {
+      "type": "integer",
+      "title": "Tier Id"
+     },
+     "title": {
+      "type": "string",
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Title"
+     },
+     "message": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 500
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Message"
+     },
+     "scheduled_start_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Scheduled Start At"
+     },
+     "organizer_plays": {
+      "type": "boolean",
+      "title": "Organizer Plays",
+      "default": true
+     },
+     "invite": {
+      "items": {
+       "type": "string",
+       "maxLength": 320,
+       "minLength": 1
+      },
+      "type": "array",
+      "maxItems": 20,
+      "title": "Invite",
+      "default": []
+     }
+    },
+    "type": "object",
+    "required": [
+     "tier_id",
+     "title"
+    ],
+    "title": "OrganizeIn"
+   },
+   "PrivateTableRequest": {
+    "properties": {
+     "tier_id": {
+      "type": "integer",
+      "title": "Tier Id"
+     }
+    },
+    "type": "object",
+    "required": [
+     "tier_id"
+    ],
+    "title": "PrivateTableRequest"
+   },
+   "ProfileUpdate": {
+    "properties": {
+     "username": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^[a-z0-9_]{3,20}$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Username"
+     },
+     "display_name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 64,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Display Name"
+     },
+     "phone": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Phone"
+     }
+    },
+    "type": "object",
+    "title": "ProfileUpdate"
+   },
+   "QuickPlayRequest": {
+    "properties": {
+     "tier_id": {
+      "type": "integer",
+      "title": "Tier Id"
+     }
+    },
+    "type": "object",
+    "required": [
+     "tier_id"
+    ],
+    "title": "QuickPlayRequest"
+   },
+   "RealityCheckIn": {
+    "properties": {
+     "minutes": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 240.0,
+        "minimum": 15.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Minutes"
+     }
+    },
+    "type": "object",
+    "title": "RealityCheckIn"
+   },
+   "RefreshRequest": {
+    "properties": {
+     "refresh_token": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Refresh Token"
+     },
+     "client": {
+      "type": "string",
+      "enum": [
+       "web",
+       "app"
+      ],
+      "title": "Client",
+      "default": "web"
+     }
+    },
+    "type": "object",
+    "title": "RefreshRequest"
+   },
+   "ReviewIn": {
+    "properties": {
+     "note": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 500
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     }
+    },
+    "type": "object",
+    "title": "ReviewIn"
+   },
+   "ScheduledTableIn": {
+    "properties": {
+     "tier_id": {
+      "type": "integer",
+      "title": "Tier Id"
+     },
+     "scheduled_start_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Scheduled Start At"
+     },
+     "title": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 80
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Title"
+     },
+     "guaranteed_prize_cents": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Guaranteed Prize Cents"
+     },
+     "registration_opens_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Registration Opens At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "tier_id",
+     "scheduled_start_at"
+    ],
+    "title": "ScheduledTableIn"
+   },
+   "SelfExcludeIn": {
+    "properties": {
+     "period": {
+      "type": "string",
+      "enum": [
+       "24h",
+       "7d",
+       "30d",
+       "6m",
+       "permanent"
+      ],
+      "title": "Period"
+     },
+     "confirm": {
+      "type": "boolean",
+      "title": "Confirm"
+     }
+    },
+    "type": "object",
+    "required": [
+     "period",
+     "confirm"
+    ],
+    "title": "SelfExcludeIn"
+   },
+   "SessionOut": {
+    "properties": {
+     "user": {
+      "$ref": "#/components/schemas/UserOut"
+     },
+     "access_token": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Access Token"
+     },
+     "refresh_token": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Refresh Token"
+     },
+     "expires_in": {
+      "type": "integer",
+      "title": "Expires In"
+     }
+    },
+    "type": "object",
+    "required": [
+     "user",
+     "expires_in"
+    ],
+    "title": "SessionOut"
+   },
+   "SettingUpdate": {
+    "properties": {
+     "value": {
+      "title": "Value"
+     }
+    },
+    "type": "object",
+    "required": [
+     "value"
+    ],
+    "title": "SettingUpdate"
+   },
+   "StakeTierIn": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "maxLength": 40,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "buy_in_cents": {
+      "type": "integer",
+      "minimum": 0.0,
+      "title": "Buy In Cents"
+     },
+     "fee_type": {
+      "type": "string",
+      "enum": [
+       "pct",
+       "flat"
+      ],
+      "title": "Fee Type",
+      "default": "pct"
+     },
+     "fee_value": {
+      "anyOf": [
+       {
+        "type": "number",
+        "minimum": 0.0
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Fee Value",
+      "default": "0.5"
+     },
+     "fee_min_cents": {
+      "type": "integer",
+      "minimum": 0.0,
+      "title": "Fee Min Cents",
+      "default": 0
+     },
+     "fee_max_cents": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Fee Max Cents"
+     },
+     "seats": {
+      "type": "integer",
+      "title": "Seats",
+      "default": 6
+     },
+     "min_players": {
+      "type": "integer",
+      "title": "Min Players",
+      "default": 2
+     },
+     "start_mode": {
+      "type": "string",
+      "enum": [
+       "when_full",
+       "scheduled"
+      ],
+      "title": "Start Mode",
+      "default": "when_full"
+     },
+     "payout_bps": {
+      "items": {
+       "type": "integer"
+      },
+      "type": "array",
+      "title": "Payout Bps",
+      "default": [
+       6500,
+       3500
+      ]
+     },
+     "starting_chips": {
+      "type": "integer",
+      "exclusiveMinimum": 0.0,
+      "title": "Starting Chips",
+      "default": 3000
+     },
+     "first_small_blind": {
+      "type": "integer",
+      "exclusiveMinimum": 0.0,
+      "title": "First Small Blind",
+      "default": 10
+     },
+     "blind_level_minutes": {
+      "type": "integer",
+      "exclusiveMinimum": 0.0,
+      "title": "Blind Level Minutes",
+      "default": 5
+     },
+     "enabled": {
+      "type": "boolean",
+      "title": "Enabled",
+      "default": true
+     },
+     "sort_order": {
+      "type": "integer",
+      "title": "Sort Order",
+      "default": 0
+     }
+    },
+    "type": "object",
+    "required": [
+     "name",
+     "buy_in_cents"
+    ],
+    "title": "StakeTierIn"
+   },
+   "TransferRequest": {
+    "properties": {
+     "recipient": {
+      "type": "string",
+      "title": "Recipient"
+     },
+     "amount_usd_cents": {
+      "type": "integer",
+      "exclusiveMinimum": 0.0,
+      "title": "Amount Usd Cents"
+     },
+     "idempotency_key": {
+      "type": "string",
+      "maxLength": 64,
+      "minLength": 8,
+      "title": "Idempotency Key"
+     },
+     "note": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 140
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     }
+    },
+    "type": "object",
+    "required": [
+     "recipient",
+     "amount_usd_cents",
+     "idempotency_key"
+    ],
+    "title": "TransferRequest"
+   },
+   "UserOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "email": {
+      "type": "string",
+      "title": "Email"
+     },
+     "username": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Username"
+     },
+     "display_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Display Name"
+     },
+     "phone": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Phone"
+     },
+     "kyc_tier": {
+      "type": "integer",
+      "title": "Kyc Tier"
+     },
+     "is_admin": {
+      "type": "boolean",
+      "title": "Is Admin"
+     },
+     "terms_accepted": {
+      "type": "boolean",
+      "title": "Terms Accepted"
+     },
+     "excluded_until": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Excluded Until"
+     },
+     "reality_check_minutes": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reality Check Minutes"
+     },
+     "created_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "email",
+     "username",
+     "display_name",
+     "phone",
+     "kyc_tier",
+     "is_admin",
+     "terms_accepted",
+     "created_at"
+    ],
+    "title": "UserOut"
+   },
+   "UserStatusIn": {
+    "properties": {
+     "status": {
+      "type": "string",
+      "enum": [
+       "active",
+       "suspended",
+       "self_excluded"
+      ],
+      "title": "Status"
+     }
+    },
+    "type": "object",
+    "required": [
+     "status"
+    ],
+    "title": "UserStatusIn"
+   },
+   "ValidationError": {
+    "properties": {
+     "loc": {
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        }
+       ]
+      },
+      "type": "array",
+      "title": "Location"
+     },
+     "msg": {
+      "type": "string",
+      "title": "Message"
+     },
+     "type": {
+      "type": "string",
+      "title": "Error Type"
+     },
+     "input": {
+      "title": "Input"
+     },
+     "ctx": {
+      "type": "object",
+      "title": "Context"
+     }
+    },
+    "type": "object",
+    "required": [
+     "loc",
+     "msg",
+     "type"
+    ],
+    "title": "ValidationError"
+   },
+   "WithdrawalIn": {
+    "properties": {
+     "destination_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Destination Id"
+     },
+     "amount_usd_cents": {
+      "type": "integer",
+      "exclusiveMinimum": 0.0,
+      "title": "Amount Usd Cents"
+     }
+    },
+    "type": "object",
+    "required": [
+     "destination_id",
+     "amount_usd_cents"
+    ],
+    "title": "WithdrawalIn"
+   }
+  }
+ }
+}

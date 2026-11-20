@@ -1,0 +1,10 @@
+{
+  "name": "poker-platform-web",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "npm run dev -w apps/player",
+    "build": "npm run build -w apps/player",
+    "api:types": "npm run generate -w packages/api-client"
+  }
+}

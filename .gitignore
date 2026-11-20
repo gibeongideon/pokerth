@@ -93,3 +93,8 @@ pokerth-play-feature-1024x500.png
 pokerth-play-screenshots.zip
 pokerth-play-screenshots-phone.zip
 pokerth-play-screenshots-tablet.zip
+
+# web workspace
+node_modules/
+apps/*/dist/
+*.tsbuildinfo
