@@ -110,6 +110,7 @@ export function useLiveGame(tableId: string, enabled: boolean) {
 
   const act = useCallback((move: PlayerMove) => {
     if (client.current?.act(move)) play(move.kind === "fold" || move.kind === "check" ? "click" : "chip");
+    else play("error"); // not sent (connection dropping): the buttons stay, try again
   }, []);
 
   /** Manual "Reconnect" button: also used to take the seat back from another tab. */

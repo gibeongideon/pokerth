@@ -126,7 +126,7 @@ async def test_personal_invite_accept_and_decline(
     }
     assert mailer.sent[-1]["subject"] == "You're invited to a Draely table"
     assert 'Draely player "host"' in mailer.sent[-1]["body"]
-    assert "$20.00 + $0.10" in mailer.sent[-1]["body"]
+    assert "$20.10" in mailer.sent[-1]["body"]  # one price, fee included
 
     again = (
         await client.post(f"/tables/{table['id']}/invites", json={"handles": ["pal"]}, headers=host)

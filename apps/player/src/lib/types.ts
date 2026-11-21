@@ -18,6 +18,7 @@ export interface Tier {
   id: number;
   name: string;
   price_label: string;
+  price_detail?: string;
   buy_in_cents: number;
   fee_cents: number;
   total_cents: number;
@@ -46,6 +47,7 @@ export interface TableView {
   title: string | null;
   message: string | null;
   price_label: string;
+  price_detail?: string;
   buy_in_cents: number;
   seats_total: number;
   min_players: number;
@@ -69,6 +71,7 @@ export interface LobbyTable {
   title: string | null;
   organizer: string | null;
   price_label: string;
+  price_detail?: string;
   status: TableStatus;
   players: number;
   seats_total: number;
@@ -123,6 +126,7 @@ export interface TablePreview {
   organizer: string | null;
   organizer_ref: string | null;
   price_label: string;
+  price_detail?: string;
   seats_total: number;
   players: number;
   status: TableStatus;

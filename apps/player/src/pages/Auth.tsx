@@ -12,6 +12,7 @@ import { play } from "../lib/sound";
 
 const REF_KEY = "fk.ref";
 const RETURN_KEY = "fk.returnTo";
+export const SIGNED_IN_KEY = "fk.signedInAs";
 const DEMO_PLAYERS = ["alice", "bob", "carol", "dave", "erin", "frank", "grace"];
 
 function remember(key: string, value: string | null) {
@@ -55,7 +56,10 @@ export function safeNext(path: string | null): string | null {
 
 /** After any sign-in: new players see the welcome step first, then `next`. */
 function finishSignIn(res: unknown, next: string | null, navigate: (to: string, o?: { replace?: boolean }) => void) {
-  const user = (res as { user?: { username: string | null; terms_accepted: boolean } }).user;
+  const user = (res as { user?: { username: string | null; terms_accepted: boolean; email?: string } }).user;
+  // Shown once by the app shell: a link someone else sent could sign you into
+  // *their* account - make the account visible.
+  remember(SIGNED_IN_KEY, user?.email ?? null);
   if (!(user?.username && user.terms_accepted)) {
     if (next) rememberReturn(next);
     return navigate("/welcome", { replace: true });

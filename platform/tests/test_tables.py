@@ -88,7 +88,8 @@ def test_fee_and_price_label() -> None:
         fee_max_cents=None,
     )
     assert svc.compute_fee(tier) == 50
-    assert svc.Price(10_000, 50, 0).label == "$100.00 + $0.50"
+    assert svc.Price(10_000, 50, 0).label == "$100.50"  # one price: what you pay
+    assert svc.Price(10_000, 50, 0).detail == "$100.00 to the prize pool + $0.50 entry fee"
     assert svc.Price(0, 0, 0).label == "Free"
     tier.fee_min_cents = 75
     assert svc.compute_fee(tier) == 75
@@ -143,7 +144,7 @@ async def test_sit_and_go_from_lobby_to_payout(
     players = [await _player(sessions, make_user, n) for n in ("ann", "ben", "cat")]
 
     tiers = (await client.get("/lobby/tiers")).json()
-    assert tiers[0]["price_label"] == "$100.00 + $0.50"
+    assert tiers[0]["price_label"] == "$100.50"
     assert tiers[0]["total_kes_reference"] == 12_965  # 100.50 * 129
 
     # Three quick-plays fill the 3-seat table; it moves to the ready check.
@@ -237,7 +238,8 @@ async def test_withholding_tax_and_excise(
     b, _ = await _player(sessions, make_user, "taxb")
     async with sessions() as s:
         table = await svc.open_table(s, tier)
-        assert table.config["price_label"] == "$100.00 + $0.50 + $10.00 tax"
+        assert table.config["price_label"] == "$110.50"
+        assert table.config["price_detail"].endswith("+ $10.00 tax")
         for u in (a, b):
             await svc.join(s, GW, table.id, await s.get(User, u.id))  # type: ignore[arg-type]
         for u in (a, b):
@@ -460,7 +462,7 @@ async def test_admin_stake_levels(client: httpx.AsyncClient, make_user: MakeUser
     )
     assert bad.status_code == 422
     tiers = (await client.get("/lobby/tiers")).json()
-    assert tiers[-1]["price_label"] == "$500.00 + $1.50"
+    assert tiers[-1]["price_label"] == "$501.50"
 
 
 # ------------------------------------------------------- 5.7 tournaments

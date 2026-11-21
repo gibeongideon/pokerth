@@ -25,7 +25,15 @@ function Limits() {
     queryFn: () => call<{ limits: Limit[] }>(api.GET("/me/limits")),
   });
   const save = async (l: Limit, value: string) => {
-    const amount = value.trim() === "" ? null : Math.round(Number(value) * 100);
+    // Only an empty box removes the limit; anything unreadable is an error
+    // (never silently "no limit").
+    const cleaned = value.trim().replace(/[$,\s]/g, "");
+    const n = Number(cleaned);
+    if (cleaned !== "" && (!Number.isFinite(n) || n < 0)) {
+      toast("Enter an amount in dollars, e.g. 50 - or leave it empty for no limit.", "error");
+      return;
+    }
+    const amount = cleaned === "" ? null : Math.round(n * 100);
     try {
       await call(api.PUT("/me/limits", { body: { kind: l.kind, period: l.period, amount_cents: amount } }));
       await qc.invalidateQueries({ queryKey: ["limits"] });

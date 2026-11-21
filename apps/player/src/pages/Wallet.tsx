@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Empty, Spinner } from "../components/bits";
 import { LogoMark } from "../components/Brand";
 import { Icon, type IconName } from "../components/Icon";
@@ -23,11 +23,18 @@ const KIND: Record<string, { icon: IconName; label: string; tint: string }> = {
   adjustment: { icon: "spark", label: "Adjustment", tint: "#9aa" },
 };
 
-function usePollDeposit(reference: string | null, onDone: (d: Deposit) => void) {
+/** Poll a deposit until it settles; give up after ~3 minutes (onTimeout). The
+ * wallet still gets the money later if it arrives - the server settles it. */
+function usePollDeposit(reference: string | null, onDone: (d: Deposit) => void, onTimeout?: () => void) {
   useEffect(() => {
     if (!reference) return;
     let stop = false;
+    let tries = 0;
     const tick = async () => {
+      if (++tries > 60) {
+        onTimeout?.();
+        return;
+      }
       try {
         const d = await call<Deposit>(api.GET("/wallet/deposits/{reference}", { params: { path: { reference } } }));
         if (d.status !== "pending") {
@@ -72,14 +79,21 @@ function DepositForm() {
     retry: false,
   });
 
-  usePollDeposit(waiting, async (d) => {
+  usePollDeposit(
+    waiting,
+    async (d) => {
     setWaiting(null);
     if (d.status === "success") {
       play("win");
       toast(`${usd(d.credit_usd_cents)} added`, "ok");
     } else toast(`Payment ${d.status}. Nothing was charged.`, "error");
     await qc.invalidateQueries({ queryKey: ["wallet"] });
-  });
+    },
+    () => {
+      setWaiting(null);
+      toast("Still waiting for M-Pesa. If you paid, it appears in your wallet shortly.", "info");
+    },
+  );
 
   const pay = async () => {
     setBusy(true);
@@ -114,6 +128,9 @@ function DepositForm() {
         <div className="title text-2xl">Check your phone</div>
         <p className="max-w-xs text-cream/70">Enter your M-Pesa PIN on the prompt we just sent to {phone}.</p>
         <span className="h-7 w-7 animate-spin rounded-full border-4 border-gold-400/20 border-t-gold-400" />
+        <button className="btn-ghost px-4 py-1.5 text-sm" onClick={() => setWaiting(null)}>
+          I'll check later
+        </button>
       </div>
     );
   }
@@ -206,7 +223,10 @@ function WithdrawForm() {
     retry: false,
   });
 
+  const [busy, setBusy] = useState(false);
   const start = async () => {
+    if (busy) return;
+    setBusy(true);
     try {
       let dest = dests.data?.[0];
       if (!dest) {
@@ -219,11 +239,14 @@ function WithdrawForm() {
       if (w.status !== "awaiting_confirmation") toast(`Withdrawal ${w.status.replace("_", " ")}`, "ok");
     } catch (e) {
       toast(errorMessage(e), "error");
+    } finally {
+      setBusy(false);
     }
   };
 
   const confirm = async () => {
-    if (!pending) return;
+    if (!pending || busy) return;
+    setBusy(true);
     try {
       const w = await call<Withdrawal>(
         api.POST("/wallet/withdrawals/{reference}/confirm", { params: { path: { reference: pending.reference } }, body: { code } }),
@@ -235,6 +258,8 @@ function WithdrawForm() {
       await qc.invalidateQueries({ queryKey: ["wallet"] });
     } catch (e) {
       toast(errorMessage(e), "error");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -251,7 +276,7 @@ function WithdrawForm() {
           onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
           aria-label="Six digit code"
         />
-        <button className="btn-gold w-full" disabled={code.length !== 6} onClick={confirm}>
+        <button className="btn-gold w-full" disabled={busy || code.length !== 6} onClick={confirm}>
           Confirm withdrawal
         </button>
       </div>
@@ -290,7 +315,7 @@ function WithdrawForm() {
         )}
       </div>
       {quote.error && <p className="text-sm text-[#ff9a9d]">{errorMessage(quote.error)}</p>}
-      <button className="btn-gold w-full py-3 text-xl" disabled={!quote.data} onClick={start}>
+      <button className="btn-gold w-full py-3 text-xl" disabled={busy || !quote.data} onClick={start}>
         Withdraw {usd(cents)}
       </button>
     </div>
@@ -439,11 +464,31 @@ export function DepositReturn() {
   const reference = params.get("reference") ?? params.get("trxref");
   const [result, setResult] = useState<Deposit | null>(null);
   const qc = useQueryClient();
-  usePollDeposit(reference, (d) => {
-    setResult(d);
-    if (d.status === "success") play("win");
-    void qc.invalidateQueries({ queryKey: ["wallet"] });
-  });
+  const [slow, setSlow] = useState(false);
+  usePollDeposit(
+    reference,
+    (d) => {
+      setResult(d);
+      if (d.status === "success") play("win");
+      void qc.invalidateQueries({ queryKey: ["wallet"] });
+    },
+    () => setSlow(true),
+  );
+  if (!reference || slow) {
+    return (
+      <div className="mx-auto max-w-sm space-y-3 py-10 text-center">
+        <div className="title text-2xl">{reference ? "Still confirming…" : "No payment to check"}</div>
+        <p className="text-cream/70">
+          {reference
+            ? "Your bank is taking a while. If the payment went through, it appears in your wallet automatically."
+            : "We couldn't find a payment reference in this link."}
+        </p>
+        <Link to="/wallet" className="btn-gold">
+          Go to my wallet
+        </Link>
+      </div>
+    );
+  }
   return (
     <div className="mx-auto max-w-sm py-10 text-center">
       {!result ? (

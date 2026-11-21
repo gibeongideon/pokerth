@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Avatar, Chip, Empty, SeatDots, Spinner } from "../components/bits";
 import { useToast } from "../components/Toast";
@@ -16,7 +16,10 @@ function InviteCard({ invite }: { invite: Invite }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const t = invite.table;
+  const [busy, setBusy] = useState(false);
   const respond = async (accept: boolean) => {
+    if (busy) return;
+    setBusy(true);
     const path = { params: { path: { invite_id: invite.invite_id } } };
     try {
       if (accept) {
@@ -26,9 +29,11 @@ function InviteCard({ invite }: { invite: Invite }) {
       } else {
         await call(api.POST("/invites/{invite_id}/decline", path));
       }
-      await qc.invalidateQueries({ queryKey: ["invites"] });
+      await Promise.all([qc.invalidateQueries({ queryKey: ["invites"] }), qc.invalidateQueries({ queryKey: ["wallet"] })]);
     } catch (e) {
       toast(errorMessage(e), "error");
+    } finally {
+      setBusy(false);
     }
   };
   return (
@@ -476,12 +481,15 @@ export function JoinByCode() {
     queryFn: () => call<TablePreview>(api.GET("/invites/code/{code}", { params: { path: { code } } })),
     retry: false,
   });
+  const joining = useRef(false);
   const join = async () => {
+    if (joining.current) return;
     if (!me.data) return setSigningUp(true);
     if (!me.data.username || !me.data.terms_accepted) {
       rememberReturn(`/join/${code}`);
       return navigate("/welcome");
     }
+    joining.current = true;
     try {
       await call(api.POST("/tables/{table_id}/join", { params: { path: { table_id: preview.data!.table_id } }, body: { invite_code: code } }));
       // Joined through someone's link: you become friends with them.
@@ -493,6 +501,8 @@ export function JoinByCode() {
       navigate(`/tables/${preview.data!.table_id}`);
     } catch (e) {
       toast(errorMessage(e), "error");
+    } finally {
+      joining.current = false;
     }
   };
   if (preview.isLoading) return <Spinner />;

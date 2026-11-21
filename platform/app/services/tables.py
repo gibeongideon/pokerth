@@ -66,9 +66,15 @@ class Price:
 
     @property
     def label(self) -> str:
+        """One price: exactly what the player pays (fees included, never added on top)."""
+        return "Free" if self.buy_in == 0 else money(self.total)
+
+    @property
+    def detail(self) -> str:
+        """The breakdown, for the table's details."""
         if self.buy_in == 0:
             return "Free"
-        text = f"{money(self.buy_in)} + {money(self.fee)}"
+        text = f"{money(self.buy_in)} to the prize pool + {money(self.fee)} entry fee"
         return f"{text} + {money(self.excise)} tax" if self.excise else text
 
 
@@ -127,6 +133,7 @@ def _snapshot(tier: StakeTier, price: Price) -> dict[str, Any]:
         "fee_cents": price.fee,
         "excise_cents": price.excise,
         "price_label": price.label,
+        "price_detail": price.detail,
         "seats": tier.seats,
         "min_players": tier.min_players,
         "start_mode": tier.start_mode,
@@ -928,6 +935,7 @@ async def table_view(
         "status": table.status,
         "name": c["name"],
         "price_label": c["price_label"],
+        "price_detail": c.get("price_detail") or c["price_label"],
         "buy_in_cents": c["buy_in_cents"],
         "fee_cents": c["fee_cents"],
         "excise_cents": c["excise_cents"],

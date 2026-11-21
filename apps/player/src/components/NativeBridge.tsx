@@ -26,7 +26,11 @@ export function NativeBridge() {
     const open = CapApp.addListener("appUrlOpen", ({ url }) => {
       try {
         const u = new URL(url); // https://<site>/i/CODE or feltkings://i/CODE
-        const path = u.protocol.startsWith("http") ? u.pathname : `/${u.host}${u.pathname}`.replace(/\/$/, "");
+        const https = u.protocol.startsWith("http");
+        const path = https ? u.pathname : `/${u.host}${u.pathname}`.replace(/\/$/, "");
+        // Sign-in links only via verified https App Links: any app or page can
+        // fire feltkings://, which would sign the player into someone else's account.
+        if (!https && path.startsWith("/auth/")) return;
         if (DEEP_LINK.test(path)) navigate(path + u.search);
       } catch {
         /* ignore malformed links */

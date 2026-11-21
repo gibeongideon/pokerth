@@ -283,13 +283,23 @@ export function TableRoom() {
     lastStatus.current = t.status;
   }, [t]);
 
+  // One request at a time: a double tap must not buy in / leave twice.
+  const acting = useRef(false);
   const act = async (fn: () => Promise<unknown>, sound: "chip" | "ready" = "chip") => {
+    if (acting.current) return;
+    acting.current = true;
     try {
       await fn();
       play(sound);
-      await Promise.all([qc.invalidateQueries({ queryKey: ["table", id] }), qc.invalidateQueries({ queryKey: ["wallet"] })]);
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["table", id] }),
+        qc.invalidateQueries({ queryKey: ["wallet"] }),
+        qc.invalidateQueries({ queryKey: ["demo-money"] }),
+      ]);
     } catch (e) {
       toast(errorMessage(e), "error");
+    } finally {
+      acting.current = false;
     }
   };
 
@@ -590,6 +600,9 @@ export function TableRoom() {
           {playing && live.state && live.state.log.length > 0 && <HandLog lines={live.state.log} />}
           <div className="panel p-4 text-sm">
             <div className="label">Payouts</div>
+            {t.price_detail && t.price_detail !== t.price_label && (
+              <div className="mb-2 text-xs text-cream/45">Entry {t.price_label}: {t.price_detail}</div>
+            )}
             {t.payout_bps.map((b, i) => (
               <div key={i} className="flex justify-between py-0.5">
                 <span>{i + 1}{["st", "nd", "rd"][i] ?? "th"} place</span>

@@ -57,6 +57,7 @@ async def tiers(session: SessionDep) -> list[dict[str, Any]]:
                 "id": tier.id,
                 "name": tier.name,
                 "price_label": price.label,
+                "price_detail": price.detail,
                 "buy_in_cents": price.buy_in,
                 "fee_cents": price.fee,
                 "excise_cents": price.excise,

@@ -98,7 +98,7 @@ export class GameClient {
         action = NetPlayerAction.netActionAllIn;
         break;
     }
-    this.send({
+    const sent = this.send({
       messageType: T.Type_MyActionRequestMessage,
       myActionRequestMessage: {
         gameId: s.gameId,
@@ -108,6 +108,8 @@ export class GameClient {
         myRelativeBet: bet,
       },
     });
+    // Not sent (connection dropping): keep the buttons so the player can retry.
+    if (!sent) return false;
     // Optimistically end my turn; the server's PlayersActionDone confirms it.
     this.set({ ...s, turnPlayerId: 0 });
     return true;
@@ -119,9 +121,11 @@ export class GameClient {
     return this.lastTurnState;
   }
 
-  private send(m: MessageInitShape<typeof PokerTHMessageSchema>) {
-    if (!this.ws || this.ws.readyState !== 1) return;
+  /** False when the socket isn't open (the message was NOT sent). */
+  private send(m: MessageInitShape<typeof PokerTHMessageSchema>): boolean {
+    if (!this.ws || this.ws.readyState !== 1) return false;
     this.ws.send(toBinary(PokerTHMessageSchema, create(PokerTHMessageSchema, m)));
+    return true;
   }
 
   private set(s: TableState) {

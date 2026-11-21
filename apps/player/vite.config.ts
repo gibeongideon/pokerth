@@ -15,5 +15,5 @@ export default defineConfig({
       },
     },
   },
-  build: { target: "es2020", sourcemap: true },
+  build: { target: "es2020", sourcemap: false },
 });

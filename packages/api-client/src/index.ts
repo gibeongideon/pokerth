@@ -25,10 +25,14 @@ export interface ClientOptions {
 
 export function createApi({ baseUrl, getToken, onRefresh }: ClientOptions) {
   const client = createFetchClient<paths>({ baseUrl, credentials: "include" });
+  // An untouched copy of each request: fetch() consumes the body, so a retry
+  // after a token refresh must be built from this, not from the sent request.
+  const pristine = new WeakMap<Request, Request>();
   const auth: Middleware = {
     onRequest({ request }) {
       const token = getToken?.();
       if (token) request.headers.set("Authorization", `Bearer ${token}`);
+      if (onRefresh) pristine.set(request, request.clone());
       return request;
     },
   };
@@ -40,7 +44,7 @@ export function createApi({ baseUrl, getToken, onRefresh }: ClientOptions) {
       if (response.status !== 401 || !onRefresh || retrying.has(request)) return response;
       if (new URL(request.url).pathname.endsWith("/auth/refresh")) return response;
       if (!(await onRefresh())) return response;
-      const retry = new Request(request);
+      const retry = new Request(pristine.get(request) ?? request);
       retrying.add(retry);
       const token = getToken?.();
       if (token) retry.headers.set("Authorization", `Bearer ${token}`);

@@ -102,6 +102,7 @@ export function ActionBar({ state, act }: { state: TableState; act: (m: PlayerMo
               max={r.max}
               value={raiseTo}
               onChange={(e) => setRaiseTo(Number(e.target.value))}
+              onBlur={() => setRaiseTo((v) => Math.min(r.max, Math.max(r.min, v || r.min)))}
             />
           </div>
           <div className="flex flex-wrap gap-2">
@@ -132,7 +133,7 @@ export function ActionBar({ state, act }: { state: TableState; act: (m: PlayerMo
         {r ? (
           sizing ? (
             <button className="btn-gold py-4 text-lg" onClick={() => act(raiseTo >= r.max ? { kind: "allin" } : { kind: "raise", to: raiseTo })}>
-              {raiseTo >= r.max ? "All-in" : word} {chips(raiseTo)}
+              {raiseTo >= r.max ? "All-in" : word} {chips(Math.min(r.max, Math.max(r.min, raiseTo)))}
             </button>
           ) : (
             <button className="btn-gold py-4 text-lg" onClick={() => setSizing(true)}>

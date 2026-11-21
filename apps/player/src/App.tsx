@@ -22,6 +22,20 @@ function Protected({ children }: { children: React.ReactNode }) {
   const me = useMe();
   const location = useLocation();
   if (me.isLoading) return <Spinner />;
+  // Offline or server trouble is not "signed out": offer a retry instead of the login screen.
+  const status = (me.error as { status?: number } | null)?.status;
+  if (!me.data && me.error && status !== 401 && status !== 403) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
+        <Logo size={44} />
+        <div className="title text-2xl">Can't reach Draely</div>
+        <p className="max-w-xs text-cream/65">Check your connection and try again.</p>
+        <button className="btn-gold px-8" onClick={() => void me.refetch()}>
+          Try again
+        </button>
+      </div>
+    );
+  }
   if (!me.data) {
     // Test build: no login screen, sign straight in as the demo player.
     if (DEMO_PLAYER) return <Navigate to={`/dev-login/${DEMO_PLAYER}?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;

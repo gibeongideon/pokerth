@@ -7,6 +7,7 @@ import { isMuted, play, setMuted } from "../lib/sound";
 import { Avatar } from "./bits";
 import { Logo, LogoMark } from "./Brand";
 import { Icon, type IconName } from "./Icon";
+import { SIGNED_IN_KEY } from "../pages/Auth";
 
 const NAV: { to: string; label: string; icon: IconName }[] = [
   { to: "/", label: "Lobby", icon: "lobby" },
@@ -41,6 +42,34 @@ function RealityCheck({ minutes }: { minutes: number }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** One-time "Signed in as ..." after a sign-in link, with a way out if it isn't you. */
+function SignedInAs() {
+  const [email, setEmail] = useState<string | null>(() => {
+    try {
+      const v = sessionStorage.getItem(SIGNED_IN_KEY);
+      sessionStorage.removeItem(SIGNED_IN_KEY);
+      return v;
+    } catch {
+      return null;
+    }
+  });
+  if (!email) return null;
+  return (
+    <div className="fixed inset-x-3 top-3 z-50 mx-auto flex max-w-md animate-pop items-center gap-3 rounded-2xl border border-gold-400/30 bg-[#030c08]/95 px-4 py-3 text-sm shadow-panel backdrop-blur-xl">
+      <Icon name="check" size={18} className="shrink-0 text-chip-green" />
+      <span className="min-w-0 flex-1">
+        Signed in as <b className="break-all">{email}</b>
+      </span>
+      <Link to="/profile" className="shrink-0 text-gold-300 hover:underline" onClick={() => setEmail(null)}>
+        Not you?
+      </Link>
+      <button className="shrink-0 text-cream/50" onClick={() => setEmail(null)} aria-label="Close">
+        <Icon name="close" size={16} />
+      </button>
     </div>
   );
 }
@@ -178,6 +207,7 @@ export function Shell({ children }: { children: ReactNode }) {
         ))}
       </nav>
       {me.data?.reality_check_minutes ? <RealityCheck minutes={me.data.reality_check_minutes} /> : null}
+      <SignedInAs />
     </div>
   );
 }
