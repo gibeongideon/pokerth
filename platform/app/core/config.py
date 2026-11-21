@@ -68,6 +68,8 @@ class Settings(BaseSettings):
     # Ed25519 private key (PEM) that signs seat tokens. Empty in local = a key
     # derived from jwt_secret, so every local process agrees.
     seat_token_private_key: SecretStr = SecretStr("")
+    # Or a path to the PEM file (multi-line keys don't fit in env files).
+    seat_token_private_key_file: str = ""
     seat_token_ttl_seconds: int = Field(default=300, gt=0)
     # Shared secret for HMAC-signed calls between platform and game server.
     game_internal_secret: SecretStr = SecretStr(_DEV_GAME_SECRET)
@@ -84,7 +86,10 @@ class Settings(BaseSettings):
                 raise ValueError("PLATFORM_JWT_SECRET must be set (32+ chars) outside local")
             if self.game_internal_secret.get_secret_value() == _DEV_GAME_SECRET:
                 raise ValueError("PLATFORM_GAME_INTERNAL_SECRET must be set outside local")
-            if not self.seat_token_private_key.get_secret_value():
+            if (
+                not self.seat_token_private_key.get_secret_value()
+                and not self.seat_token_private_key_file
+            ):
                 raise ValueError("PLATFORM_SEAT_TOKEN_PRIVATE_KEY must be set outside local")
         return self
 

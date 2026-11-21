@@ -32,7 +32,7 @@ class Referral(Base):
 
 
 class PlayerInvite(Base):
-    """'Join me on Felt Kings' sent to an email address. The invite is tied to
+    """'Join me on Draely' sent to an email address. The invite is tied to
     the email, so whenever that address signs up - through the link or not -
     the inviter gets the referral and the two become friends."""
 

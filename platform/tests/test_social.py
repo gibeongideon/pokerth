@@ -122,8 +122,8 @@ async def test_personal_invite_accept_and_decline(
         "nobody": "not_found",
         "host": "self",
     }
-    assert mailer.sent[-1]["subject"] == "You're invited to a Felt Kings table"
-    assert 'Felt Kings player "host"' in mailer.sent[-1]["body"]
+    assert mailer.sent[-1]["subject"] == "You're invited to a Draely table"
+    assert 'Draely player "host"' in mailer.sent[-1]["body"]
     assert "$20.00 + $0.10" in mailer.sent[-1]["body"]
 
     again = (

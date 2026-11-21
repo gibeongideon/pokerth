@@ -23,6 +23,9 @@ AUDIENCE = "game-server"
 def _private_key() -> Ed25519PrivateKey:
     settings = get_settings()
     pem = settings.seat_token_private_key.get_secret_value()
+    if not pem and settings.seat_token_private_key_file:
+        with open(settings.seat_token_private_key_file) as f:
+            pem = f.read()
     if pem:
         key = serialization.load_pem_private_key(pem.encode(), password=None)
         if not isinstance(key, Ed25519PrivateKey):

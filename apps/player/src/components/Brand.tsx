@@ -37,7 +37,7 @@ export function LogoMark({ size = 40 }: { size?: number }) {
 }
 
 export function Wordmark({ className = "text-2xl" }: { className?: string }) {
-  return <span className={`title gold-text whitespace-nowrap ${className}`}>Felt Kings</span>;
+  return <span className={`title gold-text whitespace-nowrap ${className}`}>Draely</span>;
 }
 
 export function Logo({ size = 40, text = "text-2xl" }: { size?: number; text?: string }) {

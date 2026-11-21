@@ -13,7 +13,7 @@ const dev = process.env.CAP_DEV === "1";
 
 const config: CapacitorConfig = {
   appId: "app.feltkings.player",
-  appName: "Felt Kings",
+  appName: "Draely",
   webDir: "dist",
   backgroundColor: "#030c08",
   server: {

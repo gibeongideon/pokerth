@@ -10,7 +10,7 @@ android {
         versionCode 1
         versionName "0.1.0"
         // Host whose https links open the app: ./gradlew assembleDebug -PappLinkHost=play.example.com
-        manifestPlaceholders = [appLinkHost: (project.findProperty("appLinkHost") ?: "play.feltkings.app")]
+        manifestPlaceholders = [appLinkHost: (project.findProperty("appLinkHost") ?: "draely.dafeapp.com")]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

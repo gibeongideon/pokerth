@@ -236,9 +236,10 @@ export interface paths {
         put?: never;
         /**
          * Invite By Email
-         * @description Invite people to Felt Kings by email. The invite follows the email
+         * @description Invite people to Draely by email. The invite follows the email
          *     address: whenever it signs up, you get the referral and become friends.
-         *     Emails that already have an account get a friend request instead.
+         *     Emails that already have an account get a friend request instead; the
+         *     answer is the same either way.
          */
         post: operations["invite_by_email_me_invites_post"];
         delete?: never;
@@ -1103,6 +1104,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/tables/stale": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stale Tables
+         * @description Running tables with no result for longer than table.running_alert_minutes.
+         */
+        get: operations["stale_tables_admin_tables_stale_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/tables/{table_id}/settle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Settle Table
+         * @description Pay out a running table by hand when the game server's result was lost
+         *     (e.g. from the game server's log). Players not listed finish last.
+         */
+        post: operations["settle_table_admin_tables__table_id__settle_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/tables/{table_id}/void": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Void Table
+         * @description A running table whose result can't be recovered: everyone gets their
+         *     whole entry back and the table is cancelled.
+         */
+        post: operations["void_table_admin_tables__table_id__void_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/withdrawals": {
         parameters: {
             query?: never;
@@ -1114,6 +1177,27 @@ export interface paths {
         get: operations["list_withdrawals_admin_withdrawals_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/withdrawals/{reference}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve Withdrawal
+         * @description A withdrawal stuck in approved/processing: ask Paystack, then book it as
+         *     paid or refund the player.
+         */
+        post: operations["resolve_withdrawal_admin_withdrawals__reference__resolve_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1554,6 +1638,13 @@ export interface components {
             /** Value */
             value: unknown;
         };
+        /** SettleIn */
+        SettleIn: {
+            /** Finishing Order */
+            finishing_order: string[];
+            /** Note */
+            note: string;
+        };
         /** StakeTierIn */
         StakeTierIn: {
             /** Name */
@@ -1687,6 +1778,11 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** VoidIn */
+        VoidIn: {
+            /** Note */
+            note: string;
         };
         /** WithdrawalIn */
         WithdrawalIn: {
@@ -3743,6 +3839,102 @@ export interface operations {
             };
         };
     };
+    stale_tables_admin_tables_stale_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+        };
+    };
+    settle_table_admin_tables__table_id__settle_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                table_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettleIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    void_table_admin_tables__table_id__void_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                table_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoidIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_withdrawals_admin_withdrawals_get: {
         parameters: {
             query?: {
@@ -3763,6 +3955,43 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_withdrawal_admin_withdrawals__reference__resolve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reference: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoidIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

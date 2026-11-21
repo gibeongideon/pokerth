@@ -79,7 +79,7 @@ export function InviteToApp() {
   });
   const sent = useQuery({ queryKey: ["sent-invites"], queryFn: () => call<SentInvite[]>(api.GET("/me/invites")) });
   const link = referral.data?.link ?? "";
-  const text = `Join me on Felt Kings — Sit & Go poker with friends. Sign up with one tap: ${link}`;
+  const text = `Join me on Draely — Sit & Go poker with friends. Sign up with one tap: ${link}`;
 
   const copy = async () => {
     try {
@@ -92,7 +92,7 @@ export function InviteToApp() {
   };
   const share = async () => {
     try {
-      if (navigator.share) await navigator.share({ title: "Felt Kings", text, url: link });
+      if (navigator.share) await navigator.share({ title: "Draely", text, url: link });
       else await copy();
     } catch {
       /* cancelled */
@@ -131,7 +131,7 @@ export function InviteToApp() {
           <Icon name="gift" size={22} />
         </span>
         <div className="min-w-0">
-          <h2 className="title text-2xl">Invite friends to Felt Kings</h2>
+          <h2 className="title text-2xl">Invite friends to Draely</h2>
           <p className="text-sm text-cream/60">
             Anyone who joins with your link or email becomes your friend automatically
             {referral.data?.enabled && referral.data.bonus_usd_cents > 0 ? ` — and you earn ${usd(referral.data.bonus_usd_cents)} when they play their first paid game` : ""}.

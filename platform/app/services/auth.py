@@ -112,7 +112,7 @@ async def request_magic_link(
         "Your sign-in link",
         f"Tap the link below to sign in. It works once and expires in {ttl // 60} minutes.\n\n"
         f"{link}\n\n"
-        f"In the Felt Kings app? Enter this code instead: {code[:3]} {code[3:]}\n\n"
+        f"In the Draely app? Enter this code instead: {code[:3]} {code[3:]}\n\n"
         "If you didn't ask for this, ignore this email.",
     )
 

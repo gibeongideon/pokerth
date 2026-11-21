@@ -81,7 +81,7 @@ async def update_me(
             await mailer.send(
                 user.email,
                 "Your M-Pesa number was changed",
-                f"The M-Pesa number on your Felt Kings account was changed to "
+                f"The M-Pesa number on your Draely account was changed to "
                 f"******{(user.phone or '')[-4:]}.\n\n"
                 "Withdrawals are paused for a short while as a precaution. "
                 "If this wasn't you, sign out of all devices and contact support right away.",
@@ -118,7 +118,7 @@ class EmailInvitesIn(BaseModel):
 async def invite_by_email(
     body: EmailInvitesIn, user: CurrentUser, session: SessionDep, mailer: MailerDep
 ) -> dict[str, Any]:
-    """Invite people to Felt Kings by email. The invite follows the email
+    """Invite people to Draely by email. The invite follows the email
     address: whenever it signs up, you get the referral and become friends.
     Emails that already have an account get a friend request instead; the
     answer is the same either way."""

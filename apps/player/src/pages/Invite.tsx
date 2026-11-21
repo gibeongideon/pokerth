@@ -81,7 +81,7 @@ export function InviteLanding() {
           </div>
         </div>
         <p className="mt-4 max-w-md text-cream/70">
-          Felt Kings is Sit &amp; Go poker with your crew. One price up front, the prize pool shown before you sit, winnings paid to
+          Draely is Sit &amp; Go poker with your crew. One price up front, the prize pool shown before you sit, winnings paid to
           your wallet.
         </p>
         <ol className="mt-6 space-y-3">

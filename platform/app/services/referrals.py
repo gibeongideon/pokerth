@@ -190,8 +190,8 @@ async def invite_emails(
         try:
             await mailer.send(
                 address,
-                "You're invited to Felt Kings",
-                f'Felt Kings player "{name}" wants you at their poker table.{note}\n\n'
+                "You're invited to Draely",
+                f'Draely player "{name}" wants you at their poker table.{note}\n\n'
                 "Sit & Go poker with friends. Top up with M-Pesa or card, "
                 "prizes paid to your wallet.\n\n"
                 f"Join with one tap (no password needed):\n{link(code)}\n\n"

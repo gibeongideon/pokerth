@@ -52,9 +52,9 @@ function InvitePanel({ table, onClose }: { table: TableView; onClose: () => void
   };
 
   const share = async () => {
-    const text = `Join my poker table (${table.price_label}) on Felt Kings`;
+    const text = `Join my poker table (${table.price_label}) on Draely`;
     try {
-      if (navigator.share) await navigator.share({ title: "Felt Kings", text, url: link });
+      if (navigator.share) await navigator.share({ title: "Draely", text, url: link });
       else {
         await navigator.clipboard.writeText(link);
         toast("Link copied", "ok");

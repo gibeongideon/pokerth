@@ -478,7 +478,7 @@
           "me"
         ],
         "summary": "Invite By Email",
-        "description": "Invite people to Felt Kings by email. The invite follows the email\naddress: whenever it signs up, you get the referral and become friends.\nEmails that already have an account get a friend request instead.",
+        "description": "Invite people to Draely by email. The invite follows the email\naddress: whenever it signs up, you get the referral and become friends.\nEmails that already have an account get a friend request instead; the\nanswer is the same either way.",
         "operationId": "invite_by_email_me_invites_post",
         "requestBody": {
           "content": {
@@ -2635,6 +2635,145 @@
         }
       }
     },
+    "/admin/tables/stale": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Stale Tables",
+        "description": "Running tables with no result for longer than table.running_alert_minutes.",
+        "operationId": "stale_tables_admin_tables_stale_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response Stale Tables Admin Tables Stale Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/tables/{table_id}/settle": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Settle Table",
+        "description": "Pay out a running table by hand when the game server's result was lost\n(e.g. from the game server's log). Players not listed finish last.",
+        "operationId": "settle_table_admin_tables__table_id__settle_post",
+        "parameters": [
+          {
+            "name": "table_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Table Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettleIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Settle Table Admin Tables  Table Id  Settle Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/tables/{table_id}/void": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Void Table",
+        "description": "A running table whose result can't be recovered: everyone gets their\nwhole entry back and the table is cancelled.",
+        "operationId": "void_table_admin_tables__table_id__void_post",
+        "parameters": [
+          {
+            "name": "table_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Table Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoidIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Void Table Admin Tables  Table Id  Void Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/withdrawals": {
       "get": {
         "tags": [
@@ -2673,6 +2812,61 @@
                     "additionalProperties": true
                   },
                   "title": "Response List Withdrawals Admin Withdrawals Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/withdrawals/{reference}/resolve": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Resolve Withdrawal",
+        "description": "A withdrawal stuck in approved/processing: ask Paystack, then book it as\npaid or refund the player.",
+        "operationId": "resolve_withdrawal_admin_withdrawals__reference__resolve_post",
+        "parameters": [
+          {
+            "name": "reference",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Reference"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoidIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Resolve Withdrawal Admin Withdrawals  Reference  Resolve Post"
                 }
               }
             }
@@ -3833,6 +4027,32 @@
         ],
         "title": "SettingUpdate"
       },
+      "SettleIn": {
+        "properties": {
+          "finishing_order": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Finishing Order"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 5,
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "finishing_order",
+          "note"
+        ],
+        "title": "SettleIn"
+      },
       "StakeTierIn": {
         "properties": {
           "name": {
@@ -4153,6 +4373,21 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VoidIn": {
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 5,
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "note"
+        ],
+        "title": "VoidIn"
       },
       "WithdrawalIn": {
         "properties": {

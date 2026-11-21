@@ -108,10 +108,10 @@ export function Shell({ children }: { children: ReactNode }) {
           className="sticky top-0 z-30 flex items-center gap-2 border-b border-cream/[0.06] bg-[#030c08]/80 px-4 py-2.5 backdrop-blur-xl md:border-none md:bg-transparent md:px-6 md:pt-5 md:backdrop-blur-none"
           style={{ paddingTop: "max(0.625rem, env(safe-area-inset-top))" }}
         >
-          <Link to="/" className="md:hidden" aria-label="Felt Kings home">
+          <Link to="/" className="md:hidden" aria-label="Draely home">
             <span className="flex items-center gap-2">
               <LogoMark size={32} />
-              <span className="title gold-text whitespace-nowrap text-xl">Felt Kings</span>
+              <span className="title gold-text whitespace-nowrap text-xl">Draely</span>
             </span>
           </Link>
           <div className="flex-1" />

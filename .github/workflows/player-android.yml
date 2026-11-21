@@ -47,10 +47,10 @@ jobs:
       - name: Assemble debug APK
         working-directory: apps/player/android
         run: |
-          HOST=$(echo "${VITE_PUBLIC_URL:-https://play.feltkings.app}" | sed -E 's#^https?://([^/:]+).*#\1#')
+          HOST=$(echo "${VITE_PUBLIC_URL:-https://draely.dafeapp.com}" | sed -E 's#^https?://([^/:]+).*#\1#')
           ./gradlew --no-daemon assembleDebug -PappLinkHost="$HOST"
       - uses: actions/upload-artifact@v4
         with:
-          name: felt-kings-debug-apk
+          name: draely-debug-apk
           path: apps/player/android/app/build/outputs/apk/debug/*.apk
           retention-days: 14

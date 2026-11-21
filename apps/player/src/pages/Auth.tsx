@@ -184,7 +184,7 @@ function Hero() {
     <div className="relative">
       <div className="flex items-center gap-3">
         <LogoMark size={56} />
-        <span className="title gold-text text-4xl md:text-5xl">Felt Kings</span>
+        <span className="title gold-text text-4xl md:text-5xl">Draely</span>
       </div>
       <h1 className="title mt-6 text-4xl leading-[1.05] md:text-6xl">
         Sit &amp; Go poker.

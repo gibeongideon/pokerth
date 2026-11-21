@@ -1,0 +1,136 @@
+name: Deploy
+
+# Builds the images (API/worker, web + Caddy, game server), pushes them to
+# GHCR and rolls them out on the server over SSH.
+#   dev  -> staging    (draely.dafeapp.com)
+#   prod -> production (its own server, later)
+# Each target is a GitHub Environment with its own secrets/variables:
+#   secrets   SSH_HOST, SSH_USER (deploy), SSH_PRIVATE_KEY
+#   variables SITE_DOMAIN (e.g. draely.dafeapp.com)
+# The server is prepared once with deploy/bootstrap-server.sh; its secrets
+# live only in /opt/feltkings/.env on the server.
+
+on:
+  push:
+    branches: [dev]   # add "prod" when the production server exists
+    paths-ignore: ["docs/**", "**/*.md"]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: ${{ github.repository_owner }}
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env: { POSTGRES_USER: platform, POSTGRES_PASSWORD: platform, POSTGRES_DB: platform }
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U platform" --health-interval 5s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+    defaults:
+      run:
+        working-directory: platform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip, cache-dependency-path: platform/pyproject.toml }
+      - run: pip install -e ".[dev]"
+      - run: ruff check . && mypy app
+      - name: Tests
+        env:
+          PLATFORM_TEST_SERVICES: "1"
+          # Tests use "<database>_test", i.e. platform_test.
+          PLATFORM_DATABASE_URL: postgresql+asyncpg://platform:platform@localhost:5432/platform
+          PLATFORM_REDIS_URL: redis://localhost:6379/0
+        run: pytest -q
+
+  build:
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { name: api, context: platform, file: platform/Dockerfile }
+          - { name: web, context: ., file: deploy/web.Dockerfile }
+          - { name: gameserver, context: ., file: docker/server/Dockerfile }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/feltkings-${{ matrix.name }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/feltkings-${{ matrix.name }}:${{ github.ref_name }}
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment:
+      name: ${{ github.ref_name == 'prod' && 'production' || 'staging' }}
+      url: https://${{ vars.SITE_DOMAIN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: SSH key
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -t ed25519 "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+      - name: Copy the stack definition
+        run: scp deploy/docker-compose.yml "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/feltkings/docker-compose.yml"
+      - name: Roll out
+        env:
+          TAG: ${{ github.sha }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ssh "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "TAG=$TAG OWNER=${OWNER,,} GHCR_USER=$GHCR_USER GHCR_TOKEN=$GHCR_TOKEN bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd /opt/feltkings
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin >/dev/null
+          printf 'IMAGE_TAG=%s\nIMAGE_OWNER=%s\n' "$TAG" "$OWNER" > image.env
+          dc() { docker compose --env-file .env --env-file image.env "$@"; }
+          dc pull --quiet
+          dc up -d postgres redis
+          dc run --rm api alembic upgrade head
+          dc up -d --remove-orphans
+          docker logout ghcr.io >/dev/null
+          docker image prune -af --filter "until=168h" >/dev/null || true
+          dc ps
+          REMOTE
+      - name: Health check
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS "https://${{ vars.SITE_DOMAIN }}/api/readyz"; then exit 0; fi
+            sleep 5
+          done
+          echo "site not healthy"; exit 1

@@ -316,9 +316,7 @@ def player_note(message: str | None) -> str:
     """A player's personal message, quoted and marked as theirs, with links
     removed (invite emails must not become a phishing channel)."""
     text = _URL.sub("[link removed]", (message or "").strip())[:300]
-    return (
-        f'\n\nTheir message (written by the player, not by Felt Kings):\n"{text}"' if text else ""
-    )
+    return f'\n\nTheir message (written by the player, not by Draely):\n"{text}"' if text else ""
 
 
 def _invite_email(
@@ -334,12 +332,12 @@ def _invite_email(
     note = player_note(message)
     step = "Tap to join:" if has_account else "Create your free account and join:"
     body = (
-        f'Felt Kings player "{strip_links(_name(inviter))}" invited you to {what}.\n\n'
+        f'Draely player "{strip_links(_name(inviter))}" invited you to {what}.\n\n'
         f"Price: {c['price_label']} · {c['seats']} seats. {when}{note}\n\n"
         f"{step}\n{join_link(table, None if has_account else ref)}\n\n"
         "Ignore this email if you're not interested."
     )
-    return "You're invited to a Felt Kings table", body
+    return "You're invited to a Draely table", body
 
 
 async def my_invites(session: AsyncSession, user: User) -> list[dict[str, Any]]:

@@ -17,3 +17,13 @@ docker/android/*.apk
 # Python-Cache
 **/__pycache__/
 **/*.pyc
+
+# Platform / player app (not needed in image builds)
+**/node_modules/
+platform/.venv/
+platform/.env
+apps/player/dist/
+apps/player/android/
+apps/player/.env*
+docs/platform/screenshots/
+packages/protocol/.out/

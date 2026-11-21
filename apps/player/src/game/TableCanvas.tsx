@@ -257,7 +257,7 @@ export function TableCanvas(props: TableCanvasProps) {
         // Betting line.
         g.ellipse(cx, cy, rx * 0.8, ry * 0.76).stroke({ width: 1.5, color: C.gold, alpha: 0.28 });
         tableLayer.addChild(g);
-        const logo = new Text({ text: "FELT KINGS", style: { ...DISPLAY, fontSize: unit * 0.7, fill: C.cream, letterSpacing: 6 } });
+        const logo = new Text({ text: "DRAELY", style: { ...DISPLAY, fontSize: unit * 0.7, fill: C.cream, letterSpacing: 6 } });
         logo.alpha = 0.1;
         logo.anchor.set(0.5);
         logo.position.set(cx, cy + ry * 0.42);

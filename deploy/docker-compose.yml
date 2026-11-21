@@ -1,0 +1,116 @@
+# Felt Kings on one server (staging now, production later on its own server).
+# Lives at /opt/feltkings/docker-compose.yml; secrets in /opt/feltkings/.env
+# (created by deploy/bootstrap-server.sh, never committed). Images come from
+# GHCR, built by .github/workflows/deploy.yml with tag $IMAGE_TAG.
+name: feltkings
+
+x-app: &app
+  image: ghcr.io/${IMAGE_OWNER}/feltkings-api:${IMAGE_TAG}
+  restart: unless-stopped
+  env_file: .env
+  environment:
+    PLATFORM_DATABASE_URL: postgresql+asyncpg://platform:${POSTGRES_PASSWORD}@postgres:5432/platform
+    PLATFORM_REDIS_URL: redis://redis:6379/0
+    PLATFORM_SEAT_TOKEN_PRIVATE_KEY_FILE: /run/keys/seat-token.key
+    PLATFORM_PUBLIC_BASE_URL: https://${SITE_DOMAIN}
+    PLATFORM_GAME_WS_URL: wss://${SITE_DOMAIN}/ws
+    PLATFORM_COOKIE_PATH_PREFIX: /api
+    PLATFORM_CORS_ORIGINS: '["https://${SITE_DOMAIN}","https://localhost","capacitor://localhost"]'
+    # Docker's network: trust X-Forwarded-For from Caddy only.
+    FORWARDED_ALLOW_IPS: "*"
+  volumes:
+    - ./keys/seat-token.key:/run/keys/seat-token.key:ro
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+  logging: &logging
+    driver: json-file
+    options: { max-size: "20m", max-file: "5" }
+
+services:
+  web:
+    image: ghcr.io/${IMAGE_OWNER}/feltkings-web:${IMAGE_TAG}
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN}
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [api, gameserver]
+    logging: *logging
+
+  api:
+    <<: *app
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--workers", "2"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/readyz')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    <<: *app
+    command: ["celery", "-A", "app.worker", "worker", "--loglevel=info", "--concurrency=2"]
+
+  beat:
+    <<: *app
+    command: ["celery", "-A", "app.worker", "beat", "--loglevel=info", "--schedule=/tmp/celerybeat-schedule"]
+
+  gameserver:
+    image: ghcr.io/${IMAGE_OWNER}/feltkings-gameserver:${IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      POKERTH_PLATFORM_URL: http://api:8000
+      POKERTH_PLATFORM_SECRET: ${PLATFORM_GAME_INTERNAL_SECRET}
+      POKERTH_SEAT_TOKEN_PUBLIC_KEY_FILE: /run/keys/seat-token.pub
+    volumes:
+      - ./keys/seat-token.pub:/run/keys/seat-token.pub:ro
+      - game_results:/home/poker/results
+    # Stop gracefully; running games keep their results on disk.
+    stop_grace_period: 30s
+    logging: *logging
+
+  # Staging only: catches sign-in emails (read them at https://<domain>/mail,
+  # login MAIL_UI_USER / MAIL_UI_PASSWORD). With a real SMTP provider in .env,
+  # PLATFORM_SMTP_HOST points there instead and this stays idle.
+  mailpit:
+    image: axllent/mailpit:v1.21
+    restart: unless-stopped
+    environment:
+      MP_WEBROOT: /mail
+      MP_UI_AUTH: ${MAIL_UI_USER:-tester}:${MAIL_UI_PASSWORD}
+      MP_MAX_MESSAGES: "2000"
+    logging: *logging
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: platform
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: platform
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U platform"]
+      interval: 5s
+      retries: 20
+    logging: *logging
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20
+    logging: *logging
+
+volumes:
+  pgdata:
+  redisdata:
+  caddy_data:
+  caddy_config:
+  game_results:
