@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { usd } from "../lib/format";
 import { useInvites, useMe, useWallet } from "../lib/hooks";
+import { DEMO_PLAYER } from "../lib/native";
 import { isMuted, play, setMuted } from "../lib/sound";
 import { Avatar } from "./bits";
 import { Logo, LogoMark } from "./Brand";
@@ -110,10 +111,11 @@ export function Shell({ children }: { children: ReactNode }) {
           <Link to="/" className="md:hidden" aria-label="Felt Kings home">
             <span className="flex items-center gap-2">
               <LogoMark size={32} />
-              <span className="title gold-text text-xl">Felt Kings</span>
+              <span className="title gold-text whitespace-nowrap text-xl">Felt Kings</span>
             </span>
           </Link>
           <div className="flex-1" />
+          {DEMO_PLAYER && <span className="badge bg-chip-red/80 text-white">Demo</span>}
           <button className="btn-icon h-9 w-9 md:hidden" onClick={toggleSound} aria-label={muted ? "Turn sound on" : "Turn sound off"}>
             <Icon name={muted ? "soundOff" : "soundOn"} size={18} />
           </button>

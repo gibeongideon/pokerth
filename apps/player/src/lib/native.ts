@@ -17,6 +17,15 @@ export const API_BASE = (env.VITE_API_BASE_URL ?? "/api").replace(/\/$/, "");
 /** Links people share must point at the public site, never at the app's own origin. */
 export const PUBLIC_URL = (env.VITE_PUBLIC_URL ?? (isNative ? "" : location.origin)).replace(/\/$/, "");
 
+/**
+ * Test builds only: sign in automatically as this seeded demo player
+ * (VITE_DEMO_PLAYER=alice). Uses the API's /dev/token endpoint, which exists
+ * only when the API runs with PLATFORM_ENV=local - so it can't work against a
+ * real server.
+ */
+export const DEMO_PLAYER = env.VITE_DEMO_PLAYER || null;
+export const DEV_TOOLS = import.meta.env.DEV || !!DEMO_PLAYER;
+
 const REFRESH_KEY = "fk.refresh";
 
 // TODO(security): move to Android Keystore / iOS Keychain storage before launch;

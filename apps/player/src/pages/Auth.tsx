@@ -6,7 +6,7 @@ import { CardFan, LogoMark } from "../components/Brand";
 import { Icon, type IconName } from "../components/Icon";
 import { useToast } from "../components/Toast";
 import { api, call, errorMessage, setToken, storeSession } from "../lib/api";
-import { API_BASE, isNative } from "../lib/native";
+import { API_BASE, DEV_TOOLS, isNative } from "../lib/native";
 import { useMe } from "../lib/hooks";
 import { play } from "../lib/sound";
 
@@ -255,7 +255,7 @@ export function Login() {
           </p>
         </div>
 
-        {import.meta.env.DEV && (
+        {DEV_TOOLS && (
           <div className="panel-flat relative mt-4 border-dashed p-4">
             <div className="label">Local demo · sign in as</div>
             <div className="flex flex-wrap gap-2">

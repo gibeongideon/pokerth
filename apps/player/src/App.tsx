@@ -13,6 +13,7 @@ import { InviteLanding } from "./pages/Invite";
 import { MyTables } from "./pages/MyTables";
 import { DepositReturn, WalletPage } from "./pages/Wallet";
 import { DevLogin } from "./pages/DevLogin";
+import { DEMO_PLAYER, DEV_TOOLS } from "./lib/native";
 
 // The table (PixiJS + game protocol) is the heaviest screen: load it on demand.
 const TableRoom = lazy(() => import("./pages/TableRoom").then((m) => ({ default: m.TableRoom })));
@@ -22,6 +23,8 @@ function Protected({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   if (me.isLoading) return <Spinner />;
   if (!me.data) {
+    // Test build: no login screen, sign straight in as the demo player.
+    if (DEMO_PLAYER) return <Navigate to={`/dev-login/${DEMO_PLAYER}?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
     rememberReturn(location.pathname + location.search);
     rememberRef(new URLSearchParams(location.search).get("ref")); // e.g. /?ref=CODE
     return <Navigate to="/login" replace />;
@@ -53,7 +56,7 @@ export function App() {
     <NativeBridge />
     <Routes>
       <Route path="/login" element={<Login />} />
-      {import.meta.env.DEV && <Route path="/dev-login/:name" element={<DevLogin />} />}
+      {DEV_TOOLS && <Route path="/dev-login/:name" element={<DevLogin />} />}
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/welcome" element={<Welcome />} />
       <Route path="/join/:code" element={<MaybeShell><JoinByCode /></MaybeShell>} />

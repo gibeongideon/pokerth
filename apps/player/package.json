@@ -10,7 +10,8 @@
     "typecheck": "tsc -b",
     "build:app": "tsc -b && vite build --mode app",
     "cap:sync": "cap sync android",
-    "android:debug": "npm run build:app && cap sync android && cd android && ./gradlew assembleDebug"
+    "android:debug": "npm run build:app && cap sync android && cd android && ./gradlew assembleDebug",
+    "android:demo": "tsc -b && vite build --mode demo && CAP_DEV=1 cap sync android && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
     "@capacitor/android": "^7.2.0",
