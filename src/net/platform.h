@@ -31,6 +31,7 @@
 #define _PLATFORM_H_
 
 #include <boost/shared_ptr.hpp>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -64,7 +65,9 @@ boost::shared_ptr<SeatClaims> VerifySeatToken(const std::string &token);
 // The result is stored on disk first (POKERTH_PLATFORM_SPOOL_DIR, default
 // ~/.pokerth/platform-results) and sent in the background until the platform
 // answers; a rejected result is kept as <table>.json.rejected.
-void ReportResult(const std::string &tableId, const std::vector<std::string> &finishingOrder);
+// `places` = each player's real place (1 = winner), counting computer players.
+void ReportResult(const std::string &tableId, const std::vector<std::string> &finishingOrder,
+				  const std::map<std::string, int> &places = std::map<std::string, int>());
 
 // At start-up: resend results stored by a previous run that were never accepted.
 void ResendPendingResults();

@@ -25,7 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import utcnow
 from app.models import GameTable, StakeTier, TableSeat, User
 from app.services import config_registry as cfg
-from app.services import ledger, referrals, rg
+from app.services import ledger, play, referrals, rg
 from app.services.game_gateway import GameGateway
 from app.services.ledger import Leg
 
@@ -137,6 +137,11 @@ def _snapshot(tier: StakeTier, price: Price) -> dict[str, Any]:
     }
 
 
+def _play_entry(table: GameTable) -> int:
+    """Demo money a seat costs (free tables only; 0 = none)."""
+    return int(table.config.get("play_entry_cents") or 0)
+
+
 def _price_of(table: GameTable) -> Price:
     c = table.config
     return Price(int(c["buy_in_cents"]), int(c["fee_cents"]), int(c["excise_cents"]))
@@ -157,6 +162,9 @@ async def open_table(
         raise TableError("schedule_required", "Scheduled stake levels need a start time.", 422)
     price = await price_for(session, tier)
     config = _snapshot(tier, price)
+    if price.total == 0:
+        # Free tables are played for demo money (snapshot, like the real price).
+        config["play_entry_cents"] = await cfg.get_int(session, "play.table_entry_usd_cents")
     if scheduled_start_at is not None:
         config["start_mode"] = "scheduled"  # starts at its time, not when full
     table = GameTable(
@@ -261,6 +269,19 @@ def _charge_legs(table: GameTable, user_id: uuid.UUID) -> list[Leg]:
 async def _refund(
     session: AsyncSession, table: GameTable, seat: TableSeat, why: str, keep_fee: bool = False
 ) -> None:
+    entry = _play_entry(table)
+    if entry:
+        await ledger.post(
+            session,
+            idempotency_key=f"{why}-play:{seat.id}:{seat.join_count}",
+            kind="play_refund",
+            legs=[
+                Leg(ledger.user_play(seat.user_id), entry),
+                Leg(ledger.table_play(table.id), -entry),
+            ],
+            memo=f"demo money back ({why})",
+            meta={"table_id": str(table.id)},
+        )
     p = _price_of(table)
     fee_back = 0 if keep_fee else p.fee
     total = p.buy_in + fee_back + p.excise
@@ -374,6 +395,29 @@ async def join(
             raise TableError(
                 "insufficient_funds",
                 f"You need {money(_price_of(table).total)} in your wallet to join.",
+            ) from exc
+
+    entry = _play_entry(table)
+    if entry:
+        await play.ensure_started(session, user.id)
+        try:
+            await ledger.post(
+                session,
+                idempotency_key=f"play-buyin:{seat.id}:{seat.join_count}",
+                kind="play_buy_in",
+                legs=[
+                    Leg(ledger.user_play(user.id), -entry),
+                    Leg(ledger.table_play(table.id), entry),
+                ],
+                memo=f"{table.config['name']} (demo money)",
+                meta={"table_id": str(table.id)},
+                actor_id=user.id,
+            )
+        except ledger.InsufficientFundsError as exc:
+            raise TableError(
+                "out_of_demo_money",
+                f"You need {money(entry)} demo money for this table. Refill it in your wallet.",
+                409,
             ) from exc
 
     if table.config["start_mode"] == "when_full" and len(registered) + 1 == table.config["seats"]:
@@ -605,7 +649,10 @@ def split_prizes(pool: int, payout_bps: list[int], players: int) -> list[int]:
 
 
 async def settle(
-    session: AsyncSession, table_id: uuid.UUID, finishing_order: list[uuid.UUID]
+    session: AsyncSession,
+    table_id: uuid.UUID,
+    finishing_order: list[uuid.UUID],
+    places: dict[uuid.UUID, int] | None = None,
 ) -> GameTable:
     """Pay out a finished game. ``finishing_order`` = user ids, winner first.
     Calling it again for a finished table is a no-op."""
@@ -655,12 +702,52 @@ async def settle(
             memo=f"{table.config['name']} prizes",
             meta={"table_id": str(table.id), "order": [str(u) for u in finishing_order]},
         )
+    await _settle_play(session, table, finishing_order, places or {})
     if _price_of(table).total > 0:
         for user_id in finishing_order:
             await referrals.maybe_reward(session, user_id)
     table.status = "finished"
     table.finished_at = utcnow()
     return table
+
+
+async def _settle_play(
+    session: AsyncSession,
+    table: GameTable,
+    finishing_order: list[uuid.UUID],
+    places: dict[uuid.UUID, int],
+) -> None:
+    """Pay out a free table's demo pot. Practice (computer players): the
+    human wins the computer players' entries too - but only by finishing 1st."""
+    pot = await ledger.balance(session, ledger.table_play(table.id))
+    entry = _play_entry(table)
+    if not entry and not pot:
+        return
+    bots = int(table.config.get("bots") or 0)
+    legs: list[Leg] = [Leg(ledger.table_play(table.id), -pot)] if pot else []
+    if bots:
+        human = finishing_order[0] if finishing_order else None
+        if human is not None and places.get(human) == 1:
+            prize = entry * (bots + 1)
+            legs += [Leg(ledger.PLAY_BANK, -(prize - pot)), Leg(ledger.user_play(human), prize)]
+        elif pot:
+            legs.append(Leg(ledger.PLAY_BANK, pot))  # the computer won
+    else:
+        prizes = split_prizes(pot, list(table.config["payout_bps"]), len(finishing_order))
+        for place, user_id in enumerate(finishing_order, start=1):
+            amount = prizes[place - 1] if place <= len(prizes) else 0
+            if amount:
+                legs.append(Leg(ledger.user_play(user_id), amount))
+    legs = [leg for leg in legs if leg.amount]
+    if legs:
+        await ledger.post(
+            session,
+            idempotency_key=f"settle-play:{table.id}",
+            kind="play_prize",
+            legs=legs,
+            memo=f"{table.config['name']} (demo money)",
+            meta={"table_id": str(table.id), "places": {str(k): v for k, v in places.items()}},
+        )
 
 
 async def start_practice(

@@ -377,7 +377,8 @@ void SendUntilAnswered(const std::string &tableId, const std::string &body)
 
 } // namespace
 
-void ReportResult(const std::string &tableId, const std::vector<std::string> &finishingOrder)
+void ReportResult(const std::string &tableId, const std::vector<std::string> &finishingOrder,
+				  const std::map<std::string, int> &places)
 {
 	boost::json::array order;
 	for (const std::string &id : finishingOrder)
@@ -387,6 +388,10 @@ void ReportResult(const std::string &tableId, const std::vector<std::string> &fi
 	// onto another table.
 	root["table_id"] = tableId;
 	root["finishing_order"] = std::move(order);
+	boost::json::object placeObj;
+	for (std::map<std::string, int>::const_iterator i = places.begin(); i != places.end(); ++i)
+		placeObj[i->first] = i->second;
+	root["places"] = std::move(placeObj);
 	root["sent_at"] = std::chrono::duration_cast<std::chrono::seconds>(
 						  std::chrono::system_clock::now().time_since_epoch()).count();
 	const std::string body = boost::json::serialize(root);

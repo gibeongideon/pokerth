@@ -590,3 +590,71 @@ async def test_players_create_free_tables_paid_only_via_quick_play(
     assert refused.json()["detail"]["code"] == "paid_tables_quick_play_only"
     ok = await client.post("/tables/private", json={"tier_id": free.id}, headers=h)
     assert ok.status_code == 201, ok.text
+
+
+async def test_demo_money_free_tables_practice_and_refill(
+    client: httpx.AsyncClient,
+    sessions: async_sessionmaker[AsyncSession],
+    make_user: MakeUser,
+) -> None:
+    free = await _tier(sessions, name="Free", buy_in_cents=0, seats=2, payout_bps=[10_000])
+    (a, ha), (b, hb) = [await _player(sessions, make_user, n, cents=0) for n in ("dima", "eli")]
+    assert (await client.get("/wallet/play", headers=ha)).json()["play_usd_cents"] == 10_000
+
+    # Free table with people: each seat costs $5 demo money; the winner takes the pot.
+    t = (await client.post("/lobby/quick-play", json={"tier_id": free.id}, headers=ha)).json()
+    await client.post("/lobby/quick-play", json={"tier_id": free.id}, headers=hb)
+    for h in (ha, hb):
+        await client.post(f"/tables/{t['id']}/ready", headers=h)
+    body = json.dumps({"table_id": t["id"], "finishing_order": [str(b.id), str(a.id)]}).encode()
+    r = await client.post(
+        f"/internal/games/{t['id']}/result",
+        content=body,
+        headers={"x-signature": sign_internal(body)},
+    )
+    assert r.json()["status"] == "finished"
+    assert await _bal(sessions, ledger.user_play(b.id)) == 10_000 + 500
+    assert await _bal(sessions, ledger.user_play(a.id)) == 10_000 - 500
+    assert await _bal(sessions, ledger.user_available(b.id)) == 0  # never real money
+
+    # Practice: beating 5 computer players pays their entries too.
+    p = (await client.post("/lobby/practice", json={"bots": 5}, headers=ha)).json()
+    body = json.dumps(
+        {"table_id": p["id"], "finishing_order": [str(a.id)], "places": {str(a.id): 1}}
+    ).encode()
+    await client.post(
+        f"/internal/games/{p['id']}/result",
+        content=body,
+        headers={"x-signature": sign_internal(body)},
+    )
+    assert await _bal(sessions, ledger.user_play(a.id)) == 9_500 - 500 + 3_000
+
+    # Refill only when it has run out, and once a day.
+    no = await client.post("/wallet/play/refill", headers=ha)
+    assert no.json()["detail"]["code"] == "not_empty"
+    async with sessions() as s:  # spend it all
+        bal = await ledger.balance(s, ledger.user_play(a.id))
+        await ledger.post(
+            s,
+            idempotency_key="test-spend",
+            kind="play_buy_in",
+            legs=[ledger.Leg(ledger.user_play(a.id), -bal), ledger.Leg(ledger.PLAY_BANK, bal)],
+        )
+        await s.commit()
+    broke = await client.post("/lobby/practice", json={"bots": 3}, headers=ha)
+    assert broke.json()["detail"]["code"] == "out_of_demo_money"
+    ok = (await client.post("/wallet/play/refill", headers=ha)).json()
+    assert ok["play_usd_cents"] == 10_000 and ok["can_refill"] is False
+    async with sessions() as s:
+        await ledger.post(
+            s,
+            idempotency_key="test-spend-2",
+            kind="play_buy_in",
+            legs=[
+                ledger.Leg(ledger.user_play(a.id), -10_000),
+                ledger.Leg(ledger.PLAY_BANK, 10_000),
+            ],
+        )
+        await s.commit()
+    again = await client.post("/wallet/play/refill", headers=ha)
+    assert again.status_code == 429 and again.json()["detail"]["code"] == "refill_limit"

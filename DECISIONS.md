@@ -151,6 +151,11 @@ The product shows the name **Draely** (from Braela + Darius) everywhere users se
 - Secrets are generated on the server (`deploy/bootstrap-server.sh`) and never stored in git or GitHub; GitHub only holds the SSH deploy key.
 - Kubernetes (PRODUCTION_PLAN) stays the long-term target; this is the D-018 VPS step.
 
+### D-032 · 2026-11-21 · Accepted — Free play: tables for anyone, practice vs computer, demo money
+- Players create **free** tables, public (listed under Open tables) or invite only, as many as they like. Paid stakes run one system table at a time via Quick play (`tables.user_created_paid` off); the public list shows only tables still taking players.
+- **Practice vs computer**: a free table that starts at once; the game server fills the other seats with its computer players (seat-token `cfg.bots`).
+- **Demo money** (dollars, never real money): $100 to start, a free seat costs $5, winners share the demo pot; beating the computer pays the computer players' entries. When it runs out, refill to $100 once per 24h. All amounts are settings (`play.*`). Separate ledger accounts (`user:*:play`, `table:*:play`, `house:play_bank`); no deposit, withdrawal, transfer or real-money report touches them.
+
 ---
 
 ## Open items (to decide)

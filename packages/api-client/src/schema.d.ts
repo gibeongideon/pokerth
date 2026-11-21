@@ -323,6 +323,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/wallet/play": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Demo Money
+         * @description Demo money for free tables (never real money).
+         */
+        get: operations["demo_money_wallet_play_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/wallet/play/refill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refill Demo Money
+         * @description Top demo money back up - only when it has run out, limited per day.
+         */
+        post: operations["refill_demo_money_wallet_play_refill_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/wallet/history": {
         parameters: {
             query?: never;
@@ -1576,6 +1616,11 @@ export interface components {
              * @default []
              */
             invite: string[];
+            /**
+             * Public
+             * @default false
+             */
+            public: boolean;
         };
         /** PracticeRequest */
         PracticeRequest: {
@@ -2382,6 +2427,50 @@ export interface operations {
         };
     };
     wallet_wallet_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    demo_money_wallet_play_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    refill_demo_money_wallet_play_refill_post: {
         parameters: {
             query?: never;
             header?: never;

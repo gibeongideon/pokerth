@@ -53,7 +53,7 @@ function TierCard({ tier, color, filling, onPlay, onPrivate, busy }: {
                 <Icon name="trophy" size={12} /> {usd(top)}
               </span>
             ) : (
-              <span>For fun</span>
+              <span>Demo money</span>
             )}
             <span>· {tier.seats} seats</span>
             {filling && <span className="text-chip-green">· {filling.players} waiting</span>}
@@ -87,7 +87,7 @@ function TierCard({ tier, color, filling, onPlay, onPrivate, busy }: {
 
         <div className="relative mt-4 grid grid-cols-2 gap-2">
           <div className="stat">
-            <b className={top > 0 ? "text-gold-300" : ""}>{top > 0 ? usd(top) : "For fun"}</b>
+            <b className={top > 0 ? "text-gold-300" : ""}>{top > 0 ? usd(top) : "Demo money"}</b>
             <span>Winner takes</span>
           </div>
           <div className="stat">
@@ -146,7 +146,7 @@ export function Lobby() {
     try {
       const table = await request;
       play("chip");
-      await qc.invalidateQueries({ queryKey: ["wallet"] });
+      await Promise.all([qc.invalidateQueries({ queryKey: ["wallet"] }), qc.invalidateQueries({ queryKey: ["demo-money"] })]);
       navigate(`/tables/${table.id}`);
     } catch (e) {
       toast(errorMessage(e), "error");

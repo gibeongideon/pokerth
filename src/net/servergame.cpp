@@ -609,16 +609,19 @@ ServerGame::ReportPlatformResult()
 	std::stable_sort(ranked.begin(), ranked.end());
 
 	std::vector<std::string> order;
+	std::map<std::string, int> places;
 	for (size_t i = 0; i < ranked.size(); ++i) {
 		std::map<unsigned, std::string>::const_iterator user = m_platformUsers.find(ranked[i].second);
 		if (user != m_platformUsers.end()
 				&& std::find(order.begin(), order.end(), user->second) == order.end()) {
 			order.push_back(user->second);
+			// Real place among everyone at the table, computer players included.
+			places[user->second] = static_cast<int>(i) + 1;
 		}
 	}
 	// Players the platform seated who never got ranked (e.g. never connected)
 	// are appended by the platform itself.
-	platform::ReportResult(m_platformTableId, order);
+	platform::ReportResult(m_platformTableId, order, places);
 	GetLobbyThread().ForgetPlatformGame(m_platformTableId);
 }
 

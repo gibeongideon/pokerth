@@ -24,6 +24,8 @@ class GameResult(BaseModel):
     table_id: uuid.UUID
     # User ids, winner first.
     finishing_order: list[uuid.UUID]
+    # Each player's real place in the game (practice tables: among computer players too).
+    places: dict[uuid.UUID, int] = {}
 
 
 @router.get("/seat-token-key", response_class=PlainTextResponse)
@@ -44,7 +46,7 @@ async def game_result(table_id: uuid.UUID, request: Request, session: SessionDep
     if result.table_id != table_id:
         raise ApiError(422, "table_mismatch", "The result is for a different table.")
     try:
-        table = await svc.settle(session, table_id, result.finishing_order)
+        table = await svc.settle(session, table_id, result.finishing_order, result.places)
     except svc.TableError as exc:
         await session.rollback()
         raise ApiError(exc.status_code, exc.code, str(exc)) from exc

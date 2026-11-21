@@ -12,6 +12,7 @@ from app.models import Deposit, JournalTransaction, LedgerAccount, LedgerEntry
 from app.services import config_registry as cfg
 from app.services import ledger
 from app.services import payments as pay
+from app.services import play as play_svc
 
 router = APIRouter(prefix="/wallet", tags=["wallet"])
 
@@ -49,6 +50,27 @@ async def wallet(user: CurrentUser, session: SessionDep) -> dict[str, Any]:
         "usd_kes_rate": str(rate),
         "real_money_enabled": await cfg.get_bool(session, "real_money_enabled"),
     }
+
+
+@router.get("/play")
+async def demo_money(user: CurrentUser, session: SessionDep) -> dict[str, Any]:
+    """Demo money for free tables (never real money)."""
+    out = await play_svc.status(session, user)
+    await session.commit()  # saves the starting grant
+    return out
+
+
+@router.post("/play/refill")
+async def refill_demo_money(user: CurrentUser, session: SessionDep) -> dict[str, Any]:
+    """Top demo money back up - only when it has run out, limited per day."""
+    try:
+        await play_svc.refill(session, user)
+    except play_svc.PlayError as exc:
+        await session.rollback()
+        raise ApiError(exc.status_code, exc.code, str(exc)) from exc
+    out = await play_svc.status(session, user)
+    await session.commit()
+    return out
 
 
 @router.get("/history")

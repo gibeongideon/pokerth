@@ -689,6 +689,54 @@
         }
       }
     },
+    "/wallet/play": {
+      "get": {
+        "tags": [
+          "wallet"
+        ],
+        "summary": "Demo Money",
+        "description": "Demo money for free tables (never real money).",
+        "operationId": "demo_money_wallet_play_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Demo Money Wallet Play Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallet/play/refill": {
+      "post": {
+        "tags": [
+          "wallet"
+        ],
+        "summary": "Refill Demo Money",
+        "description": "Top demo money back up - only when it has run out, limited per day.",
+        "operationId": "refill_demo_money_wallet_play_refill_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Refill Demo Money Wallet Play Refill Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/wallet/history": {
       "get": {
         "tags": [
@@ -3800,6 +3848,11 @@
             "maxItems": 20,
             "title": "Invite",
             "default": []
+          },
+          "public": {
+            "type": "boolean",
+            "title": "Public",
+            "default": false
           }
         },
         "type": "object",

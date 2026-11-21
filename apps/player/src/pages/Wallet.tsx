@@ -120,6 +120,7 @@ function DepositForm() {
 
   return (
     <div className="space-y-5">
+      <DemoMoneyCard />
       <div className="segmented" role="tablist">
         {(["mpesa", "card"] as const).map((c) => (
           <button key={c} role="tab" aria-selected={channel === c} className="text-lg" onClick={() => setChannel(c)}>
@@ -325,6 +326,63 @@ function History() {
         );
       })}
     </ul>
+  );
+}
+
+interface DemoMoney {
+  play_usd_cents: number;
+  table_entry_usd_cents: number;
+  refill_to_usd_cents: number;
+  can_refill: boolean;
+  next_refill_at: string | null;
+}
+
+/** Demo money for free tables - separate from the real wallet, never withdrawable. */
+function DemoMoneyCard() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const demo = useQuery({ queryKey: ["demo-money"], queryFn: () => call<DemoMoney>(api.GET("/wallet/play")) });
+  if (!demo.data) return null;
+  const d = demo.data;
+  const empty = d.play_usd_cents < Math.max(d.table_entry_usd_cents, 1);
+  const refill = async () => {
+    setBusy(true);
+    try {
+      const r = await call<DemoMoney>(api.POST("/wallet/play/refill"));
+      qc.setQueryData(["demo-money"], r);
+      play("chip");
+      toast(`Demo money refilled to ${usd(r.play_usd_cents)}`, "ok");
+    } catch (e) {
+      toast(errorMessage(e), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="panel flex items-center gap-4 p-4">
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-chip-green/15 text-chip-green">
+        <Icon name="spark" size={24} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="eyebrow text-chip-green">Demo money · free tables</div>
+        <div className="title text-2xl">{usd(d.play_usd_cents)}</div>
+        <div className="text-xs text-cream/50">
+          {empty
+            ? d.can_refill
+              ? `Out of demo money - refill to ${usd(d.refill_to_usd_cents)}.`
+              : d.next_refill_at
+                ? `Next refill ${when(d.next_refill_at)}.`
+                : "No refills available."
+            : `A free seat costs ${usd(d.table_entry_usd_cents)}. Not real money.`}
+        </div>
+      </div>
+      {empty && d.can_refill && (
+        <button className="btn-felt shrink-0 px-4" disabled={busy} onClick={refill}>
+          Refill
+        </button>
+      )}
+    </div>
   );
 }
 

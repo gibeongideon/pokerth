@@ -452,8 +452,9 @@ async def liabilities(_admin: AdminUser, session: SessionDep) -> dict[str, Any]:
         )
         return int(value or 0)
 
-    wallets = await total("user:%")
-    escrow = await total("table:%")
+    # Real money only: demo accounts (user:*:play, table:*:play) are not owed.
+    wallets = await total("user:%:available")
+    escrow = await total("table:%:escrow")
     pending = await ledger.balance(session, ledger.PAYOUTS_PENDING)
     owed = wallets + escrow + pending
     rate = await cfg.get_decimal(session, "fx.usd_kes_rate")
