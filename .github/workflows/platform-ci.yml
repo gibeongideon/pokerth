@@ -47,6 +47,8 @@ jobs:
           --health-interval 3s --health-retries 20
 
     env:
+      # CI runs in local mode (throwaway DB, dev secrets); the app defaults to prod.
+      PLATFORM_ENV: local
       PLATFORM_DATABASE_URL: postgresql+asyncpg://platform:platform@localhost:5432/platform
       PLATFORM_REDIS_URL: redis://localhost:6379/0
       PLATFORM_TEST_SERVICES: "1"

@@ -53,6 +53,7 @@ jobs:
       - name: Tests
         env:
           PLATFORM_TEST_SERVICES: "1"
+          PLATFORM_ENV: local
           # Tests use "<database>_test", i.e. platform_test.
           PLATFORM_DATABASE_URL: postgresql+asyncpg://platform:platform@localhost:5432/platform
           PLATFORM_REDIS_URL: redis://localhost:6379/0
