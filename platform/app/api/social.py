@@ -36,6 +36,8 @@ class OrganizeIn(BaseModel):
     invite: Handles = []
     # Public: listed in the lobby for anyone to join. Private: invite code only.
     public: bool = False
+    # Seats at the table (2-10); omitted = the stake level's default.
+    seats: int | None = Field(default=None, ge=2, le=10)
 
 
 def _err(exc: social.SocialError | table_svc.TableError) -> ApiError:
@@ -185,6 +187,7 @@ async def organize(
             organizer_plays=body.organizer_plays,
             invitees=body.invite,
             public=body.public,
+            seats=body.seats,
         )
     except social.SocialError as exc:
         await session.rollback()

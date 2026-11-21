@@ -1641,6 +1641,8 @@ export interface components {
              * @default false
              */
             public: boolean;
+            /** Seats */
+            seats?: number | null;
         };
         /** PracticeRequest */
         PracticeRequest: {
@@ -1654,6 +1656,8 @@ export interface components {
         PrivateTableRequest: {
             /** Tier Id */
             tier_id: number;
+            /** Seats */
+            seats?: number | null;
         };
         /** ProfileUpdate */
         ProfileUpdate: {

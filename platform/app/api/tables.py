@@ -28,6 +28,7 @@ class QuickPlayRequest(BaseModel):
 
 class PrivateTableRequest(BaseModel):
     tier_id: int
+    seats: int | None = Field(default=None, ge=2, le=10)
 
 
 def _err(exc: svc.TableError) -> ApiError:
@@ -231,6 +232,7 @@ async def create_private(
     try:
         await svc.check_user_can_create(session, tier)
         table = await svc.open_table(session, tier, private=True, created_by=user.id)
+        svc.set_seats(table, body.seats)
         await svc.join(session, gateway, table.id, user, table.invite_code)
     except svc.TableError as exc:
         await session.rollback()

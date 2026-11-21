@@ -677,3 +677,26 @@ async def test_leave_practice_early_and_pull_out_window(
     assert 590 <= t["me"]["pull_out_seconds_left"] <= 600  # 10 minutes to leave a waiting table
     out = await client.post(f"/tables/{t['id']}/leave", headers=h)
     assert out.status_code < 300, out.text
+
+
+async def test_player_picks_the_number_of_seats(
+    client: httpx.AsyncClient,
+    sessions: async_sessionmaker[AsyncSession],
+    make_user: MakeUser,
+) -> None:
+    free = await _tier(sessions, name="Free", buy_in_cents=0, seats=6, payout_bps=[10_000])
+    _, h1 = await _player(sessions, make_user, "duo1", cents=0)
+    _, h2 = await _player(sessions, make_user, "duo2", cents=0)
+
+    bad = await client.post("/tables/private", json={"tier_id": free.id, "seats": 1}, headers=h1)
+    assert bad.status_code == 422
+    t = (
+        await client.post("/tables/private", json={"tier_id": free.id, "seats": 2}, headers=h1)
+    ).json()
+    assert t["seats_total"] == 2
+    full = await client.post(
+        f"/tables/{t['id']}/join", json={"invite_code": t["invite_code"]}, headers=h2
+    )
+    assert full.status_code == 200
+    # Two of two seats taken: the ready check starts (not waiting for six).
+    assert (await client.get(f"/tables/{t['id']}", headers=h1)).json()["status"] == "ready_check"

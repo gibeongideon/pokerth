@@ -317,6 +317,7 @@ export function Organize() {
   const [start, setStart] = useState("");
   const [plays, setPlays] = useState(true);
   const [isPublic, setIsPublic] = useState(false);
+  const [seats, setSeats] = useState(6);
   const [picked, setPicked] = useState<string[]>([]);
   const [extra, setExtra] = useState("");
   const [busy, setBusy] = useState(false);
@@ -336,6 +337,7 @@ export function Organize() {
             scheduled_start_at: timed && start ? new Date(start).toISOString() : null,
             organizer_plays: plays,
             public: isPublic,
+            seats,
             invite: [...picked, ...extra.split(/[\s,]+/).filter(Boolean)],
           },
         }),
@@ -383,6 +385,17 @@ export function Organize() {
               );
             })}
           </div>
+        </div>
+        <div>
+          <div className="label">Seats</div>
+          <div className="segmented" role="tablist">
+            {[2, 3, 4, 5, 6].map((n) => (
+              <button type="button" key={n} role="tab" aria-selected={seats === n} onClick={() => setSeats(n)}>
+                {n}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-xs text-cream/50">The game starts as soon as {seats} players have joined.</p>
         </div>
         <div>
           <div className="label">Who can join</div>

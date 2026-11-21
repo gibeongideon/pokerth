@@ -227,6 +227,19 @@ async def check_user_can_create(session: AsyncSession, tier: StakeTier) -> None:
         )
 
 
+def set_seats(table: GameTable, seats: int | None) -> None:
+    """A player-created table's own seat count (2-10); starts when that many joined."""
+    if seats is None:
+        return
+    if not 2 <= seats <= 10:
+        raise TableError("bad_seats", "Choose between 2 and 10 seats.", 422)
+    table.config = {
+        **table.config,
+        "seats": seats,
+        "min_players": min(int(table.config["min_players"]), seats),
+    }
+
+
 async def has_active_seat(session: AsyncSession, user_id: uuid.UUID) -> bool:
     """Seated (or registered) at a table that hasn't finished."""
     found = await session.scalar(

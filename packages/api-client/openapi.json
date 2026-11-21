@@ -3899,6 +3899,19 @@
             "type": "boolean",
             "title": "Public",
             "default": false
+          },
+          "seats": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10.0,
+                "minimum": 2.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seats"
           }
         },
         "type": "object",
@@ -3926,6 +3939,19 @@
           "tier_id": {
             "type": "integer",
             "title": "Tier Id"
+          },
+          "seats": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10.0,
+                "minimum": 2.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seats"
           }
         },
         "type": "object",

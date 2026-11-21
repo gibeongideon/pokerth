@@ -155,7 +155,9 @@ export function Lobby() {
     }
   };
   const quickPlay = (t: Tier) => go(call<TableView>(api.POST("/lobby/quick-play", { body: { tier_id: t.id } })));
-  const practice = () => go(call<TableView>(api.POST("/lobby/practice", { body: { bots: 5 } })));
+  const [practiceSeats, setPracticeSeats] = useState(6);
+  // You plus (seats - 1) computer players.
+  const practice = () => go(call<TableView>(api.POST("/lobby/practice", { body: { bots: practiceSeats - 1 } })));
 
   const all = tables.data ?? [];
   // Open tables: anything public still taking players that has someone in it,
@@ -199,9 +201,24 @@ export function Lobby() {
                 <Icon name="bolt" size={20} strokeWidth={2.4} /> Quick play · {suggested.buy_in_cents ? usd(suggested.buy_in_cents) : "Free"}
               </button>
             )}
-            <button className="btn-felt w-full px-5 py-3 sm:w-auto" disabled={busy} onClick={practice}>
-              <Icon name="spark" size={18} /> Practice vs computer
-            </button>
+            <div className="flex w-full gap-2 sm:w-auto">
+              <button className="btn-felt flex-1 px-5 py-3" disabled={busy} onClick={practice}>
+                <Icon name="spark" size={18} /> Practice vs computer
+              </button>
+              <select
+                className="input w-auto shrink-0 py-2 font-display"
+                value={practiceSeats}
+                onChange={(e) => setPracticeSeats(Number(e.target.value))}
+                aria-label="Seats at the practice table"
+                title="Seats (you + computer players)"
+              >
+                {[2, 3, 4, 5, 6].map((n) => (
+                  <option key={n} value={n}>
+                    {n} seats
+                  </option>
+                ))}
+              </select>
+            </div>
             <Link to="/organize" className="btn-ghost w-full px-5 py-3 sm:w-auto">
               <Icon name="users" size={18} /> Create a table
             </Link>
