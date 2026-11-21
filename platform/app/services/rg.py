@@ -12,6 +12,7 @@ from typing import Any, Literal
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.money import money
 from app.core.security import utcnow
 from app.models import Deposit, JournalTransaction, LedgerAccount, LedgerEntry, RgLimit, User
 from app.services import config_registry as cfg
@@ -98,7 +99,7 @@ async def check_deposit(session: AsyncSession, user: User, usd_cents: int) -> No
                 raise RgBlockedError(
                     "deposit_limit",
                     f"This goes over the {row.period}ly deposit limit you set "
-                    f"(${row.amount_cents / 100:.2f}).",
+                    f"({money(row.amount_cents)}).",
                 )
 
 
@@ -111,7 +112,7 @@ async def check_play(session: AsyncSession, user: User, cost_cents: int) -> None
                 raise RgBlockedError(
                     "loss_limit",
                     f"This could go over the {row.period}ly loss limit you set "
-                    f"(${row.amount_cents / 100:.2f}).",
+                    f"({money(row.amount_cents)}).",
                 )
 
 

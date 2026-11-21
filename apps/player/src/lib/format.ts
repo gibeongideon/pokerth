@@ -1,7 +1,14 @@
+/** ``$12.50``; amounts under a dollar in cents (``11¢``); zero is ``$0.00``. */
 export function usd(cents: number): string {
   const sign = cents < 0 ? "-" : "";
   const abs = Math.abs(cents);
+  if (abs > 0 && abs < 100) return `${sign}${abs}¢`;
   return `${sign}$${Math.floor(abs / 100).toLocaleString()}.${String(abs % 100).padStart(2, "0")}`;
+}
+
+/** Short stake label for chips: ``$5``, ``$2.50``, ``10¢``. */
+export function usdShort(cents: number): string {
+  return cents < 100 || cents % 100 ? usd(cents) : `$${(cents / 100).toLocaleString()}`;
 }
 
 export function kes(whole: number): string {

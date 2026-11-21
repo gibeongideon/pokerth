@@ -6,13 +6,13 @@ import { CardFan } from "../components/Brand";
 import { Icon } from "../components/Icon";
 import { useErrorToast } from "../components/Toast";
 import { api, call } from "../lib/api";
-import { TIER_COLORS, kes, usd, when } from "../lib/format";
+import { TIER_COLORS, kes, usd, usdShort, when } from "../lib/format";
 import { useInvites, useMe, useTiers } from "../lib/hooks";
 import { play } from "../lib/sound";
 import type { LobbyTable, TableView, Tier } from "../lib/types";
 
 const topPrize = (t: Tier) => Math.floor((t.max_prize_pool_cents * (t.payout_bps[0] ?? 0)) / 10_000);
-const chipLabel = (t: Tier) => (t.buy_in_cents ? `$${Math.round(t.buy_in_cents / 100)}` : "FREE");
+const chipLabel = (t: Tier) => (t.buy_in_cents ? usdShort(t.buy_in_cents) : "FREE");
 
 function greeting() {
   const h = new Date().getHours();

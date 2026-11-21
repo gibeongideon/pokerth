@@ -22,6 +22,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.money import money
 from app.core.security import utcnow
 from app.models import GameTable, StakeTier, TableSeat, User
 from app.services import config_registry as cfg
@@ -44,10 +45,6 @@ class TableError(Exception):
 
 
 # ------------------------------------------------------------------- pricing
-
-
-def money(cents: int) -> str:
-    return f"${cents // 100:,}.{cents % 100:02d}"
 
 
 def _round_cents(value: Decimal) -> int:

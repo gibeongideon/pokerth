@@ -19,6 +19,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.money import money
 from app.core.security import utcnow
 from app.models import Deposit, JournalTransaction, LedgerAccount, LedgerEntry, User
 from app.services import config_registry as cfg
@@ -72,7 +73,7 @@ async def quote(session: AsyncSession, channel: Channel, usd_cents: int) -> Quot
     hi = await cfg.get_int(session, "deposit.max_usd_cents")
     if not lo <= usd_cents <= hi:
         raise PaymentError(
-            "amount_out_of_range", f"Deposit must be between ${lo / 100:.2f} and ${hi / 100:.2f}."
+            "amount_out_of_range", f"Deposit must be between {money(lo)} and {money(hi)}."
         )
     if channel == "card":
         return Quote("card", usd_cents, "USD", usd_cents, None)
@@ -339,7 +340,7 @@ async def transfer(
     await lock_users(session, {sender.id})
     max_one = await cfg.get_int(session, "p2p.max_usd_cents")
     if not 0 < usd_cents <= max_one:
-        raise PaymentError("amount_out_of_range", f"Transfers are limited to ${max_one / 100:.2f}.")
+        raise PaymentError("amount_out_of_range", f"Transfers are limited to {money(max_one)}.")
 
     key = f"p2p:{sender.id}:{idempotency_key}"
     existing = await session.scalar(

@@ -19,6 +19,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.money import money
 from app.core.security import utcnow
 from app.models import Deposit, PayoutDestination, User, Withdrawal
 from app.services import config_registry as cfg
@@ -161,7 +162,7 @@ async def _check_limits(
     lo = await cfg.get_int(session, "withdraw.min_usd_cents")
     hi = await cfg.get_int(session, "withdraw.max_usd_cents")
     if not lo <= usd_cents <= hi:
-        raise _err("amount_out_of_range", f"Withdraw between ${lo / 100:.2f} and ${hi / 100:.2f}.")
+        raise _err("amount_out_of_range", f"Withdraw between {money(lo)} and {money(hi)}.")
     day = await _withdrawn_since(session, user.id, 24, exclude=exclude)
     tier = await cfg.get_int(session, "kyc.withdraw_min_tier")
     # Level 2 is judged on the 24h total, so splitting a big withdrawal doesn't avoid it.
@@ -249,7 +250,7 @@ async def request(
     await mailer.send(
         user.email,
         f"Your withdrawal code: {code}",
-        f"Use this code to confirm your withdrawal of ${usd_cents / 100:.2f} "
+        f"Use this code to confirm your withdrawal of {money(usd_cents)} "
         f"(KES {q['payout_amount'] // 100:,} to M-Pesa {dest.phone[-4:].rjust(10, '*')}).\n\n"
         f"    {code}\n\nIt expires in {ttl // 60} minutes. If this wasn't you, "
         "don't share the code and sign out of all devices.",

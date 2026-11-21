@@ -89,7 +89,7 @@ def test_fee_and_price_label() -> None:
     )
     assert svc.compute_fee(tier) == 50
     assert svc.Price(10_000, 50, 0).label == "$100.50"  # one price: what you pay
-    assert svc.Price(10_000, 50, 0).detail == "$100.00 to the prize pool + $0.50 entry fee"
+    assert svc.Price(10_000, 50, 0).detail == "$100.00 to the prize pool + 50¢ entry fee"
     assert svc.Price(0, 0, 0).label == "Free"
     tier.fee_min_cents = 75
     assert svc.compute_fee(tier) == 75
@@ -109,7 +109,18 @@ def test_split_prizes() -> None:
 def test_cent_stake_price() -> None:
     tier = StakeTier(buy_in_cents=10, fee_type="pct", fee_value=Decimal("0.5"), fee_min_cents=1)
     assert svc.compute_fee(tier) == 1
-    assert svc.Price(10, 1, 0).label == "$0.11"
+    assert svc.Price(10, 1, 0).label == "11¢"
+
+
+def test_money_shows_cents_under_a_dollar() -> None:
+    from app.core.money import money
+
+    assert money(0) == "$0.00"
+    assert money(5) == "5¢"
+    assert money(99) == "99¢"
+    assert money(100) == "$1.00"
+    assert money(123_456) == "$1,234.56"
+    assert money(-50) == "-50¢"
 
 
 @pytest.mark.parametrize(
