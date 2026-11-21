@@ -4013,6 +4013,11 @@
               }
             ],
             "title": "Seats"
+          },
+          "hand_help": {
+            "type": "boolean",
+            "title": "Hand Help",
+            "default": true
           }
         },
         "type": "object",
@@ -4053,6 +4058,11 @@
               }
             ],
             "title": "Seats"
+          },
+          "hand_help": {
+            "type": "boolean",
+            "title": "Hand Help",
+            "default": true
           }
         },
         "type": "object",

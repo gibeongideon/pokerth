@@ -244,6 +244,12 @@ def set_seats(table: GameTable, seats: int | None) -> None:
     }
 
 
+def set_hand_help(table: GameTable, on: bool) -> None:
+    """Whether players may turn on the "your hand" hint at this table (organizer's choice)."""
+    if not on:
+        table.config = {**table.config, "hand_help": False}
+
+
 async def has_active_seat(session: AsyncSession, user_id: uuid.UUID) -> bool:
     """Seated (or registered) at a table that hasn't finished."""
     found = await session.scalar(
@@ -948,6 +954,7 @@ async def table_view(
         "payout_bps": c["payout_bps"],
         "start_mode": c["start_mode"],
         "bots": int(c.get("bots") or 0),
+        "hand_help": c.get("hand_help", True),
         "is_private": table.is_private,
         "title": table.title,
         "message": table.message,

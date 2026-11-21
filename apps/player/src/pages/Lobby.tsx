@@ -272,7 +272,7 @@ export function Lobby() {
                 filling={filling.find((f) => f.price_label === t.price_label)}
                 busy={busy}
                 onPlay={() => quickPlay(t)}
-                onPrivate={() => go(call<TableView>(api.POST("/tables/private", { body: { tier_id: t.id } })))}
+                onPrivate={() => go(call<TableView>(api.POST("/tables/private", { body: { tier_id: t.id, hand_help: true } })))}
               />
             ))}
           </div>

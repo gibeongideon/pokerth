@@ -38,6 +38,8 @@ class OrganizeIn(BaseModel):
     public: bool = False
     # Seats at the table (2-10); omitted = the stake level's default.
     seats: int | None = Field(default=None, ge=2, le=10)
+    # Let players turn on the "your hand" hint (off = players rely on their own reading).
+    hand_help: bool = True
 
 
 def _err(exc: social.SocialError | table_svc.TableError) -> ApiError:
@@ -197,6 +199,7 @@ async def organize(
             invitees=body.invite,
             public=body.public,
             seats=body.seats,
+            hand_help=body.hand_help,
         )
     except social.SocialError as exc:
         await session.rollback()

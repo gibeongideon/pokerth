@@ -57,6 +57,7 @@ export interface TableView {
   payout_bps: number[];
   start_mode: "when_full" | "scheduled" | "practice";
   bots: number;
+  hand_help?: boolean;
   is_private: boolean;
   is_organizer: boolean;
   invite_code: string | null;

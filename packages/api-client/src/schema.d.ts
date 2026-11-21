@@ -1684,6 +1684,11 @@ export interface components {
             public: boolean;
             /** Seats */
             seats?: number | null;
+            /**
+             * Hand Help
+             * @default true
+             */
+            hand_help: boolean;
         };
         /** PracticeRequest */
         PracticeRequest: {
@@ -1699,6 +1704,11 @@ export interface components {
             tier_id: number;
             /** Seats */
             seats?: number | null;
+            /**
+             * Hand Help
+             * @default true
+             */
+            hand_help: boolean;
         };
         /** ProfileUpdate */
         ProfileUpdate: {

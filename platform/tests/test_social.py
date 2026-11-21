@@ -215,6 +215,25 @@ async def test_organize_rejects_bad_start_time(
     assert resp.json()["detail"]["code"] == "bad_time"
 
 
+async def test_organizer_can_turn_off_hand_helper(
+    client: httpx.AsyncClient,
+    sessions: async_sessionmaker[AsyncSession],
+    make_user: MakeUser,
+    tier_id: int,
+) -> None:
+    _, org = await _player(sessions, make_user, "nohelp")
+    made = (
+        await client.post(
+            "/games/organize",
+            json={"tier_id": tier_id, "title": "Pros only", "hand_help": False},
+            headers=org,
+        )
+    ).json()
+    assert made["table"]["hand_help"] is False
+    seen = (await client.get(f"/tables/{made['table']['id']}", headers=org)).json()
+    assert seen["hand_help"] is False
+
+
 # ---------------------------------------------------------- 5.4 invite links
 
 

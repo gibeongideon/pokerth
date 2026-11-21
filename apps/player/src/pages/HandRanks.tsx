@@ -94,7 +94,7 @@ export function MyHandHint({ cards }: { cards: number[] | null }) {
 }
 
 /** Compact, collapsible hand rankings for the table screen. Remembers open/closed. */
-export function HandRanksPanel({ cards }: { cards?: number[] | null }) {
+export function HandRanksPanel({ cards, helperOff = false }: { cards?: number[] | null; helperOff?: boolean }) {
   const [open, setOpen] = useStoredFlag("fk.handsPanel", true);
   const [showMine] = useStoredFlag("fk.showMyHand", false);
   const mine = showMine ? myHandIndex(cards) : null;
@@ -124,6 +124,7 @@ export function HandRanksPanel({ cards }: { cards?: number[] | null }) {
               </span>
             </li>
           ))}
+          {helperOff && <li className="pt-1 text-xs text-cream/45">Hand helper is off at this table.</li>}
         </ol>
       )}
     </div>

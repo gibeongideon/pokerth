@@ -266,7 +266,9 @@ export function TableRoom() {
   const live = useLiveGame(id, playing);
   // My two cards plus the board, while I'm still in the hand (for the "your hand" hint).
   const mySeat = live.state?.seats.find((p) => p.playerId === live.state?.myId);
-  const myCards = mySeat?.cards && !mySeat.folded ? [...mySeat.cards, ...(live.state?.board ?? [])] : null;
+  // The organizer can turn the hint off for the table (hand_help).
+  const myCards =
+    t?.hand_help !== false && mySeat?.cards && !mySeat.folded ? [...mySeat.cards, ...(live.state?.board ?? [])] : null;
   // While reconnecting or waiting to be dealt back in, keep showing the last table we had.
   const lastLive = useRef<LiveTable | null>(null);
   const liveTable = useMemo(() => {
@@ -607,7 +609,7 @@ export function TableRoom() {
 
         <div className="space-y-4">
           {playing && live.state && live.state.log.length > 0 && <HandLog lines={live.state.log} />}
-          <HandRanksPanel cards={myCards} />
+          <HandRanksPanel cards={myCards} helperOff={t.hand_help === false} />
           <div className="panel p-4 text-sm">
             <div className="label">Payouts</div>
             {t.price_detail && t.price_detail !== t.price_label && (

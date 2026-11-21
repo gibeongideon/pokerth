@@ -322,6 +322,7 @@ export function Organize() {
   const [start, setStart] = useState("");
   const [plays, setPlays] = useState(true);
   const [isPublic, setIsPublic] = useState(false);
+  const [handHelp, setHandHelp] = useState(true);
   const [seats, setSeats] = useState(6);
   const [picked, setPicked] = useState<string[]>([]);
   const [extra, setExtra] = useState("");
@@ -343,6 +344,7 @@ export function Organize() {
             organizer_plays: plays,
             public: isPublic,
             seats,
+            hand_help: handHelp,
             invite: [...picked, ...extra.split(/[\s,]+/).filter(Boolean)],
           },
         }),
@@ -432,6 +434,13 @@ export function Organize() {
         <label className="flex items-center gap-3 text-sm">
           <input type="checkbox" className="h-5 w-5 accent-gold-400" checked={plays} onChange={(e) => setPlays(e.target.checked)} />
           I'm playing too (takes a seat now)
+        </label>
+        <label className="flex items-start gap-3 text-sm">
+          <input type="checkbox" className="mt-0.5 h-5 w-5 accent-gold-400" checked={handHelp} onChange={(e) => setHandHelp(e.target.checked)} />
+          <span>
+            Hand helper
+            <span className="block text-xs text-cream/50">Players can see the name and score of the hand they hold. Turn off for a game without hints.</span>
+          </span>
         </label>
         <div>
           <div className="label">Invite</div>

@@ -469,6 +469,7 @@ async def organize(
     invitees: list[str],
     public: bool = False,
     seats: int | None = None,
+    hand_help: bool = True,
 ) -> tuple[GameTable, InviteResult]:
     tier = await session.get(StakeTier, tier_id)
     if tier is None or not tier.enabled:
@@ -489,6 +490,7 @@ async def organize(
             created_by=organizer.id,
         )
         table_svc.set_seats(table, seats)
+        table_svc.set_hand_help(table, hand_help)
         # Public tables are shown to everyone: no links in their texts.
         table.title = strip_links(title.strip())[:80] if public else title.strip()[:80]
         msg = (message or "").strip()[:500] or None
