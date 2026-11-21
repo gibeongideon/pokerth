@@ -44,6 +44,7 @@ export interface LiveTable {
   pot: number;
   turnStartedAt: number;
   turnSeconds: number;
+  handScore?: number; // my hand's strength, 10 (royal flush) .. 1 (high card), when the player shows it
 }
 
 export interface TableCanvasProps {
@@ -187,6 +188,11 @@ export function TableCanvas(props: TableCanvasProps) {
     let lastHandKey = -1;
     let lastBoardLen = 0;
     let timer: { g: Graphics; x: number; y: number; r: number } | null = null;
+    // My hand score pop-up: pops when the score changes, fades after a few seconds.
+    const SCORE_MS = 3000;
+    let scoreKey = "";
+    let scoreAt = 0;
+    let scoreBadge: Container | null = null;
 
     (async () => {
       await document.fonts.load('20px "Lilita One"').catch(() => undefined);
@@ -453,6 +459,27 @@ export function TableCanvas(props: TableCanvasProps) {
                 tweenIn(sprite, { x: cx, y: cy }, dealDelay + k * n * 0.08);
               }
             });
+            // My hand's score (10 best .. 1): a quick gold pop-up beside my cards.
+            const key = `${live.handKey}:${live.board.length}:${live.handScore ?? ""}`;
+            if (big && live.handScore && key !== scoreKey) {
+              scoreKey = key;
+              scoreAt = Date.now();
+            }
+            if (big && live.handScore && !s.folded && Date.now() - scoreAt < SCORE_MS) {
+              const rr = Math.max(11, w * 0.32);
+              const badge = new Container();
+              badge.addChild(
+                new Graphics()
+                  .circle(0, 2, rr).fill({ color: 0x000000, alpha: 0.4 })
+                  .circle(0, 0, rr).fill(C.gold).stroke({ width: 2, color: C.goldDark }),
+              );
+              const num = new Text({ text: String(live.handScore), style: { ...DISPLAY, fontSize: rr * 1.15, fill: C.ink } });
+              num.anchor.set(0.5);
+              badge.addChild(num);
+              badge.position.set(base.x + w * 0.95 + rr * 0.6, base.y - w * 0.35);
+              dealLayer.addChild(badge);
+              scoreBadge = badge;
+            }
             dealDelay += 0.08;
           }
 
@@ -588,6 +615,14 @@ export function TableCanvas(props: TableCanvasProps) {
           tw.obj.rotation = tw.from.r + (tw.to.r - tw.from.r) * e;
           tw.obj.scale.set(tw.from.s + (tw.to.s - tw.from.s) * e);
           if (tw.t >= 1) tweens.splice(i, 1);
+        }
+        if (scoreBadge && !scoreBadge.destroyed) {
+          const age = Date.now() - scoreAt;
+          // Pop in (slight overshoot), hold, then fade out.
+          const k = Math.min(1, age / 220);
+          scoreBadge.scale.set(age < 220 ? 0.3 + 0.9 * k : age < 320 ? 1.2 - 0.2 * ((age - 220) / 100) : 1);
+          scoreBadge.alpha = age > SCORE_MS - 600 ? Math.max(0, (SCORE_MS - age) / 600) : 1;
+          if (age >= SCORE_MS) scoreBadge.visible = false;
         }
         const live = propsRef.current.live;
         if (live && timer && !timer.g.destroyed) {

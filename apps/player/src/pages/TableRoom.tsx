@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { Avatar, Ring, SeatDots, Spinner, StatusBadge } from "../components/bits";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { Icon } from "../components/Icon";
-import { HandRanksPanel, MyHandHint } from "./HandRanks";
+import { HandRanksPanel, MyHandHint, myHandIndex, strength, useShowMyHand } from "./HandRanks";
 import { useErrorToast, useToast } from "../components/Toast";
 import { ActionBar } from "../game/ActionBar";
 import { TableCanvas, type CanvasSeat, type LiveTable } from "../game/TableCanvas";
@@ -269,6 +269,10 @@ export function TableRoom() {
   // The organizer can turn the hint off for the table (hand_help).
   const myCards =
     t?.hand_help !== false && mySeat?.cards && !mySeat.folded ? [...mySeat.cards, ...(live.state?.board ?? [])] : null;
+  const practice = !!t?.bots;
+  const [showMine] = useShowMyHand(practice);
+  const mineIdx = showMine ? myHandIndex(myCards) : null;
+  const handScore = mineIdx === null ? undefined : strength(mineIdx);
   // While reconnecting or waiting to be dealt back in, keep showing the last table we had.
   const lastLive = useRef<LiveTable | null>(null);
   const liveTable = useMemo(() => {
@@ -276,8 +280,10 @@ export function TableRoom() {
     const s = live.state;
     const fresh = s && (s.phase === "playing" || s.phase === "ended") && s.seats.length && !s.rejoining ? toLiveTable(s) : null;
     if (fresh) lastLive.current = fresh;
-    return fresh ?? lastLive.current;
-  }, [playing, live.state]);
+    const out = fresh ?? lastLive.current;
+    // The score next to my seat (only on my screen; worked out from my own cards).
+    return out && { ...out, handScore: fresh ? handScore : undefined };
+  }, [playing, live.state, handScore]);
 
   // Sounds on state changes.
   const lastStatus = useRef<string | undefined>(undefined);
@@ -555,7 +561,7 @@ export function TableRoom() {
                     className="fixed inset-x-0 bottom-0 z-30 border-t border-cream/10 bg-[#030c08]/95 px-4 pt-3 backdrop-blur-xl md:static md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"
                     style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
                   >
-                    <MyHandHint cards={myCards} />
+                    <MyHandHint cards={myCards} practice={practice} />
                     <ActionBar state={live.state} act={live.act} />
                   </div>
                 </ErrorBoundary>
@@ -609,7 +615,7 @@ export function TableRoom() {
 
         <div className="space-y-4">
           {playing && live.state && live.state.log.length > 0 && <HandLog lines={live.state.log} />}
-          <HandRanksPanel cards={myCards} helperOff={t.hand_help === false} />
+          <HandRanksPanel cards={myCards} helperOff={t.hand_help === false} practice={practice} />
           <div className="panel p-4 text-sm">
             <div className="label">Payouts</div>
             {t.price_detail && t.price_detail !== t.price_label && (

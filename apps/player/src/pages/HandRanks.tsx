@@ -43,6 +43,15 @@ export function useStoredFlag(key: string, initial: boolean): [boolean, (v: bool
       return initial;
     }
   });
+  // Re-read when the key changes (e.g. the table turns out to be a practice game).
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem(key);
+      setValue(v === null ? initial : v === "1");
+    } catch {
+      setValue(initial);
+    }
+  }, [key, initial]);
   // Other components using the same flag follow along.
   useEffect(() => {
     const on = (e: Event) => {
@@ -64,14 +73,19 @@ export function useStoredFlag(key: string, initial: boolean): [boolean, (v: bool
   return [value, set];
 }
 
+/** "Show my hand": on by default in practice vs computer, off by default elsewhere; remembered separately. */
+export function useShowMyHand(practice: boolean) {
+  return useStoredFlag(practice ? "fk.showMyHand.practice" : "fk.showMyHand", practice);
+}
+
 /** The best hand in these cards, as an index into HANDS; null before the cards are dealt. */
 export function myHandIndex(cards: number[] | null | undefined): number | null {
   return cards && cards.length >= 2 ? bestHandRank(cards) : null;
 }
 
 /** "Your hand: Two pair · 3/10" above the betting buttons - only if the player turns it on. */
-export function MyHandHint({ cards }: { cards: number[] | null }) {
-  const [show, setShow] = useStoredFlag("fk.showMyHand", false);
+export function MyHandHint({ cards, practice = false }: { cards: number[] | null; practice?: boolean }) {
+  const [show, setShow] = useShowMyHand(practice);
   const i = myHandIndex(cards);
   if (i === null) return null;
   if (!show) {
@@ -94,9 +108,17 @@ export function MyHandHint({ cards }: { cards: number[] | null }) {
 }
 
 /** Compact, collapsible hand rankings for the table screen. Remembers open/closed. */
-export function HandRanksPanel({ cards, helperOff = false }: { cards?: number[] | null; helperOff?: boolean }) {
+export function HandRanksPanel({
+  cards,
+  helperOff = false,
+  practice = false,
+}: {
+  cards?: number[] | null;
+  helperOff?: boolean;
+  practice?: boolean;
+}) {
   const [open, setOpen] = useStoredFlag("fk.handsPanel", true);
-  const [showMine] = useStoredFlag("fk.showMyHand", false);
+  const [showMine] = useShowMyHand(practice);
   const mine = showMine ? myHandIndex(cards) : null;
   const toggle = () => setOpen(!open);
   return (
