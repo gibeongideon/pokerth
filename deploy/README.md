@@ -55,7 +55,10 @@ grep MAIL_UI_PASSWORD .env                                         # password fo
 - Sign in at https://draely.dafeapp.com with that email; read the sign-in email at
   https://draely.dafeapp.com/mail (user `tester`).
 - Real money stays off (`real_money_enabled=false`). Paystack **test** keys go into `.env`, then `dc up -d`.
-- Real email for testers: put an SMTP provider into `.env` (`PLATFORM_SMTP_HOST/PORT/USERNAME/PASSWORD`, `PLATFORM_SMTP_STARTTLS=true`).
+- Real email: the staging droplet (DigitalOcean) **blocks outgoing SMTP ports 25/465/587**, so Gmail SMTP
+  (DafeApp's settings, already in `.env`, commented out) can't connect. Staging uses Mailpit (`/mail`).
+  Options later: ask DigitalOcean support to unblock SMTP and uncomment the Gmail block, or switch to an
+  email API over HTTPS (e.g. Brevo/Resend) - needs a small HTTP mailer in `app/services/mailer.py`.
 
 ## Everyday
 - Logs: `dc logs -f api` (also `worker`, `gameserver`, `web`)
