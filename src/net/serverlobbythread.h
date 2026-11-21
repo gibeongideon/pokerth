@@ -40,6 +40,7 @@
 #include <chrono>
 #include <deque>
 #include <map>
+#include <set>
 
 #include <net/sessionmanager.h>
 #include <net/netpacket.h>
@@ -135,6 +136,9 @@ public:
 	// Managed mode: guid of the seat this seat-token holder still has in a running game, or "".
 	std::string GetPlatformRejoinGuid(const platform::SeatClaims &seat);
 	void ForgetPlatformGame(const std::string &tableId);
+	// A platform table's game has started: it may never be created again (a
+	// fresh game would hand out fresh chips mid-tournament).
+	void MarkPlatformStarted(const std::string &tableId);
 
 	AvatarManager &GetAvatarManager();
 	ChatCleanerManager &GetChatCleaner();
@@ -344,6 +348,7 @@ private:
 	GameMap m_gameMap;
 	// Platform table id -> game id (managed mode only).
 	std::map<std::string, unsigned> m_platformGames;
+	std::set<std::string> m_platformStarted;
 
 	struct PendingPrivateMessage {
 		unsigned long long id;

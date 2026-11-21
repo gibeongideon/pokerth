@@ -15,6 +15,7 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
+#include <boost/filesystem.hpp>
 #include <boost/json.hpp>
 // Boost.JSON is used header-only; this translation unit carries its implementation.
 #include <boost/json/src.hpp>
@@ -24,6 +25,7 @@
 #include <openssl/pem.h>
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstdlib>
 #include <fstream>
@@ -291,42 +293,127 @@ boost::shared_ptr<SeatClaims> VerifySeatToken(const std::string &token)
 	}
 }
 
-void ReportResult(const std::string &tableId, const std::vector<std::string> &finishingOrder)
+namespace
+{
+
+std::string SpoolDir()
+{
+	std::string dir = Env("POKERTH_PLATFORM_SPOOL_DIR");
+	if (dir.empty()) {
+		const std::string home = Env("HOME");
+		dir = (home.empty() ? std::string("/tmp") : home) + "/.pokerth/platform-results";
+	}
+	return dir;
+}
+
+// Table ids are UUIDs; keep only safe characters for the file name.
+std::string SpoolFile(const std::string &tableId)
+{
+	std::string name;
+	for (char c : tableId)
+		if (std::isalnum(static_cast<unsigned char>(c)) || c == '-')
+			name.push_back(c);
+	return SpoolDir() + "/" + name + ".json";
+}
+
+void SpoolWrite(const std::string &tableId, const std::string &body)
+{
+	boost::system::error_code ec;
+	boost::filesystem::create_directories(SpoolDir(), ec);
+	const std::string file = SpoolFile(tableId);
+	const std::string tmp = file + ".tmp";
+	{
+		std::ofstream out(tmp, std::ios::trunc);
+		out << body;
+		if (!out) {
+			LOG_ERROR("platform: cannot write result spool " << tmp);
+			return;
+		}
+	}
+	boost::filesystem::rename(tmp, file, ec);
+	if (ec)
+		LOG_ERROR("platform: cannot store result " << file << ": " << ec.message());
+}
+
+// Sends one stored result until the platform gives a definite answer.
+// Success removes the file; a definite rejection keeps it as *.rejected for an
+// admin. Network errors and 5xx/429 retry forever (backoff up to 5 minutes):
+// a result is players' money and must not be dropped.
+void SendUntilAnswered(const std::string &tableId, const std::string &body)
 {
 	Url url;
 	const std::string base = Env("POKERTH_PLATFORM_URL");
 	const std::string secret = Env("POKERTH_PLATFORM_SECRET");
 	if (!ParseHttpUrl(base, url) || secret.empty()) {
 		LOG_ERROR("platform: cannot report table " << tableId
-				  << " - POKERTH_PLATFORM_URL (http://...) and POKERTH_PLATFORM_SECRET must be set");
+				  << " - POKERTH_PLATFORM_URL (http://...) and POKERTH_PLATFORM_SECRET must be set; result kept in "
+				  << SpoolFile(tableId));
 		return;
 	}
+	const std::string target = url.path + "/internal/games/" + tableId + "/result";
+	const std::string signature = HexHmacSha256(secret, body);
+	const std::string file = SpoolFile(tableId);
+	std::thread([url, target, body, signature, tableId, file] {
+		for (int attempt = 0;; ++attempt) {
+			const int status = PostOnce(url, target, body, signature);
+			boost::system::error_code ec;
+			if (status >= 200 && status < 300) {
+				LOG_MSG("platform: result for table " << tableId << " accepted");
+				boost::filesystem::remove(file, ec);
+				return;
+			}
+			if (status >= 400 && status < 500 && status != 429) {
+				LOG_ERROR("platform: result for table " << tableId << " rejected (" << status
+						  << "); kept as " << file << ".rejected for an admin");
+				boost::filesystem::rename(file, file + ".rejected", ec);
+				return;
+			}
+			std::this_thread::sleep_for(std::chrono::seconds(std::min(300, 1 << std::min(attempt, 9))));
+		}
+	}).detach();
+}
 
+} // namespace
+
+void ReportResult(const std::string &tableId, const std::vector<std::string> &finishingOrder)
+{
 	boost::json::array order;
 	for (const std::string &id : finishingOrder)
 		order.emplace_back(id);
 	boost::json::object root;
+	// The table id is inside the signed body, so the result can't be replayed
+	// onto another table.
+	root["table_id"] = tableId;
 	root["finishing_order"] = std::move(order);
+	root["sent_at"] = std::chrono::duration_cast<std::chrono::seconds>(
+						  std::chrono::system_clock::now().time_since_epoch()).count();
 	const std::string body = boost::json::serialize(root);
-	const std::string target = url.path + "/internal/games/" + tableId + "/result";
-	const std::string signature = HexHmacSha256(secret, body);
 
 	LOG_MSG("platform: reporting result for table " << tableId << " (" << finishingOrder.size() << " players)");
-	std::thread([url, target, body, signature, tableId] {
-		for (int attempt = 0; attempt < 12; ++attempt) {
-			const int status = PostOnce(url, target, body, signature);
-			if (status >= 200 && status < 300) {
-				LOG_MSG("platform: result for table " << tableId << " accepted");
-				return;
-			}
-			if (status >= 400 && status < 500 && status != 409 && status != 429) {
-				LOG_ERROR("platform: result for table " << tableId << " rejected (" << status << "), not retrying");
-				return;
-			}
-			std::this_thread::sleep_for(std::chrono::seconds(std::min(60, 1 << attempt)));
-		}
-		LOG_ERROR("platform: giving up reporting table " << tableId << "; the platform's admin must settle it");
-	}).detach();
+	// On disk first: a crash or restart before the platform answers must not lose it.
+	SpoolWrite(tableId, body);
+	SendUntilAnswered(tableId, body);
+}
+
+void ResendPendingResults()
+{
+	boost::system::error_code ec;
+	boost::filesystem::directory_iterator it(SpoolDir(), ec), end;
+	if (ec)
+		return;
+	for (; it != end; it.increment(ec)) {
+		if (ec)
+			break;
+		const boost::filesystem::path p = it->path();
+		if (p.extension() != ".json")
+			continue;
+		std::ifstream in(p.string());
+		std::stringstream ss;
+		ss << in.rdbuf();
+		const std::string tableId = p.stem().string();
+		LOG_MSG("platform: resending stored result for table " << tableId);
+		SendUntilAnswered(tableId, ss.str());
+	}
 }
 
 } // namespace platform

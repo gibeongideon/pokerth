@@ -5,14 +5,15 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.security import utcnow
-from app.models import Deposit, Withdrawal
+from app.models import Deposit, LedgerAccount, LedgerEntry, Withdrawal
 from app.services import config_registry as cfg
 from app.services import payments as pay
 from app.services import payouts
+from app.services import tables as table_svc
 from app.services.paystack import PaystackClient, PaystackError
 
 log = logging.getLogger(__name__)
@@ -115,17 +116,28 @@ async def process_withdrawals(
     counts = {"expired": 0, "sent": 0, "resolved": 0}
     now = utcnow()
     async with sessions() as session:
-        stale = (
+        # One conditional UPDATE: a withdrawal confirmed a moment ago (status
+        # no longer awaiting_confirmation) is never overwritten.
+        expired = await session.execute(
+            update(Withdrawal)
+            .where(Withdrawal.status == "awaiting_confirmation", Withdrawal.otp_expires_at < now)
+            .values(status="expired")
+            .returning(Withdrawal.id)
+        )
+        counts["expired"] = len(expired.all())
+        await session.commit()
+
+        stuck = (
             await session.scalars(
-                select(Withdrawal).where(
-                    Withdrawal.status == "awaiting_confirmation", Withdrawal.otp_expires_at < now
+                select(Withdrawal.reference).where(
+                    Withdrawal.status == "approved", Withdrawal.send_attempts >= 10
                 )
             )
         ).all()
-        for w in stale:
-            w.status = "expired"
-            counts["expired"] += 1
-        await session.commit()
+        if stuck:
+            log.error(
+                "withdrawals stuck after 10 send attempts (resolve in admin): %s", list(stuck)
+            )
 
         approved = (
             await session.scalars(
@@ -160,3 +172,56 @@ async def process_withdrawals(
             await session.commit()
     log.info("process_withdrawals %s", counts)
     return counts
+
+
+async def alert_stale_tables(sessions: async_sessionmaker[AsyncSession]) -> int:
+    """Running tables with no result for too long: a lost result keeps players'
+    buy-ins in escrow. An admin settles or voids them (/admin/tables/...)."""
+    async with sessions() as session:
+        minutes = await cfg.get_int(session, "table.running_alert_minutes")
+        stale = await table_svc.stale_running(session, minutes)
+    if stale:
+        log.error(
+            "running tables without a result for %d+ min (settle or void in admin): %s",
+            minutes,
+            [str(t.id) for t in stale],
+        )
+    return len(stale)
+
+
+async def check_ledger_integrity(sessions: async_sessionmaker[AsyncSession]) -> dict[str, Any]:
+    """Every transaction sums to zero, and every account's running balance
+    equals the sum of its entries. Anything else is a bug: alert loudly."""
+    async with sessions() as session:
+        unbalanced = (
+            await session.execute(
+                select(LedgerEntry.transaction_id, func.sum(LedgerEntry.amount))
+                .group_by(LedgerEntry.transaction_id)
+                .having(func.sum(LedgerEntry.amount) != 0)
+                .limit(50)
+            )
+        ).all()
+        sums = (
+            select(LedgerEntry.account_id, func.sum(LedgerEntry.amount).label("total"))
+            .group_by(LedgerEntry.account_id)
+            .subquery()
+        )
+        drift = (
+            await session.execute(
+                select(LedgerAccount.code, LedgerAccount.balance, func.coalesce(sums.c.total, 0))
+                .outerjoin(sums, sums.c.account_id == LedgerAccount.id)
+                .where(LedgerAccount.balance != func.coalesce(sums.c.total, 0))
+                .limit(50)
+            )
+        ).all()
+    report = {
+        "unbalanced_transactions": [int(r[0]) for r in unbalanced],
+        "balance_drift": [
+            {"account": r[0], "balance": int(r[1]), "entries": int(r[2])} for r in drift
+        ],
+    }
+    if unbalanced or drift:
+        log.error("LEDGER INTEGRITY FAILURE: %s", report)
+    else:
+        log.info("ledger integrity ok")
+    return report

@@ -1,5 +1,6 @@
+import logging
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, Literal
 
@@ -26,6 +27,8 @@ from app.services import config_registry as cfg
 from app.services import ledger, payouts
 from app.services import tables as table_svc
 from app.services.payments import PaymentError, deposit_view
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -58,12 +61,14 @@ async def update_setting(
 
 @router.put("/users/{user_id}/kyc-tier")
 async def set_kyc_tier(
-    user_id: uuid.UUID, body: KycTierUpdate, _admin: AdminUser, session: SessionDep
+    user_id: uuid.UUID, body: KycTierUpdate, admin: AdminUser, session: SessionDep
 ) -> UserOut:
     """Manual KYC override until the Smile ID integration lands."""
     user = await session.get(User, user_id)
     if user is None:
         raise ApiError(404, "not_found", "User not found.")
+    if user.id == admin.id:
+        raise ApiError(409, "self_change", "Another admin must change your verification level.")
     user.kyc_tier = body.kyc_tier
     await session.commit()
     return user_out(user)
@@ -203,6 +208,59 @@ async def cancel_table(
     return await table_svc.table_view(session, table)
 
 
+class SettleIn(BaseModel):
+    finishing_order: list[uuid.UUID] = Field(min_length=1, max_length=100)
+    note: str = Field(min_length=5, max_length=500)
+
+
+class VoidIn(BaseModel):
+    note: str = Field(min_length=5, max_length=500)
+
+
+@router.get("/tables/stale")
+async def stale_tables(_admin: AdminUser, session: SessionDep) -> list[dict[str, Any]]:
+    """Running tables with no result for longer than table.running_alert_minutes."""
+    minutes = await cfg.get_int(session, "table.running_alert_minutes")
+    return [
+        await table_svc.table_view(session, t)
+        for t in await table_svc.stale_running(session, minutes)
+    ]
+
+
+@router.post("/tables/{table_id}/settle")
+async def settle_table(
+    table_id: uuid.UUID, body: SettleIn, admin: AdminUser, session: SessionDep
+) -> dict[str, Any]:
+    """Pay out a running table by hand when the game server's result was lost
+    (e.g. from the game server's log). Players not listed finish last."""
+    log.warning(
+        "admin %s settles table %s: %s (%s)", admin.id, table_id, body.finishing_order, body.note
+    )
+    try:
+        table = await table_svc.settle(session, table_id, body.finishing_order)
+    except table_svc.TableError as exc:
+        await session.rollback()
+        raise ApiError(exc.status_code, exc.code, str(exc)) from exc
+    await session.commit()
+    return await table_svc.table_view(session, table)
+
+
+@router.post("/tables/{table_id}/void")
+async def void_table(
+    table_id: uuid.UUID, body: VoidIn, admin: AdminUser, session: SessionDep
+) -> dict[str, Any]:
+    """A running table whose result can't be recovered: everyone gets their
+    whole entry back and the table is cancelled."""
+    log.warning("admin %s voids table %s (%s)", admin.id, table_id, body.note)
+    try:
+        table = await table_svc.void_running(session, table_id, f"void by admin: {body.note}")
+    except table_svc.TableError as exc:
+        await session.rollback()
+        raise ApiError(exc.status_code, exc.code, str(exc)) from exc
+    await session.commit()
+    return await table_svc.table_view(session, table)
+
+
 # ----------------------------------------------------------- withdrawals review
 
 
@@ -245,6 +303,22 @@ async def _review(
     if w.status == "approved":
         w = await payouts.send(session, paystack, reference)
         await session.commit()
+    return payouts.view(w)
+
+
+@router.post("/withdrawals/{reference}/resolve")
+async def resolve_withdrawal(
+    reference: str, body: VoidIn, admin: AdminUser, session: SessionDep, paystack: PaystackDep
+) -> dict[str, Any]:
+    """A withdrawal stuck in approved/processing: ask Paystack, then book it as
+    paid or refund the player."""
+    log.warning("admin %s resolves withdrawal %s (%s)", admin.id, reference, body.note)
+    try:
+        w = await payouts.resolve_stuck(session, paystack, admin, reference, body.note)
+    except PaymentError as exc:
+        await session.rollback()
+        raise ApiError(exc.status_code, exc.code, str(exc)) from exc
+    await session.commit()
     return payouts.view(w)
 
 
@@ -353,6 +427,10 @@ async def set_user_status(
     if u.id == admin.id:
         raise ApiError(409, "self_change", "You can't change your own status.")
     u.status = body.status
+    if body.status == "self_excluded":
+        # Enforced like a player's own exclusion, and never lifted early from here.
+        u.excluded_until = datetime(9999, 12, 31, tzinfo=UTC)
+        await table_svc.leave_all_open(session, u)
     if body.status != "active":
         await auth_svc.revoke_all_for_user(session, u.id)
     await session.commit()

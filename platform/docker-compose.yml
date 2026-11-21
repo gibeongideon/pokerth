@@ -5,6 +5,7 @@ services:
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     environment: &app-env
       PLATFORM_ENV: local
+      PLATFORM_ENABLE_DEV_ROUTES: "true"
       PLATFORM_DATABASE_URL: postgresql+asyncpg://platform:platform@postgres:5432/platform
       PLATFORM_REDIS_URL: redis://redis:6379/0
       PLATFORM_SMTP_HOST: mailpit

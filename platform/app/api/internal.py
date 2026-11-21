@@ -19,6 +19,9 @@ router = APIRouter(prefix="/internal", tags=["internal"])
 
 
 class GameResult(BaseModel):
+    # The table is inside the signed body, so a captured result can't be
+    # replayed onto another table (replaying onto the same one is a no-op).
+    table_id: uuid.UUID
     # User ids, winner first.
     finishing_order: list[uuid.UUID]
 
@@ -38,6 +41,8 @@ async def game_result(table_id: uuid.UUID, request: Request, session: SessionDep
         result = GameResult.model_validate(json.loads(raw))
     except (ValueError, ValidationError) as exc:
         raise ApiError(422, "bad_payload", "Malformed result.") from exc
+    if result.table_id != table_id:
+        raise ApiError(422, "table_mismatch", "The result is for a different table.")
     try:
         table = await svc.settle(session, table_id, result.finishing_order)
     except svc.TableError as exc:

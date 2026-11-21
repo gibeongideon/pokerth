@@ -19,7 +19,11 @@ _DEV_GAME_SECRET = "dev-only-insecure-game-secret"  # noqa: S105 (refused outsid
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="PLATFORM_", extra="ignore")
 
-    env: Literal["local", "dev", "staging", "prod"] = "local"
+    # Defaults to prod so a deploy that forgets PLATFORM_ENV gets every
+    # production guard, never the local conveniences.
+    env: Literal["local", "dev", "staging", "prod"] = "prod"
+    # /dev/* (demo sign-in, simulate results, ...) needs env=local AND this flag.
+    enable_dev_routes: bool = False
     debug: bool = False
     # Where the player app lives; magic links and payment callbacks point here.
     public_base_url: str = "http://localhost:5173"
@@ -72,15 +76,21 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _no_dev_secrets_outside_local(self) -> "Settings":
-        if self.env in ("staging", "prod"):
+        if self.enable_dev_routes and self.env != "local":
+            raise ValueError("PLATFORM_ENABLE_DEV_ROUTES is only allowed with PLATFORM_ENV=local")
+        if self.env != "local":
             secret = self.jwt_secret.get_secret_value()
             if secret == _DEV_JWT_SECRET or len(secret) < 32:
-                raise ValueError("PLATFORM_JWT_SECRET must be set (32+ chars) outside local/dev")
+                raise ValueError("PLATFORM_JWT_SECRET must be set (32+ chars) outside local")
             if self.game_internal_secret.get_secret_value() == _DEV_GAME_SECRET:
-                raise ValueError("PLATFORM_GAME_INTERNAL_SECRET must be set outside local/dev")
+                raise ValueError("PLATFORM_GAME_INTERNAL_SECRET must be set outside local")
             if not self.seat_token_private_key.get_secret_value():
-                raise ValueError("PLATFORM_SEAT_TOKEN_PRIVATE_KEY must be set outside local/dev")
+                raise ValueError("PLATFORM_SEAT_TOKEN_PRIVATE_KEY must be set outside local")
         return self
+
+    @property
+    def dev_routes(self) -> bool:
+        return self.env == "local" and self.enable_dev_routes
 
     @property
     def cookie_secure(self) -> bool:

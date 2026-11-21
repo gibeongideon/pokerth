@@ -36,7 +36,14 @@ _DEFS = [
     SettingDef("p2p_transfers_enabled", bool, False, "Allow wallet-to-wallet transfers."),
     SettingDef("deposit_on_behalf_enabled", bool, True, "Allow paying into someone else's wallet."),
     # FX (D-017)
-    SettingDef("fx.usd_kes_rate", Decimal, Decimal("129"), "KES per 1 USD.", min=Decimal("1")),
+    SettingDef(
+        "fx.usd_kes_rate",
+        Decimal,
+        Decimal("129"),
+        "KES per 1 USD.",
+        min=Decimal("50"),
+        max=Decimal("500"),
+    ),
     SettingDef(
         "fx.spread_pct",
         Decimal,
@@ -69,6 +76,22 @@ _DEFS = [
     SettingDef(
         "auth.magic_link_per_hour", int, 5, "Magic links per email per hour.", min=1, max=50
     ),
+    SettingDef(
+        "auth.magic_link_per_ip_hour",
+        int,
+        30,
+        "Magic links one IP address can request per hour.",
+        min=1,
+        max=1000,
+    ),
+    SettingDef(
+        "auth.code_max_failures_per_day",
+        int,
+        10,
+        "Wrong sign-in codes allowed per email per 24h (the email link still works).",
+        min=3,
+        max=100,
+    ),
 ]
 
 _DEFS += [
@@ -100,10 +123,28 @@ _DEFS += [
     SettingDef(
         "table.max_concurrent_per_user",
         int,
-        3,
+        # 1 until the game server keys sessions by player + table: today a
+        # second connection with the same name takes over the first (H5).
+        1,
         "Tables one player can be in at once.",
         min=1,
         max=20,
+    ),
+    SettingDef(
+        "table.open_max_minutes",
+        int,
+        60,
+        "A table that hasn't filled this long after its first player joined is cancelled and "
+        "refunded (0 = never).",
+        min=0,
+        max=1440,
+    ),
+    SettingDef(
+        "table.running_alert_minutes",
+        int,
+        240,
+        "Alert when a running table has no result after this long.",
+        min=10,
     ),
     # Taxes (D-013): configurable, confirm rates with a tax adviser before launch.
     SettingDef(
@@ -174,6 +215,22 @@ _DEFS += [
     ),
     SettingDef(
         "withdraw.require_email_code", bool, True, "Confirm withdrawals with an emailed code."
+    ),
+    SettingDef(
+        "withdraw.max_open_unconfirmed",
+        int,
+        3,
+        "Unconfirmed withdrawals one player may have open at once.",
+        min=1,
+        max=20,
+    ),
+    SettingDef(
+        "withdraw.phone_change_hold_hours",
+        int,
+        24,
+        "No withdrawals for this long after the payout number changes.",
+        min=0,
+        max=720,
     ),
     SettingDef(
         "withdraw.code_ttl_seconds",

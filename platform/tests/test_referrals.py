@@ -158,8 +158,8 @@ async def test_email_invite_is_tracked_by_email(
             json={"emails": ["Wanjiru@Example.com", "existing@example.com", "amina@example.com"]},
         )
     ).json()
-    assert r["invited"] == ["wanjiru@example.com"]
-    assert r["friend_requests"] == ["existing@example.com"]
+    # Same answer for an email that already plays (no probing): it gets a friend request.
+    assert r["invited"] == ["wanjiru@example.com", "existing@example.com"]
     assert r["skipped"] == [{"handle": "amina@example.com", "reason": "self"}]
     mail = mailer.sent[-1]
     assert mail["to"] == "wanjiru@example.com" and "/i/" in mail["body"]
@@ -180,9 +180,13 @@ async def test_email_invite_is_tracked_by_email(
     )
     wh = {"Authorization": f"Bearer {new.json()['access_token']}"}
     # Credited to the first inviter; friends with both.
-    assert (await client.get("/me/referral", headers=ah)).json()["signed_up"] == 1
+    # No link used: nobody gets referral credit (no pre-claiming strangers),
+    # but both inviters see "joined" and sent friend requests.
+    assert (await client.get("/me/referral", headers=ah)).json()["signed_up"] == 0
     assert (await client.get("/me/referral", headers=bh)).json()["signed_up"] == 0
-    assert sorted(await _friends(client, wh)) == ["amina", "baraka"]
+    assert await _friends(client, wh) == []
+    incoming = (await client.get("/friends", headers=wh)).json()["incoming"]
+    assert sorted(f["username"] for f in incoming) == ["amina", "baraka"]
     sent = (await client.get("/me/invites", headers=ah)).json()
     assert sent[0]["status"] == "joined"
 

@@ -9,6 +9,7 @@ ledger post uses ``deposit:<reference>`` as its idempotency key.
 import logging
 import re
 import secrets
+import uuid
 from dataclasses import dataclass
 from datetime import timedelta
 from decimal import ROUND_CEILING, ROUND_HALF_UP, Decimal
@@ -113,6 +114,13 @@ async def find_recipient(session: AsyncSession, handle: str) -> User:
     return user
 
 
+async def lock_users(session: AsyncSession, user_ids: set[uuid.UUID]) -> None:
+    """Row-lock players (in id order, so two locks never deadlock)."""
+    await session.execute(
+        select(User.id).where(User.id.in_(sorted(user_ids))).order_by(User.id).with_for_update()
+    )
+
+
 # ----------------------------------------------------------------- deposits
 
 
@@ -146,7 +154,20 @@ async def create_deposit(
         if not await cfg.get_bool(session, "deposit_on_behalf_enabled"):
             raise PaymentError("feature_disabled", "Funding another player is turned off.", 403)
         beneficiary = await find_recipient(session, recipient)
+        # The money is theirs: their exclusion and limits apply too. One vague
+        # answer, so nobody learns another player's settings.
+        if beneficiary.id != payer.id:
+            try:
+                if beneficiary.terms_accepted_at is None:
+                    raise rg.RgBlockedError("blocked", "")
+                await rg.check_deposit(session, beneficiary, usd_cents)
+            except rg.RgBlockedError as exc:
+                raise PaymentError(
+                    "recipient_unavailable", "This player can't receive deposits right now.", 403
+                ) from exc
 
+    # Serialize each player's deposits so the daily limits can't be raced.
+    await lock_users(session, {payer.id, beneficiary.id})
     q = await quote(session, channel, usd_cents)
 
     daily_max = await cfg.get_int(session, "deposit.daily_max_usd_cents")
@@ -315,6 +336,7 @@ async def transfer(
     to = await find_recipient(session, recipient)
     if to.id == sender.id:
         raise PaymentError("self_transfer", "You can't send money to yourself.")
+    await lock_users(session, {sender.id})
     max_one = await cfg.get_int(session, "p2p.max_usd_cents")
     if not 0 < usd_cents <= max_one:
         raise PaymentError("amount_out_of_range", f"Transfers are limited to ${max_one / 100:.2f}.")

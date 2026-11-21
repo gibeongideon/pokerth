@@ -20,6 +20,8 @@ class User(Base):
     google_sub: Mapped[str | None] = mapped_column(String(255), unique=True)
     # E.164 (+2547XXXXXXXX), used for M-Pesa.
     phone: Mapped[str | None] = mapped_column(String(16))
+    # Withdrawals pause for a while after the payout number changes (stolen-session defence).
+    phone_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # 0 = email only, 1 = ID number verified, 2 = selfie + liveness (D-014).
     kyc_tier: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")

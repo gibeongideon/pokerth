@@ -30,10 +30,26 @@ from app.services.paystack import PaystackClient, PaystackError
 
 log = logging.getLogger(__name__)
 
-PREFIX = "WD-"
+# Lowercase: Paystack documents transfer references as lowercase. Older rows
+# used "WD-"; lookups match either.
+PREFIX = "wd-"
 _MAX_CODE_ATTEMPTS = 5
-_COUNTS_TOWARD_LIMITS = ("pending_review", "approved", "processing", "success")
+# Unconfirmed withdrawals count too, so a limit can't be beaten by opening
+# many small withdrawals and confirming them all.
+_COUNTS_TOWARD_LIMITS = (
+    "awaiting_confirmation",
+    "pending_review",
+    "approved",
+    "processing",
+    "success",
+)
 _FINAL = ("success", "failed", "reversed", "rejected", "cancelled", "expired")
+# Paystack transfer statuses that mean the money did not leave.
+_FAILED_STATUSES = ("failed", "reversed", "abandoned", "blocked", "rejected")
+
+
+def is_withdrawal_reference(reference: str) -> bool:
+    return reference.lower().startswith("wd-")
 
 
 def _err(code: str, message: str, status: int = 400) -> PaymentError:
@@ -99,14 +115,72 @@ async def quote(session: AsyncSession, usd_cents: int) -> dict[str, Any]:
 # --------------------------------------------------------------- requesting
 
 
-async def _withdrawn_since(session: AsyncSession, user_id: uuid.UUID, hours: int) -> int:
-    total = await session.scalar(
+async def _withdrawn_since(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    hours: int,
+    *,
+    exclude: uuid.UUID | None = None,
+    statuses: tuple[str, ...] = _COUNTS_TOWARD_LIMITS,
+) -> int:
+    q = (
         select(func.coalesce(func.sum(Withdrawal.amount_usd_cents), 0))
         .where(Withdrawal.user_id == user_id)
-        .where(Withdrawal.status.in_(_COUNTS_TOWARD_LIMITS))
+        .where(Withdrawal.status.in_(statuses))
         .where(Withdrawal.created_at > utcnow() - timedelta(hours=hours))
     )
-    return int(total or 0)
+    if exclude is not None:
+        q = q.where(Withdrawal.id != exclude)
+    return int(await session.scalar(q) or 0)
+
+
+async def _lock_user(session: AsyncSession, user_id: uuid.UUID) -> None:
+    """Serialize one player's withdrawals, so limit checks can't be raced."""
+    await session.execute(
+        select(User.id)
+        .where(User.id == user_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+
+
+async def _check_phone_hold(session: AsyncSession, user: User) -> None:
+    hold = await cfg.get_int(session, "withdraw.phone_change_hold_hours")
+    if hold and user.phone_changed_at and user.phone_changed_at > utcnow() - timedelta(hours=hold):
+        raise _err(
+            "phone_recently_changed",
+            f"Your M-Pesa number changed recently. Withdrawals open {hold}h after the change.",
+            403,
+        )
+
+
+async def _check_limits(
+    session: AsyncSession, user: User, usd_cents: int, *, exclude: uuid.UUID | None = None
+) -> None:
+    """Amount range, KYC tier and daily/monthly limits. Caller holds the user lock."""
+    lo = await cfg.get_int(session, "withdraw.min_usd_cents")
+    hi = await cfg.get_int(session, "withdraw.max_usd_cents")
+    if not lo <= usd_cents <= hi:
+        raise _err("amount_out_of_range", f"Withdraw between ${lo / 100:.2f} and ${hi / 100:.2f}.")
+    day = await _withdrawn_since(session, user.id, 24, exclude=exclude)
+    tier = await cfg.get_int(session, "kyc.withdraw_min_tier")
+    # Level 2 is judged on the 24h total, so splitting a big withdrawal doesn't avoid it.
+    if day + usd_cents > await cfg.get_int(session, "kyc.withdraw_tier2_above_usd_cents"):
+        tier = max(tier, 2)
+    if user.kyc_tier < tier:
+        raise _err("kyc_required", f"Verify your identity (level {tier}) to withdraw this.", 403)
+    for hours, key, total in (
+        (24, "withdraw.daily_max_usd_cents", day),
+        (720, "withdraw.monthly_max_usd_cents", None),
+    ):
+        used = (
+            total
+            if total is not None
+            else await _withdrawn_since(session, user.id, hours, exclude=exclude)
+        )
+        if used + usd_cents > await cfg.get_int(session, key):
+            period = "daily" if hours == 24 else "monthly"
+            raise _err(f"{period}_limit", f"This would go over your {period} withdrawal limit.")
 
 
 def _code_hash(withdrawal_id: uuid.UUID, code: str) -> str:
@@ -130,26 +204,17 @@ async def request(
         raise _err("withdrawals_disabled", "Withdrawals are not available right now.", 403)
     if user.terms_accepted_at is None:
         raise _err("terms_required", "Accept the terms and confirm you are 18+.", 403)
-    tier = await cfg.get_int(session, "kyc.withdraw_min_tier")
-    tier2_above = await cfg.get_int(session, "kyc.withdraw_tier2_above_usd_cents")
-    if usd_cents > tier2_above:
-        tier = max(tier, 2)
-    if user.kyc_tier < tier:
-        raise _err("kyc_required", f"Verify your identity (level {tier}) to withdraw this.", 403)
-
-    lo = await cfg.get_int(session, "withdraw.min_usd_cents")
-    hi = await cfg.get_int(session, "withdraw.max_usd_cents")
-    if not lo <= usd_cents <= hi:
-        raise _err("amount_out_of_range", f"Withdraw between ${lo / 100:.2f} and ${hi / 100:.2f}.")
-    for hours, key in (
-        (24, "withdraw.daily_max_usd_cents"),
-        (720, "withdraw.monthly_max_usd_cents"),
-    ):
-        if await _withdrawn_since(session, user.id, hours) + usd_cents > await cfg.get_int(
-            session, key
-        ):
-            period = "daily" if hours == 24 else "monthly"
-            raise _err(f"{period}_limit", f"This would go over your {period} withdrawal limit.")
+    await _lock_user(session, user.id)
+    await _check_phone_hold(session, user)
+    open_unconfirmed = await session.scalar(
+        select(func.count())
+        .select_from(Withdrawal)
+        .where(Withdrawal.user_id == user.id, Withdrawal.status == "awaiting_confirmation")
+        .where(Withdrawal.otp_expires_at > utcnow())
+    )
+    if (open_unconfirmed or 0) >= await cfg.get_int(session, "withdraw.max_open_unconfirmed"):
+        raise _err("too_many_open", "Confirm or cancel your other withdrawals first.", 409)
+    await _check_limits(session, user, usd_cents)
     if await ledger.balance(session, ledger.user_available(user.id)) < usd_cents:
         raise _err("insufficient_funds", "Not enough money in your wallet.")
 
@@ -159,7 +224,7 @@ async def request(
 
     q = await quote(session, usd_cents)
     w = Withdrawal(
-        reference=f"{PREFIX}{secrets.token_hex(10).upper()}",
+        reference=f"{PREFIX}{secrets.token_hex(10)}",
         user_id=user.id,
         destination_id=dest.id,
         status="awaiting_confirmation",
@@ -173,7 +238,7 @@ async def request(
     await session.flush()
 
     if not await cfg.get_bool(session, "withdraw.require_email_code"):
-        await _confirmed(session, w)
+        await _confirmed(session, w, user)
         return w
 
     code = f"{secrets.randbelow(10**6):06d}"
@@ -206,11 +271,16 @@ async def confirm(session: AsyncSession, user: User, reference: str, code: str) 
             w.status = "expired"
             raise _err("too_many_attempts", "Too many wrong codes. Start again.", 429)
         raise _err("wrong_code", "That code is not right.", 400)
-    await _confirmed(session, w)
+    # Limits again, now under the player's lock: other withdrawals may have
+    # been confirmed since this one was requested.
+    await _lock_user(session, user.id)
+    await _check_phone_hold(session, user)
+    await _check_limits(session, user, w.amount_usd_cents, exclude=w.id)
+    await _confirmed(session, w, user)
     return w
 
 
-async def _confirmed(session: AsyncSession, w: Withdrawal) -> None:
+async def _confirmed(session: AsyncSession, w: Withdrawal, user: User) -> None:
     try:
         await ledger.post(
             session,
@@ -228,8 +298,19 @@ async def _confirmed(session: AsyncSession, w: Withdrawal) -> None:
         raise _err("insufficient_funds", "Not enough money in your wallet.") from exc
 
     reasons = []
-    if w.amount_usd_cents > await cfg.get_int(session, "withdraw.auto_approve_max_usd_cents"):
-        reasons.append("amount above auto-approve limit")
+    # Judged on the 24h total of confirmed withdrawals, so many small ones
+    # can't slip past review.
+    confirmed_day = await _withdrawn_since(
+        session,
+        w.user_id,
+        24,
+        exclude=w.id,
+        statuses=("pending_review", "approved", "processing", "success"),
+    )
+    if confirmed_day + w.amount_usd_cents > await cfg.get_int(
+        session, "withdraw.auto_approve_max_usd_cents"
+    ):
+        reasons.append("24h total above auto-approve limit")
     hours = await cfg.get_int(session, "withdraw.deposit_review_hours")
     recent = await session.scalar(
         select(Deposit.id)
@@ -246,7 +327,14 @@ async def _confirmed(session: AsyncSession, w: Withdrawal) -> None:
 
 
 async def _lock(session: AsyncSession, reference: str, user_id: uuid.UUID | None) -> Withdrawal:
-    q = select(Withdrawal).where(Withdrawal.reference == reference).with_for_update()
+    # populate_existing: the session may already hold this row from before the
+    # lock (expire_on_commit=False); without it we'd act on stale values.
+    q = (
+        select(Withdrawal)
+        .where(Withdrawal.reference == reference)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     if user_id is not None:
         q = q.where(Withdrawal.user_id == user_id)
     w = await session.scalar(q)
@@ -290,6 +378,8 @@ async def review(
     w = await _lock(session, reference, None)
     if w.status != "pending_review":
         raise _err("not_in_review", "This withdrawal is not waiting for review.", 409)
+    if w.user_id == admin.id:
+        raise _err("own_withdrawal", "Another admin must review your own withdrawal.", 403)
     w.reviewed_by, w.reviewed_at, w.review_note = admin.id, utcnow(), note
     if approve:
         w.status = "approved"
@@ -308,10 +398,19 @@ async def send(session: AsyncSession, paystack: PaystackClient, reference: str) 
     w = await _lock(session, reference, None)
     if w.status != "approved":
         return w
+    # Kill switches also stop payouts already in flight (they stay approved).
+    if not await cfg.get_bool(session, "real_money_enabled") or not await cfg.get_bool(
+        session, "withdrawals_enabled"
+    ):
+        return w
     if w.send_attempts > 0:
         try:
-            existing = await paystack.verify_transfer(w.reference)
-        except PaystackError:
+            existing: dict[str, Any] | None = await paystack.verify_transfer(w.reference)
+        except PaystackError as exc:
+            if exc.status_code != 404:
+                # Can't tell whether the transfer exists: never risk paying twice.
+                w.failure_reason = f"verify before resend failed: {exc}"[:500]
+                return w
             existing = None
         if existing is not None:
             w.transfer_code = existing.get("transfer_code")
@@ -361,9 +460,27 @@ async def apply_result(
     """Apply a transfer outcome (webhook or verify). Returns True if it changed
     anything. Final states are never changed again."""
     w = locked or await _lock(session, reference, None)
+    status = str(data.get("status") or "")
+    if w.status == "success" and status == "reversed":
+        # Paystack took a completed payout back: the player gets the money back.
+        log.error("withdrawal %s reversed after success - refunding the player", reference)
+        await ledger.post(
+            session,
+            idempotency_key=f"withdraw-reversal:{reference}",
+            kind="refund",
+            legs=[
+                Leg(ledger.PAYSTACK_CLEARING, -(w.amount_usd_cents - w.fee_usd_cents)),
+                *([Leg(ledger.HOUSE_FEES, -w.fee_usd_cents)] if w.fee_usd_cents else []),
+                Leg(ledger.user_available(w.user_id), w.amount_usd_cents),
+            ],
+            memo="withdrawal reversed by the bank - returned",
+            meta={"reference": reference},
+        )
+        w.status, w.completed_at = "reversed", utcnow()
+        w.failure_reason = "reversed after payout"
+        return True
     if w.status in _FINAL:
         return False
-    status = str(data.get("status") or "")
     if status == "success":
         if data.get("amount") not in (None, w.payout_amount):
             log.error(
@@ -385,12 +502,39 @@ async def apply_result(
         )
         w.status, w.completed_at = "success", utcnow()
         return True
-    if status in ("failed", "reversed"):
+    if status in _FAILED_STATUSES:
         await _refund(session, w, status)
-        w.status, w.completed_at = status, utcnow()
+        w.status, w.completed_at = ("reversed" if status == "reversed" else "failed"), utcnow()
         w.failure_reason = str(data.get("reason") or data.get("gateway_response") or status)[:500]
         return True
     return False  # pending / processing: nothing to do yet
+
+
+async def resolve_stuck(
+    session: AsyncSession, paystack: PaystackClient, admin: User, reference: str, note: str
+) -> Withdrawal:
+    """Admin: settle a withdrawal stuck in approved/processing. Asks Paystack
+    first - a paid transfer is booked as paid, anything else is refunded."""
+    w = await _lock(session, reference, None)
+    if w.status not in ("approved", "processing"):
+        raise _err("not_stuck", "Only approved or processing withdrawals can be resolved.", 409)
+    if w.user_id == admin.id:
+        raise _err("own_withdrawal", "Another admin must resolve your own withdrawal.", 403)
+    try:
+        data: dict[str, Any] = await paystack.verify_transfer(w.reference)
+    except PaystackError as exc:
+        if exc.status_code != 404:
+            raise _err("paystack_unavailable", f"Couldn't check with Paystack: {exc}", 503) from exc
+        data = {"status": "failed", "reason": "transfer never created"}
+    if str(data.get("status")) not in ("success", *_FAILED_STATUSES):
+        if w.status == "processing":
+            raise _err(
+                "still_pending", f"Paystack still reports '{data.get('status')}'. Try later.", 409
+            )
+        data = {"status": "failed", "reason": "never sent"}
+    w.reviewed_by, w.reviewed_at, w.review_note = admin.id, utcnow(), note[:500]
+    await apply_result(session, w.reference, data, locked=w)
+    return w
 
 
 def view(w: Withdrawal) -> dict[str, Any]:

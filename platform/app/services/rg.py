@@ -9,7 +9,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import utcnow
@@ -41,6 +41,9 @@ class RgBlockedError(Exception):
 
 
 def is_excluded(user: User) -> bool:
+    # An operator-set exclusion (status) counts as much as one the player chose.
+    if user.status == "self_excluded":
+        return True
     return user.excluded_until is not None and user.excluded_until > utcnow()
 
 
@@ -64,7 +67,10 @@ async def _limits(session: AsyncSession, user_id: uuid.UUID) -> list[RgLimit]:
 async def deposited(session: AsyncSession, user_id: uuid.UUID, window: timedelta) -> int:
     total = await session.scalar(
         select(func.coalesce(func.sum(Deposit.credit_usd_cents), 0))
-        .where(Deposit.payer_id == user_id, Deposit.status.in_(("pending", "success")))
+        # Money in either direction counts, so friends funding each other
+        # can't get round a limit.
+        .where(or_(Deposit.payer_id == user_id, Deposit.beneficiary_id == user_id))
+        .where(Deposit.status.in_(("pending", "success")))
         .where(Deposit.created_at > utcnow() - window)
     )
     return int(total or 0)

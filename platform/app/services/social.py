@@ -5,6 +5,7 @@ which commit before sending so an email never refers to unsaved data.
 """
 
 import logging
+import re
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -17,6 +18,7 @@ from app.core.config import get_settings
 from app.core.security import utcnow
 from app.models import Friendship, GameTable, StakeTier, TableInvite, TableSeat, User
 from app.services import config_registry as cfg
+from app.services import rg
 from app.services import tables as table_svc
 from app.services.game_gateway import GameGateway
 from app.services.mailer import Mailer, MailError
@@ -67,13 +69,22 @@ async def are_friends(session: AsyncSession, a: uuid.UUID, b: uuid.UUID) -> bool
 async def request_friend(session: AsyncSession, user: User, handle: str) -> str:
     """Returns the resulting status: 'pending', 'accepted' or 'sent'.
     Unknown emails answer 'sent' too, so emails can't be probed."""
+    by_email = "@" in handle
     other = await _find(session, handle)
     if other is None:
-        if "@" in handle:
+        if by_email:
             return "sent"
         raise SocialError("not_found", "No player with that username.", 404)
     if other.id == user.id:
         raise SocialError("self", "You can't add yourself.")
+    if by_email:
+        # Same answer whether or not the email has an account (no probing).
+        await _request(session, user, other)
+        return "sent"
+    return await _request(session, user, other)
+
+
+async def _request(session: AsyncSession, user: User, other: User) -> str:
 
     rows = await _pair(session, user.id, other.id)
     if any(r.status == "accepted" for r in rows):
@@ -218,8 +229,9 @@ async def invite(
         if budget <= 0:
             result.skipped.append({"handle": raw, "reason": "invite_limit"})
             continue
+        by_email = "@" in raw
         target = await _find(session, raw)
-        if target is None and "@" not in raw:
+        if target is None and not by_email:
             result.skipped.append({"handle": raw, "reason": "not_found"})
             continue
         if target is not None:
@@ -227,6 +239,9 @@ async def invite(
                 result.skipped.append({"handle": raw, "reason": "self"})
                 continue
             if friends_only and not await are_friends(session, inviter.id, target.id):
+                if by_email:  # don't reveal that the email has an account
+                    result.invited.append(raw)
+                    continue
                 result.skipped.append({"handle": raw, "reason": "not_friends"})
                 continue
             seated = await session.scalar(
@@ -237,6 +252,9 @@ async def invite(
                 )
             )
             if seated is not None:
+                if by_email:
+                    result.invited.append(raw)
+                    continue
                 result.skipped.append({"handle": raw, "reason": "already_seated"})
                 continue
         who = (
@@ -265,7 +283,9 @@ async def invite(
         )
         budget -= 1
         result.invited.append(raw)
-        emails.append((target.email if target else raw, target))
+        # No gambling invites to people who paused play (in-app invite still shows).
+        if target is None or not rg.is_excluded(target):
+            emails.append((target.email if target else raw, target))
 
     from app.services import referrals  # local import: referrals uses this module too
 
@@ -282,25 +302,44 @@ async def invite(
     return result
 
 
+_URL = re.compile(
+    r"(https?://\S+|www\.\S+|\b[\w-]+(\.[\w-]+)*\.(com|net|org|io|co|ke|app|xyz|info|link|me)\b\S*)",
+    re.I,
+)
+
+
+def strip_links(text: str) -> str:
+    return _URL.sub("[link removed]", text)
+
+
+def player_note(message: str | None) -> str:
+    """A player's personal message, quoted and marked as theirs, with links
+    removed (invite emails must not become a phishing channel)."""
+    text = _URL.sub("[link removed]", (message or "").strip())[:300]
+    return (
+        f'\n\nTheir message (written by the player, not by Felt Kings):\n"{text}"' if text else ""
+    )
+
+
 def _invite_email(
     inviter: User, table: GameTable, message: str | None, has_account: bool, ref: str | None = None
 ) -> tuple[str, str]:
     c = table.config
-    what = table.title or f"a {c['name']} game"
+    what = strip_links(table.title or f"a {c['name']} game")
     when = (
         f"Starts {table.scheduled_start_at:%a %d %b, %H:%M} UTC."
         if table.scheduled_start_at
         else "Starts as soon as the table is full."
     )
-    note = f'\n\n"{message.strip()}"' if message and message.strip() else ""
+    note = player_note(message)
     step = "Tap to join:" if has_account else "Create your free account and join:"
     body = (
-        f"{_name(inviter)} invited you to {what}.\n\n"
+        f'Felt Kings player "{strip_links(_name(inviter))}" invited you to {what}.\n\n'
         f"Price: {c['price_label']} · {c['seats']} seats. {when}{note}\n\n"
         f"{step}\n{join_link(table, None if has_account else ref)}\n\n"
         "Ignore this email if you're not interested."
     )
-    return f"{_name(inviter)} invited you to play poker", body
+    return "You're invited to a Felt Kings table", body
 
 
 async def my_invites(session: AsyncSession, user: User) -> list[dict[str, Any]]:
@@ -381,10 +420,21 @@ async def table_invites(
             .order_by(TableInvite.created_at)
         )
     ).all()
+
+    def shown(i: TableInvite, username: str | None) -> str:
+        if username:
+            return username
+        email = i.invitee_email or ""
+        # Email addresses are personal: only the inviter and the organizer see them.
+        if user.id in (i.inviter_id, table.created_by):
+            return email
+        name, _, domain = email.partition("@")
+        return f"{name[:1]}•••@{domain}" if domain else "invited player"
+
     return [
         {
             "invite_id": str(i.id),
-            "invitee": username or i.invitee_email,
+            "invitee": shown(i, username),
             "status": i.status,
             "responded_at": i.responded_at.isoformat() if i.responded_at else None,
         }

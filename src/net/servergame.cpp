@@ -421,6 +421,8 @@ ServerGame::InternalStartGame()
 
 		GuiInterface &gui = GetGui();
 		m_game.reset(new Game(&gui, factory, playerData, GetGameData(), GetStartData(), GetNextGameNum(), NULL));
+		if (IsPlatformGame())
+			GetLobbyThread().MarkPlatformStarted(m_platformTableId);
 
 		GetDatabase().AsyncCreateGame(GetId(), GetName());
 		InitRankingMap(playerData);
@@ -1188,7 +1190,10 @@ ServerGame::RemoveDisconnectedPlayers()
 			if ((*p)->getMyCash() > 0 && !isPlayerDisconnected(*p))
 				++connectedWithCash;
 		}
-		const bool lastConnectedPlayer = (connectedWithCash == 1);
+		// Platform (real-money) games always give offline players the full
+		// reconnect grace: a short network drop must never hand the opponent
+		// the pool.
+		const bool lastConnectedPlayer = !IsPlatformGame() && (connectedWithCash == 1);
 
 		PlayerListIterator i = tmpList->begin();
 		PlayerListIterator end = tmpList->end();

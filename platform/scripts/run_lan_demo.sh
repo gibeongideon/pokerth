@@ -27,7 +27,7 @@ docker run -d --name poker-gs --network host -v poker-server-build-cache:/build:
 trap 'docker rm -f poker-gs >/dev/null 2>&1 || true' EXIT
 
 echo "API on http://$IP:8000 - open http://$IP:8000/healthz on the phone to check it can connect."
-PLATFORM_ENV=local \
+PLATFORM_ENV=local PLATFORM_ENABLE_DEV_ROUTES=true \
 PLATFORM_GAME_WS_URL="ws://$IP:7233" \
 PLATFORM_PUBLIC_BASE_URL="http://$IP:8000" \
   python -m uvicorn app.main:app --host 0.0.0.0 --port 8000

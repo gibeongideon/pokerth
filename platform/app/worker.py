@@ -44,6 +44,14 @@ celery_app.conf.update(
             "task": "app.worker.reconcile_deposits",
             "schedule": crontab(hour=0, minute=30),
         },
+        "alert-stale-tables": {
+            "task": "app.worker.alert_stale_tables",
+            "schedule": 900.0,
+        },
+        "ledger-integrity-nightly": {
+            "task": "app.worker.check_ledger_integrity",
+            "schedule": crontab(hour=1, minute=0),
+        },
     },
 )
 
@@ -84,6 +92,16 @@ async def _tick(sessions: async_sessionmaker[Any]) -> dict[str, int]:
 def tick_tables() -> dict[str, int]:
     """Ready-check timeouts, scheduled starts, keep an open table per level."""
     return _run(_tick)
+
+
+@celery_app.task(name="app.worker.alert_stale_tables")
+def alert_stale_tables() -> int:
+    return _run(jobs.alert_stale_tables)
+
+
+@celery_app.task(name="app.worker.check_ledger_integrity")
+def check_ledger_integrity() -> dict[str, Any]:
+    return _run(jobs.check_ledger_integrity)
 
 
 @celery_app.task(name="app.worker.process_withdrawals")

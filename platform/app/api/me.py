@@ -1,17 +1,22 @@
+import logging
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter
 from pydantic import BaseModel, EmailStr, Field, StringConstraints
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import CurrentUser, MailerDep, SessionDep
 from app.api.schemas import UserOut, user_out
 from app.core.errors import ApiError
 from app.core.security import utcnow
-from app.models import User
+from app.models import PayoutDestination, User
 from app.services import referrals, rg
 from app.services import tables as table_svc
+from app.services.mailer import MailError
 from app.services.payments import PaymentError, normalize_ke_phone
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/me", tags=["me"])
 
@@ -35,20 +40,54 @@ async def me(user: CurrentUser) -> UserOut:
 
 
 @router.patch("")
-async def update_me(body: ProfileUpdate, user: CurrentUser, session: SessionDep) -> UserOut:
+async def update_me(
+    body: ProfileUpdate, user: CurrentUser, session: SessionDep, mailer: MailerDep
+) -> UserOut:
     if body.username is not None and body.username != user.username:
+        # The game server knows players by name: no renames mid-game.
+        if await table_svc.has_active_seat(session, user.id):
+            raise ApiError(409, "seated", "You can change your name when you're not at a table.")
         taken = await session.scalar(select(User.id).where(User.username == body.username))
         if taken is not None:
             raise ApiError(409, "username_taken", "That username is taken.")
         user.username = body.username
     if body.display_name is not None:
         user.display_name = body.display_name.strip()
+    phone_changed = False
     if body.phone is not None:
         try:
-            user.phone = normalize_ke_phone(body.phone)
+            phone = normalize_ke_phone(body.phone)
         except PaymentError as exc:
             raise ApiError(422, exc.code, str(exc)) from exc
-    await session.commit()
+        if phone != user.phone:
+            phone_changed = user.phone is not None
+            user.phone = phone
+            if phone_changed:
+                # Payouts only go to the profile number: retire old destinations
+                # and pause withdrawals for a while (see withdraw.phone_change_hold_hours).
+                user.phone_changed_at = utcnow()
+                await session.execute(
+                    update(PayoutDestination)
+                    .where(PayoutDestination.user_id == user.id, PayoutDestination.phone != phone)
+                    .values(is_active=False)
+                )
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise ApiError(409, "username_taken", "That username is taken.") from exc
+    if phone_changed:
+        try:
+            await mailer.send(
+                user.email,
+                "Your M-Pesa number was changed",
+                f"The M-Pesa number on your Felt Kings account was changed to "
+                f"******{(user.phone or '')[-4:]}.\n\n"
+                "Withdrawals are paused for a short while as a precaution. "
+                "If this wasn't you, sign out of all devices and contact support right away.",
+            )
+        except MailError:
+            log.warning("phone-change notice to %s failed", user.id)
     return user_out(user)
 
 
@@ -81,11 +120,12 @@ async def invite_by_email(
 ) -> dict[str, Any]:
     """Invite people to Felt Kings by email. The invite follows the email
     address: whenever it signs up, you get the referral and become friends.
-    Emails that already have an account get a friend request instead."""
+    Emails that already have an account get a friend request instead; the
+    answer is the same either way."""
     r = await referrals.invite_emails(
         session, mailer, user, [str(e) for e in body.emails], body.message
     )
-    return {"invited": r.invited, "friend_requests": r.friend_requests, "skipped": r.skipped}
+    return {"invited": r.invited, "skipped": r.skipped}
 
 
 @router.get("/invites")

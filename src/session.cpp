@@ -376,6 +376,8 @@ void Session::startNetworkServer(bool dedicated)
 
 	int protocol = TRANSPORT_PROTOCOL_TCP;
 	// Platform mode always serves browsers (and the phone app) over WebSocket.
+	if (dedicated && platform::Enabled())
+		platform::ResendPendingResults();
 	if (dedicated && (myConfig->readConfigInt("ServerUseWebSocket") == 1 || platform::Enabled())) {
 		protocol |= TRANSPORT_PROTOCOL_WEBSOCKET;
 	}

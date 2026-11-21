@@ -1813,6 +1813,15 @@ ServerLobbyThread::PlacePlatformPlayer(boost::shared_ptr<SessionData> session)
 			game = pos->second;
 	}
 
+	if (!game && m_platformStarted.count(seat->tableId)) {
+		// This table's game already ran (and reported, or is gone): never
+		// start a second one with fresh chips.
+		LOG_MSG("platform: refused \"" << seat->username << "\" - table " << seat->tableId
+				<< " already played its game.");
+		SendJoinGameFailed(session, 0, NTF_NET_JOIN_GAME_INVALID);
+		return;
+	}
+
 	if (!game) {
 		// First seat-holder for this table: create the game from the signed settings.
 		GameData data;
@@ -1861,6 +1870,12 @@ ServerLobbyThread::GetPlatformRejoinGuid(const platform::SeatClaims &seat)
 	LOG_MSG("platform: \"" << seat.username << "\" returns to table " << seat.tableId
 			<< " (game " << known->second << ").");
 	return player->getMyGuid();
+}
+
+void
+ServerLobbyThread::MarkPlatformStarted(const std::string &tableId)
+{
+	m_platformStarted.insert(tableId);
 }
 
 void
@@ -2573,7 +2588,11 @@ ServerLobbyThread::TimerRemoveGame(const boost::system::error_code &ec)
 			GameMap::iterator next = i;
 			++next;
 			boost::shared_ptr<ServerGame> tmpGame = i->second;
-			if (!tmpGame->GetSessionManager().HasSessionWithState(SessionData::Game)) {
+			// A running platform game stays even with nobody connected: players
+			// can come back (offline grace + auto-fold), and the game must end
+			// and report its result - never vanish with the players' buy-ins.
+			const bool keepPlatformGame = tmpGame->IsPlatformGame() && tmpGame->IsRunning();
+			if (!keepPlatformGame && !tmpGame->GetSessionManager().HasSessionWithState(SessionData::Game)) {
 				tmpGame->MoveSpectatorsToLobby();
 				InternalRemoveGame(tmpGame); // This will delete the game.
 			}

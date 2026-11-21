@@ -186,11 +186,23 @@ async def test_sit_and_go_from_lobby_to_payout(
 
     # Game server reports the result (HMAC-signed): cat wins, ann second.
     order = [players[2][0].id, players[0][0].id, players[1][0].id]
-    body = json.dumps({"finishing_order": [str(u) for u in order]}).encode()
+    body = json.dumps(
+        {"table_id": str(table_id), "finishing_order": [str(u) for u in order]}
+    ).encode()
     bad = await client.post(
         f"/internal/games/{table_id}/result", content=body, headers={"x-signature": "0" * 64}
     )
     assert bad.status_code == 401
+    # A correctly signed result for another table can't be replayed here.
+    other = json.dumps(
+        {"table_id": str(uuid.uuid4()), "finishing_order": [str(u) for u in order]}
+    ).encode()
+    replay = await client.post(
+        f"/internal/games/{table_id}/result",
+        content=other,
+        headers={"x-signature": sign_internal(other)},
+    )
+    assert replay.status_code == 422
     ok = await client.post(
         f"/internal/games/{table_id}/result",
         content=body,
@@ -368,6 +380,9 @@ async def test_join_guards(
     assert ok.status_code == 200  # free play works without real money
 
     await set_setting(sessions, "real_money_enabled", True)
+    resp = await client.post("/lobby/quick-play", json={"tier_id": tier.id}, headers=h)
+    assert resp.json()["detail"]["code"] == "too_many_tables"  # one table at a time (H5)
+    await set_setting(sessions, "table.max_concurrent_per_user", 3)
     resp = await client.post("/lobby/quick-play", json={"tier_id": tier.id}, headers=h)
     assert resp.json()["detail"]["code"] == "insufficient_funds"
 

@@ -38,7 +38,7 @@ async def _process(session: SessionDep, event: str, data: dict[str, Any]) -> Non
     if event == "charge.success" and reference.startswith(pay.DEPOSIT_PREFIX):
         await pay.settle_deposit(session, reference, data)
     elif event in ("transfer.success", "transfer.failed", "transfer.reversed") and (
-        reference.startswith(payouts.PREFIX)
+        payouts.is_withdrawal_reference(reference)
     ):
         # The event name is authoritative for the outcome.
         await payouts.apply_result(session, reference, {**data, "status": event.split(".")[1]})

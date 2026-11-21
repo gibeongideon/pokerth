@@ -199,6 +199,7 @@ async def _prepare_schema(url: str) -> None:
 def _env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PLATFORM_PAYSTACK_SECRET_KEY", PAYSTACK_SECRET)
     monkeypatch.setenv("PLATFORM_ENV", "local")
+    monkeypatch.setenv("PLATFORM_ENABLE_DEV_ROUTES", "true")
     config.get_settings.cache_clear()
     config_registry.clear_cache()
 

@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.security import utcnow
-from app.models import Friendship, PlayerInvite, Referral, TableInvite, User
+from app.models import Friendship, PlayerInvite, Referral, User
 from app.services import config_registry as cfg
 from app.services import ledger
 from app.services.ledger import Leg
@@ -63,18 +63,23 @@ async def _befriend(session: AsyncSession, a: uuid.UUID, b: uuid.UUID) -> None:
 
 
 async def attach(session: AsyncSession, new_user: User, code: str | None) -> None:
-    """Credit a brand-new account to whoever invited it.
+    """A brand-new account: credit and connect whoever invited it.
 
-    The referrer is the owner of the invite link's code if there is one,
-    otherwise the first person who invited this email (personal invite, then
-    table invite). Everyone who invited this email becomes their friend
-    (setting `referral.auto_friend`). Unknown codes are ignored.
+    - The referral (and any bonus) goes only to the owner of the invite link's
+      code the player actually used - never to someone who merely typed their
+      email earlier, so nobody can pre-claim strangers.
+    - That inviter becomes a friend straight away (`referral.auto_friend`):
+      the new player chose their link.
+    - Everyone else who invited this email is marked "joined" on their list
+      and sends a friend request the new player can accept or ignore.
     """
     referrer: User | None = None
     if code:
         referrer = await session.scalar(
             select(User).where(User.referral_code == code.strip().upper())
         )
+    if referrer is not None and referrer.id == new_user.id:
+        referrer = None
     invites = (
         await session.scalars(
             select(PlayerInvite)
@@ -82,29 +87,30 @@ async def attach(session: AsyncSession, new_user: User, code: str | None) -> Non
             .order_by(PlayerInvite.created_at)
         )
     ).all()
-    if referrer is None and invites:
-        referrer = await session.get(User, invites[0].inviter_id)
-    if referrer is None:
-        first_table_invite = await session.scalar(
-            select(TableInvite)
-            .where(TableInvite.invitee_email == new_user.email)
-            .order_by(TableInvite.created_at)
-            .limit(1)
-        )
-        if first_table_invite is not None:
-            referrer = await session.get(User, first_table_invite.inviter_id)
-
     for inv in invites:
         inv.status, inv.joined_user_id, inv.joined_at = "joined", new_user.id, utcnow()
-    if referrer is not None and referrer.id != new_user.id:
+    if referrer is not None:
         session.add(Referral(referrer_id=referrer.id, referred_id=new_user.id, status="pending"))
-    if await cfg.get_bool(session, "referral.auto_friend"):
-        inviter_ids = {inv.inviter_id for inv in invites}
-        if referrer is not None:
-            inviter_ids.add(referrer.id)
-        for inviter_id in inviter_ids:
-            await _befriend(session, inviter_id, new_user.id)
+        if await cfg.get_bool(session, "referral.auto_friend"):
+            await _befriend(session, referrer.id, new_user.id)
+    for inviter_id in {inv.inviter_id for inv in invites} - ({referrer.id} if referrer else set()):
+        await _friend_request(session, inviter_id, new_user.id)
     await session.flush()
+
+
+async def _friend_request(
+    session: AsyncSession, requester: uuid.UUID, addressee: uuid.UUID
+) -> None:
+    existing = await session.scalar(
+        select(Friendship.id).where(
+            or_(
+                (Friendship.requester_id == requester) & (Friendship.addressee_id == addressee),
+                (Friendship.requester_id == addressee) & (Friendship.addressee_id == requester),
+            )
+        )
+    )
+    if existing is None:
+        session.add(Friendship(requester_id=requester, addressee_id=addressee, status="pending"))
 
 
 async def inviter_preview(session: AsyncSession, code: str) -> dict[str, Any] | None:
@@ -118,7 +124,6 @@ async def inviter_preview(session: AsyncSession, code: str) -> dict[str, Any] | 
 @dataclass
 class EmailInviteResult:
     invited: list[str] = field(default_factory=list)
-    friend_requests: list[str] = field(default_factory=list)  # already had accounts
     skipped: list[dict[str, str]] = field(default_factory=list)
 
 
@@ -130,8 +135,7 @@ async def invite_emails(
     message: str | None = None,
 ) -> EmailInviteResult:
     """Invite people to the platform by email. Existing players get a friend
-    request instead (without telling the inviter whether the email has an
-    account would be nicer, but a friend request reveals it anyway)."""
+    request instead of an email; the answer is the same either way."""
     from app.services import social  # local import: social uses this module too
 
     code = await code_for(session, inviter)
@@ -154,9 +158,14 @@ async def invite_emails(
         if budget <= 0:
             result.skipped.append({"handle": raw, "reason": "invite_limit"})
             continue
-        if await session.scalar(select(User.id).where(User.email == raw)) is not None:
-            await social.request_friend(session, inviter, raw)
-            result.friend_requests.append(raw)
+        existing = await session.scalar(select(User).where(User.email == raw))
+        if existing is not None:
+            # Already plays: a friend request instead of an email. Reported
+            # exactly like any other invite, so emails can't be probed.
+            if existing.status == "active":
+                await social.request_friend(session, inviter, raw)
+            budget -= 1
+            result.invited.append(raw)
             continue
         inv = await session.scalar(
             select(PlayerInvite).where(
@@ -175,13 +184,14 @@ async def invite_emails(
         to_send.append(raw)
     await session.commit()
 
-    note = f'\n\n"{message.strip()[:300]}"' if message and message.strip() else ""
+    note = social.player_note(message)
+    name = social.strip_links(_name(inviter))
     for address in to_send:
         try:
             await mailer.send(
                 address,
-                f"{_name(inviter)} invited you to Felt Kings",
-                f"{_name(inviter)} wants you at their poker table on Felt Kings.{note}\n\n"
+                "You're invited to Felt Kings",
+                f'Felt Kings player "{name}" wants you at their poker table.{note}\n\n'
                 "Sit & Go poker with friends. Top up with M-Pesa or card, "
                 "prizes paid to your wallet.\n\n"
                 f"Join with one tap (no password needed):\n{link(code)}\n\n"

@@ -57,15 +57,34 @@ async def request_magic_link(
     """Create and email a sign-in link. Silently does nothing when rate limited,
     so callers can always answer 202 without revealing anything."""
     email = normalize_email(email)
+    # Serialize requests per email so a burst can't slip past the hourly limit.
+    await session.execute(select(func.pg_advisory_xact_lock(7_234_003, func.hashtext(email))))
+    hour_ago = utcnow() - timedelta(hours=1)
     per_hour = await cfg.get_int(session, "auth.magic_link_per_hour")
     recent = await session.scalar(
         select(func.count())
         .select_from(MagicLinkToken)
         .where(MagicLinkToken.email == email)
-        .where(MagicLinkToken.created_at > utcnow() - timedelta(hours=1))
+        .where(MagicLinkToken.created_at > hour_ago)
     )
     if (recent or 0) >= per_hour:
         return
+    if ip:
+        per_ip = await cfg.get_int(session, "auth.magic_link_per_ip_hour")
+        from_ip = await session.scalar(
+            select(func.count())
+            .select_from(MagicLinkToken)
+            .where(MagicLinkToken.requester_ip == ip)
+            .where(MagicLinkToken.created_at > hour_ago)
+        )
+        if (from_ip or 0) >= per_ip:
+            return
+    # Only the newest link/code works: older unused ones are retired.
+    await session.execute(
+        update(MagicLinkToken)
+        .where(MagicLinkToken.email == email, MagicLinkToken.used_at.is_(None))
+        .values(used_at=utcnow())
+    )
 
     ttl = await cfg.get_int(session, "auth.magic_link_ttl_seconds")
     token = new_opaque_token()
@@ -119,6 +138,17 @@ async def verify_magic_code(session: AsyncSession, email: str, code: str) -> Use
         .with_for_update()
     )
     digits = "".join(ch for ch in code if ch.isdigit())
+    # A daily cap on wrong codes per email (across all links) stops guessing
+    # by asking for new codes again and again.
+    failures = await session.scalar(
+        select(func.coalesce(func.sum(MagicLinkToken.code_attempts), 0))
+        .where(MagicLinkToken.email == email)
+        .where(MagicLinkToken.created_at > utcnow() - timedelta(hours=24))
+    )
+    if int(failures or 0) >= await cfg.get_int(session, "auth.code_max_failures_per_day"):
+        raise AuthError(
+            "invalid_code", "Too many wrong codes today. Use the link in the email instead."
+        )
     if row is None:
         raise AuthError("invalid_code", "That code is invalid or has expired. Ask for a new email.")
     if not hmac.compare_digest(row.code_hash or "", _code_hash(email, digits)):

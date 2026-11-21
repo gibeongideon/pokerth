@@ -234,13 +234,22 @@ async def test_large_or_recent_deposit_goes_to_review(
             headers=h,
         )
     ).json()
-    assert small["status"] == "processing"  # under the limit: automatic
+    # Auto-approval looks at the 24h total (H1): after the big one, this goes to review too.
+    assert small["status"] == "pending_review"
+    assert "24h total" in small["review_reasons"]
 
     # A third one goes to review, the player cancels it and gets the money back.
+    # Splitting can't dodge KYC level 2: it applies to the 24h total ($300+$50+$250 > $500).
+    split = await client.post(
+        "/wallet/withdrawals",
+        json={"destination_id": dest, "amount_usd_cents": 25_000},
+        headers=h,
+    )
+    assert split.json()["detail"]["code"] == "kyc_required"
     review = (
         await client.post(
             "/wallet/withdrawals",
-            json={"destination_id": dest, "amount_usd_cents": 25_000},
+            json={"destination_id": dest, "amount_usd_cents": 10_000},
             headers=h,
         )
     ).json()
@@ -249,7 +258,7 @@ async def test_large_or_recent_deposit_goes_to_review(
         await client.post(f"/wallet/withdrawals/{review['reference']}/cancel", headers=h)
     ).json()
     assert cancelled["status"] == "cancelled"
-    assert await _bal(sessions, ledger.user_available(uid)) == before + 25_000
+    assert await _bal(sessions, ledger.user_available(uid)) == before + 10_000
 
 
 async def test_code_attempts_and_expiry(

@@ -24,7 +24,7 @@ def create_app() -> FastAPI:
         version="0.1.0",
         debug=settings.debug,
         # Interactive docs only outside production.
-        docs_url=None if settings.env == "prod" else "/docs",
+        docs_url="/docs" if settings.env == "local" else None,
         redoc_url=None,
     )
     app.add_middleware(
@@ -47,7 +47,7 @@ def create_app() -> FastAPI:
         admin,
     ):
         app.include_router(module.router)
-    if settings.env == "local":
+    if settings.dev_routes:
         app.include_router(dev.router)
     return app
 

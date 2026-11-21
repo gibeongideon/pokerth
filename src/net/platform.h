@@ -23,6 +23,8 @@
  *   POKERTH_PLATFORM_URL=http://host:port   where results are posted
  *   POKERTH_PLATFORM_SECRET=<secret>        shared HMAC-SHA256 secret
  *   POKERTH_PLATFORM_START_TIMEOUT_SEC=120  start with whoever came after this
+ *   POKERTH_PLATFORM_SPOOL_DIR=<dir>         where unsent results are kept (mount a volume)
+ *   POKERTH_WS_ORIGIN=play.example.com       allowed browser origin (http and https)
  */
 
 #ifndef _PLATFORM_H_
@@ -58,8 +60,13 @@ int StartTimeoutSec();
 boost::shared_ptr<SeatClaims> VerifySeatToken(const std::string &token);
 
 // Post the finishing order (platform user ids, winner first) for a table.
-// Runs in the background and retries with backoff until the platform accepts.
+// The result is stored on disk first (POKERTH_PLATFORM_SPOOL_DIR, default
+// ~/.pokerth/platform-results) and sent in the background until the platform
+// answers; a rejected result is kept as <table>.json.rejected.
 void ReportResult(const std::string &tableId, const std::vector<std::string> &finishingOrder);
+
+// At start-up: resend results stored by a previous run that were never accepted.
+void ResendPendingResults();
 
 } // namespace platform
 

@@ -199,11 +199,26 @@ async def ensure_open_tables(session: AsyncSession) -> int:
 
 async def _lock_table(session: AsyncSession, table_id: uuid.UUID) -> GameTable:
     table = await session.scalar(
-        select(GameTable).where(GameTable.id == table_id).with_for_update()
+        select(GameTable)
+        .where(GameTable.id == table_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)  # never act on a stale cached row
     )
     if table is None:
         raise TableError("not_found", "Table not found.", 404)
     return table
+
+
+async def has_active_seat(session: AsyncSession, user_id: uuid.UUID) -> bool:
+    """Seated (or registered) at a table that hasn't finished."""
+    found = await session.scalar(
+        select(TableSeat.id)
+        .join(GameTable, GameTable.id == TableSeat.table_id)
+        .where(TableSeat.user_id == user_id, TableSeat.status.in_(ACTIVE_SEAT))
+        .where(GameTable.status.in_(ACTIVE_TABLE))
+        .limit(1)
+    )
+    return found is not None
 
 
 async def _seats(session: AsyncSession, table_id: uuid.UUID, *statuses: str) -> list[TableSeat]:
@@ -263,6 +278,11 @@ async def _refund(
 
 
 async def _check_join_gates(session: AsyncSession, user: User, table: GameTable) -> None:
+    # One join per player at a time, so the table limit and RG checks below
+    # can't be raced by joining two tables in parallel.
+    await session.execute(
+        select(func.pg_advisory_xact_lock(7_234_002, func.hashtext(str(user.id))))
+    )
     if not user.username:
         raise TableError("username_required", "Choose a username before joining a table.", 403)
     if _price_of(table).total > 0:
@@ -502,8 +522,61 @@ async def tick(session: AsyncSession, gateway: GameGateway) -> dict[str, int]:
             await cancel(session, table, "not_enough_players")
             counts["cancelled"] += 1
 
+    # A table that never fills must not hold buy-ins forever: after
+    # table.open_max_minutes from the first join, cancel it with full refunds.
+    open_max = await cfg.get_int(session, "table.open_max_minutes")
+    if open_max:
+        oldest = (
+            select(TableSeat.table_id, func.min(TableSeat.joined_at).label("first"))
+            .where(TableSeat.status == "registered")
+            .group_by(TableSeat.table_id)
+            .subquery()
+        )
+        stale = (
+            await session.scalars(
+                select(GameTable)
+                .join(oldest, oldest.c.table_id == GameTable.id)
+                .where(GameTable.status == "open", GameTable.scheduled_start_at.is_(None))
+                .where(oldest.c.first < now - timedelta(minutes=open_max))
+                .with_for_update(of=GameTable, skip_locked=True)
+            )
+        ).all()
+        for table in stale:
+            await cancel(session, table, "did_not_fill")
+            counts["cancelled"] += 1
+
     counts["opened"] = await ensure_open_tables(session)
     return counts
+
+
+async def void_running(session: AsyncSession, table_id: uuid.UUID, reason: str) -> GameTable:
+    """Admin: a running game whose result is lost. Everyone seated gets their
+    whole entry back (buy-in, fee and tax); the table is cancelled."""
+    table = await _lock_table(session, table_id)
+    if table.status != "running":
+        raise TableError("table_not_running", "Only running tables can be voided.", 409)
+    for seat in await _seats(session, table.id, "playing"):
+        await _refund(session, table, seat, "void")
+        seat.status = "left"
+    leftover = await ledger.balance(session, ledger.table_escrow(table.id))
+    if leftover:
+        raise TableError("escrow_mismatch", f"Escrow still holds {leftover} after refunds.", 500)
+    table.status, table.cancel_reason = "cancelled", reason[:200]
+    return table
+
+
+async def stale_running(session: AsyncSession, minutes: int) -> list[GameTable]:
+    """Running tables with no result for longer than ``minutes`` (lost result?)."""
+    return list(
+        (
+            await session.scalars(
+                select(GameTable)
+                .where(GameTable.status == "running")
+                .where(GameTable.started_at < utcnow() - timedelta(minutes=minutes))
+                .limit(200)
+            )
+        ).all()
+    )
 
 
 # ------------------------------------------------------------------ results
@@ -514,6 +587,8 @@ def split_prizes(pool: int, payout_bps: list[int], players: int) -> list[int]:
     remaining shares are scaled up; rounding leftovers go to first place."""
     bps = payout_bps[:players]
     total_bps = sum(bps)
+    if not bps or total_bps <= 0:
+        return []
     prizes = [pool * b // total_bps for b in bps]
     prizes[0] += pool - sum(prizes)
     return prizes
