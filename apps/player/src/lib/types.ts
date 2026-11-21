@@ -53,6 +53,7 @@ export interface TableView {
   min_players: number;
   players: number;
   prize_pool_cents: number;
+  play_pot_cents?: number;
   payout_bps: number[];
   start_mode: "when_full" | "scheduled" | "practice";
   bots: number;

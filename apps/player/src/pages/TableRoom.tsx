@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { Avatar, Ring, SeatDots, Spinner, StatusBadge } from "../components/bits";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { Icon } from "../components/Icon";
+import { HandRanksPanel, MyHandHint } from "./HandRanks";
 import { useErrorToast, useToast } from "../components/Toast";
 import { ActionBar } from "../game/ActionBar";
 import { TableCanvas, type CanvasSeat, type LiveTable } from "../game/TableCanvas";
@@ -263,6 +264,9 @@ export function TableRoom() {
   const pullOutLeft = useSecondsLeft(pullOutDeadline);
   const playing = t?.status === "running" && t.me?.status === "playing";
   const live = useLiveGame(id, playing);
+  // My two cards plus the board, while I'm still in the hand (for the "your hand" hint).
+  const mySeat = live.state?.seats.find((p) => p.playerId === live.state?.myId);
+  const myCards = mySeat?.cards && !mySeat.folded ? [...mySeat.cards, ...(live.state?.board ?? [])] : null;
   // While reconnecting or waiting to be dealt back in, keep showing the last table we had.
   const lastLive = useRef<LiveTable | null>(null);
   const liveTable = useMemo(() => {
@@ -549,6 +553,7 @@ export function TableRoom() {
                     className="fixed inset-x-0 bottom-0 z-30 border-t border-cream/10 bg-[#030c08]/95 px-4 pt-3 backdrop-blur-xl md:static md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"
                     style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
                   >
+                    <MyHandHint cards={myCards} />
                     <ActionBar state={live.state} act={live.act} />
                   </div>
                 </ErrorBoundary>
@@ -602,6 +607,7 @@ export function TableRoom() {
 
         <div className="space-y-4">
           {playing && live.state && live.state.log.length > 0 && <HandLog lines={live.state.log} />}
+          <HandRanksPanel cards={myCards} />
           <div className="panel p-4 text-sm">
             <div className="label">Payouts</div>
             {t.price_detail && t.price_detail !== t.price_label && (
@@ -611,7 +617,10 @@ export function TableRoom() {
               <div key={i} className="flex justify-between py-0.5">
                 <span>{i + 1}{["st", "nd", "rd"][i] ?? "th"} place</span>
                 <span className="font-display text-gold-300">
-                  {b / 100}% · {usd(Math.floor((t.prize_pool_cents * b) / 10_000))}
+                  {b / 100}% ·{" "}
+                  {t.play_pot_cents
+                    ? `${usd(Math.floor((t.play_pot_cents * b) / 10_000))} play money`
+                    : usd(Math.floor((t.prize_pool_cents * b) / 10_000))}
                 </span>
               </div>
             ))}

@@ -941,6 +941,9 @@ async def table_view(
         "players": players,
         "prize_pool_cents": max(c["buy_in_cents"] * players, c.get("guaranteed_prize_cents") or 0),
         "guaranteed_prize_cents": c.get("guaranteed_prize_cents"),
+        # Free tables: the play money pot (practice: your entry plus the computers').
+        "play_pot_cents": _play_entry(table)
+        * ((int(c.get("bots") or 0) + 1) if c.get("bots") else players),
         "registration_opens_at": c.get("registration_opens_at"),
         "payout_bps": c["payout_bps"],
         "start_mode": c["start_mode"],

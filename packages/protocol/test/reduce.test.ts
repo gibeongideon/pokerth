@@ -1,7 +1,7 @@
 // Reducer + wire round-trip tests. Run: npm test -w packages/protocol
 import assert from "node:assert/strict";
 import { create, fromBinary, toBinary, type MessageInitShape } from "@bufbuild/protobuf";
-import { card, cardLabel, initialTableState, legalActions, pot, reduce, WEB_BUILD_ID, type TableState } from "../src/index";
+import { bestHandName, card, cardLabel, initialTableState, legalActions, pot, reduce, WEB_BUILD_ID, type TableState } from "../src/index";
 import { NetGameState, NetPlayerAction, PokerTHMessageSchema, PokerTHMessage_PokerTHMessageType as T } from "../src/gen/pokerth_pb";
 
 type Init = MessageInitShape<typeof PokerTHMessageSchema>;
@@ -170,6 +170,26 @@ test("seat opened elsewhere is not retried automatically; network loss is", () =
   const k = apply(initialTableState(), { messageType: T.Type_RemovedFromGameMessage, removedFromGameMessage: { gameId: 1, removedFromGameReason: 3 } });
   assert.equal(k.retryable, false);
   assert.match(k.error!, /knocked out/);
+});
+
+test("best hand names", () => {
+  // "As" -> index: suits d,h,s,c; ranks 2..A
+  const R = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
+  const h = (...cs: string[]) => bestHandName(cs.map((c) => "dhsc".indexOf(c.slice(-1)) * 13 + R.indexOf(c.slice(0, -1))));
+  assert.equal(h("Ah", "Kd"), "High card");
+  assert.equal(h("Ah", "Ad"), "One pair");
+  assert.equal(h("Ah", "Kd", "Ac", "Kc", "2s"), "Two pair");
+  assert.equal(h("7h", "7d", "7c", "Kc", "2s"), "Three of a kind");
+  assert.equal(h("Ah", "2d", "3c", "4c", "5s"), "Straight"); // wheel
+  assert.equal(h("10h", "Jd", "Qc", "Kc", "As", "2d", "2h"), "Straight");
+  assert.equal(h("2h", "9h", "Jh", "4h", "Kh", "Kd", "Ks"), "Flush"); // flush beats trips
+  assert.equal(h("Kh", "Kd", "Ks", "4d", "4h", "4s"), "Full house"); // two trips
+  assert.equal(h("Qh", "Qd", "Qs", "Qc", "4h"), "Four of a kind");
+  assert.equal(h("5h", "6h", "7h", "8h", "9h", "Kd"), "Straight flush");
+  assert.equal(h("Ac", "2c", "3c", "4c", "5c"), "Straight flush"); // steel wheel
+  assert.equal(h("10s", "Js", "Qs", "Ks", "As", "9s"), "Royal flush");
+  // Flush and a straight in different cards is just a flush, not a straight flush.
+  assert.equal(h("2h", "5h", "9h", "Jh", "Kh", "10d", "Qc"), "Flush");
 });
 
 console.log(`${tests} tests passed`);
