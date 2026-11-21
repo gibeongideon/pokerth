@@ -138,7 +138,7 @@ def _snapshot(tier: StakeTier, price: Price) -> dict[str, Any]:
 
 
 def _play_entry(table: GameTable) -> int:
-    """Demo money a seat costs (free tables only; 0 = none)."""
+    """Play money a seat costs (free tables only; 0 = none)."""
     return int(table.config.get("play_entry_cents") or 0)
 
 
@@ -163,7 +163,7 @@ async def open_table(
     price = await price_for(session, tier)
     config = _snapshot(tier, price)
     if price.total == 0:
-        # Free tables are played for demo money (snapshot, like the real price).
+        # Free tables are played for play money (snapshot, like the real price).
         config["play_entry_cents"] = await cfg.get_int(session, "play.table_entry_usd_cents")
     if scheduled_start_at is not None:
         config["start_mode"] = "scheduled"  # starts at its time, not when full
@@ -292,7 +292,7 @@ async def _refund(
                 Leg(ledger.user_play(seat.user_id), entry),
                 Leg(ledger.table_play(table.id), -entry),
             ],
-            memo=f"demo money back ({why})",
+            memo=f"play money back ({why})",
             meta={"table_id": str(table.id)},
         )
     p = _price_of(table)
@@ -422,14 +422,14 @@ async def join(
                     Leg(ledger.user_play(user.id), -entry),
                     Leg(ledger.table_play(table.id), entry),
                 ],
-                memo=f"{table.config['name']} (demo money)",
+                memo=f"{table.config['name']} (play money)",
                 meta={"table_id": str(table.id)},
                 actor_id=user.id,
             )
         except ledger.InsufficientFundsError as exc:
             raise TableError(
-                "out_of_demo_money",
-                f"You need {money(entry)} demo money for this table. Refill it in your wallet.",
+                "out_of_play_money",
+                f"You need {money(entry)} play money for this table. Refill it in your wallet.",
                 409,
             ) from exc
 
@@ -449,11 +449,38 @@ async def leave(session: AsyncSession, table_id: uuid.UUID, user: User) -> None:
         raise TableError("not_registered", "You are not registered at this table.", 404)
     if table.status != "open":
         raise TableError("table_locked", "The table is starting; you can't pull out now.", 409)
+    alone = len(await _seats(session, table.id, "registered")) == 1
     grace = await cfg.get_int(session, "table.unregister_grace_seconds")
-    if utcnow() > seat.joined_at + timedelta(seconds=grace):
+    # Alone at the table you can always leave; once others sit down, only
+    # within the window (they're counting on you).
+    if not alone and utcnow() > seat.joined_at + timedelta(seconds=grace):
         raise TableError("pull_out_closed", "The free pull-out window has passed.", 409)
     await _refund(session, table, seat, "unregister")
     seat.status = "left"
+
+
+async def vote_start(
+    session: AsyncSession, gateway: GameGateway, table_id: uuid.UUID, user: User, agree: bool
+) -> GameTable:
+    """Agree (or stop agreeing) to start now with the players seated. When
+    everyone seated agrees - and there are at least 2 - the game starts."""
+    table = await _lock_table(session, table_id)
+    if table.status != "open" or table.config.get("start_mode") != "when_full":
+        raise TableError("cannot_start_now", "This table can't be started early.", 409)
+    seats = await _seats(session, table.id, "registered")
+    mine = next((s for s in seats if s.user_id == user.id), None)
+    if mine is None:
+        raise TableError("not_registered", "You are not registered at this table.", 404)
+    if len(seats) < max(2, int(table.config.get("min_players") or 2)):
+        raise TableError("too_few_players", "Wait for at least one more player.", 409)
+    mine.start_vote_at = utcnow() if agree else None
+    if agree and all(s.start_vote_at for s in seats):
+        # Everyone agreed: this is their confirmation, no extra ready check.
+        for s in seats:
+            s.ready_at = utcnow()
+        await _start(session, gateway, table, seats)
+        await ensure_open_tables(session)
+    return table
 
 
 async def leave_all_open(session: AsyncSession, user: User) -> int:
@@ -758,7 +785,7 @@ async def _settle_play(
             idempotency_key=f"settle-play:{table.id}",
             kind="play_prize",
             legs=legs,
-            memo=f"{table.config['name']} (demo money)",
+            memo=f"{table.config['name']} (play money)",
             meta={"table_id": str(table.id), "places": {str(k): v for k, v in places.items()}},
         )
 
@@ -878,17 +905,20 @@ async def table_view(
             "username": username,
             "status": seat.status,
             "ready": seat.ready_at is not None,
+            "start_vote": seat.start_vote_at is not None and table.status == "open",
             "finish_position": seat.finish_position,
             "prize_cents": seat.prize_cents,
         }
         seats.append(item)
         if seat.user_id == viewer:
             pull_out_until = seat.joined_at + timedelta(seconds=grace)
+            alone = sum(1 for r, _ in rows if r.status == "registered") == 1
             me = {
                 **item,
+                "alone": alone,
                 "can_pull_out": table.status == "open"
                 and seat.status == "registered"
-                and now <= pull_out_until,
+                and (alone or now <= pull_out_until),
                 "pull_out_seconds_left": max(0, int((pull_out_until - now).total_seconds())),
             }
     c = table.config

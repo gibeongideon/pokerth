@@ -89,6 +89,10 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [ ] `apps/site/` Next.js: landing, SEO, legal and responsible-gaming pages; admin back office UI
 - [ ] Final name and visual identity ("Felt Kings" is a working title, O-5)
 
+## Next up (owner requests, 2026-11-21)
+- [ ] **Tokens:** 1 USD = 129 tokens (KES-pegged), so stakes can be smaller than $1. Needs a plan first: ledger unit (tokens vs cents), price labels, deposits/withdrawals conversion, stake levels in tokens.
+- [ ] Phone check of the pinned betting bar and start-now prompt on a real device.
+
 ## Phase 4 — Withdrawals, KYC, admin (API done 2026-11-20)
 - [x] Payout destinations: M-Pesa via Paystack transfer recipients; number must match the profile phone
 - [x] Withdrawal rules: min/max, daily/monthly limits, fee (flat/%/free-above, default off), KYC tier (tier 2 above $500)

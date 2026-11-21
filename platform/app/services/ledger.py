@@ -24,7 +24,7 @@ TAX_WITHHOLDING = "tax:withholding"
 PAYOUTS_PENDING = "payouts:pending"  # withdrawals confirmed but not yet paid out
 PROMOTIONS = "house:promotions"  # referral bonuses and other marketing spend
 DEV_CREDIT = "house:dev_credit"  # local seeding only; never used outside env=local
-# Demo money (free tables): a separate, closed system. Never convertible to real
+# Play money (free tables): a separate, closed system. Never convertible to real
 # money: no deposit, withdrawal or transfer path touches these accounts.
 PLAY_BANK = "house:play_bank"
 
@@ -55,12 +55,12 @@ def user_available(user_id: uuid.UUID) -> str:
 
 
 def user_play(user_id: uuid.UUID) -> str:
-    """Demo money wallet."""
+    """Play money wallet."""
     return f"user:{user_id}:play"
 
 
 def table_play(table_id: uuid.UUID) -> str:
-    """Demo money pot of a free table."""
+    """Play money pot of a free table."""
     return f"table:{table_id}:play"
 
 

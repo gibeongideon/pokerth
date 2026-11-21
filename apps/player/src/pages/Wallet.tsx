@@ -120,7 +120,6 @@ function DepositForm() {
 
   return (
     <div className="space-y-5">
-      <DemoMoneyCard />
       <div className="segmented" role="tablist">
         {(["mpesa", "card"] as const).map((c) => (
           <button key={c} role="tab" aria-selected={channel === c} className="text-lg" onClick={() => setChannel(c)}>
@@ -337,7 +336,7 @@ interface DemoMoney {
   next_refill_at: string | null;
 }
 
-/** Demo money for free tables - separate from the real wallet, never withdrawable. */
+/** Play money for free tables - separate from the real wallet, never withdrawable. */
 function DemoMoneyCard() {
   const qc = useQueryClient();
   const toast = useToast();
@@ -352,7 +351,7 @@ function DemoMoneyCard() {
       const r = await call<DemoMoney>(api.POST("/wallet/play/refill"));
       qc.setQueryData(["demo-money"], r);
       play("chip");
-      toast(`Demo money refilled to ${usd(r.play_usd_cents)}`, "ok");
+      toast(`Play money refilled to ${usd(r.play_usd_cents)}`, "ok");
     } catch (e) {
       toast(errorMessage(e), "error");
     } finally {
@@ -365,16 +364,16 @@ function DemoMoneyCard() {
         <Icon name="spark" size={24} />
       </span>
       <div className="min-w-0 flex-1">
-        <div className="eyebrow text-chip-green">Demo money · free tables</div>
+        <div className="eyebrow text-chip-green">Play money</div>
         <div className="title text-2xl">{usd(d.play_usd_cents)}</div>
         <div className="text-xs text-cream/50">
           {empty
             ? d.can_refill
-              ? `Out of demo money - refill to ${usd(d.refill_to_usd_cents)}.`
+              ? `Out of play money - refill to ${usd(d.refill_to_usd_cents)}.`
               : d.next_refill_at
                 ? `Next refill ${when(d.next_refill_at)}.`
                 : "No refills available."
-            : `A free seat costs ${usd(d.table_entry_usd_cents)}. Not real money.`}
+            : `A free-table seat costs ${usd(d.table_entry_usd_cents)}.`}
         </div>
       </div>
       {empty && d.can_refill && (
@@ -391,7 +390,8 @@ export function WalletPage() {
   const [tab, setTab] = useState<"deposit" | "withdraw" | "history">("deposit");
   return (
     <div className="mx-auto max-w-xl space-y-5">
-      {/* Balance card */}
+      <DemoMoneyCard />
+      {/* Real-money balance card */}
       <div className="relative overflow-hidden rounded-3xl border border-gold-400/30 bg-[linear-gradient(135deg,#17805a_0%,#0c3a2a_55%,#05170f_100%)] p-6 shadow-panel">
         <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-gold-400/20 blur-3xl" />
         <div className="pointer-events-none absolute inset-0 overflow-hidden">

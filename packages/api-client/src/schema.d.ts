@@ -332,7 +332,7 @@ export interface paths {
         };
         /**
          * Demo Money
-         * @description Demo money for free tables (never real money).
+         * @description Play money for free tables (never real money).
          */
         get: operations["demo_money_wallet_play_get"];
         put?: never;
@@ -354,7 +354,7 @@ export interface paths {
         put?: never;
         /**
          * Refill Demo Money
-         * @description Top demo money back up - only when it has run out, limited per day.
+         * @description Top play money back up - only when it has run out, limited per day.
          */
         post: operations["refill_demo_money_wallet_play_refill_post"];
         delete?: never;
@@ -724,6 +724,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tables/{table_id}/start-now": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Now
+         * @description Vote to start with the players seated now. Starts when everyone agrees.
+         */
+        post: operations["start_now_tables__table_id__start_now_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tables/private": {
         parameters: {
             query?: never;
@@ -958,6 +978,27 @@ export interface paths {
         get: operations["personal_invite_preview_invites_personal__code__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invites/personal/{code}/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Connect Via Link
+         * @description Signed-in player opened an invite link (personal or table): become
+         *     friends with the link's owner.
+         */
+        post: operations["connect_via_link_invites_personal__code__connect_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1815,6 +1856,14 @@ export interface components {
              * @default 0
              */
             sort_order: number;
+        };
+        /** StartVoteIn */
+        StartVoteIn: {
+            /**
+             * Agree
+             * @default true
+             */
+            agree: boolean;
         };
         /** TransferRequest */
         TransferRequest: {
@@ -3219,6 +3268,43 @@ export interface operations {
             };
         };
     };
+    start_now_tables__table_id__start_now_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                table_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartVoteIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_private_tables_private_post: {
         parameters: {
             query?: never;
@@ -3619,6 +3705,39 @@ export interface operations {
         };
     };
     personal_invite_preview_invites_personal__code__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    connect_via_link_invites_personal__code__connect_post: {
         parameters: {
             query?: never;
             header?: never;

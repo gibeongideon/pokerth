@@ -74,7 +74,22 @@ function InvitePanel({ table, onClose }: { table: TableView; onClose: () => void
           </button>
         </div>
         {(friends.data?.friends.length ?? 0) > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4 flex items-center justify-between text-xs">
+            <span className="label mb-0">Pick friends ({picked.length} selected)</span>
+            <button
+              type="button"
+              className="text-gold-300 hover:underline"
+              onClick={() => {
+                const all = friends.data!.friends.map((f) => f.username).filter((u): u is string => !!u);
+                setPicked((p) => (p.length === all.length ? [] : all));
+              }}
+            >
+              {picked.length === friends.data!.friends.length ? "Clear" : "Select all"}
+            </button>
+          </div>
+        )}
+        {(friends.data?.friends.length ?? 0) > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
             {friends.data!.friends.map((f) => {
               const on = picked.includes(f.username ?? "");
               return (
@@ -106,7 +121,7 @@ function InvitePanel({ table, onClose }: { table: TableView; onClose: () => void
             <Icon name="link" size={18} /> Share link
           </button>
           <button className="btn-gold flex-1" onClick={send}>
-            Send invites
+            Send invites{picked.length ? ` (${picked.length})` : ""}
           </button>
         </div>
       </div>
@@ -155,6 +170,47 @@ function HandLog({ lines }: { lines: string[] }) {
           {l}
         </div>
       ))}
+    </div>
+  );
+}
+
+/** Start early with the players seated: everyone must agree. */
+function StartNow({ table, onVote }: { table: TableView; onVote: (agree: boolean) => void }) {
+  const [dismissed, setDismissed] = useState(false);
+  const agreed = table.seats.filter((s) => s.start_vote).length;
+  const total = table.seats.filter((s) => s.status === "registered").length;
+  const mine = !!table.me?.start_vote;
+  const othersWant = agreed > 0 && !mine;
+  return (
+    <div className={`w-full rounded-xl p-3 ${othersWant && !dismissed ? "animate-pop border border-gold-400/50 bg-gold-400/10" : "bg-black/20"}`}>
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="min-w-0 flex-1 text-sm">
+          {agreed === 0 ? (
+            <span className="text-cream/70">Don't want to wait? Start now with the {total} players here (everyone must agree).</span>
+          ) : (
+            <span>
+              <b className="text-gold-300">{agreed} of {total}</b> want to start now:{" "}
+              {table.seats.filter((s) => s.start_vote).map((s) => s.username).join(", ")}
+            </span>
+          )}
+        </div>
+        {mine ? (
+          <button className="btn-ghost px-3 py-1.5 text-sm" onClick={() => onVote(false)}>
+            Keep waiting
+          </button>
+        ) : (
+          <>
+            {othersWant && !dismissed && (
+              <button className="btn-ghost px-3 py-1.5 text-sm" onClick={() => setDismissed(true)}>
+                Keep waiting
+              </button>
+            )}
+            <button className="btn-gold px-4 py-1.5 text-sm" onClick={() => onVote(true)}>
+              Start now
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -380,7 +436,7 @@ export function TableRoom() {
                 <button className="btn-felt" onClick={() => setInviting(true)}>
                   <Icon name="users" size={18} /> Invite friends
                 </button>
-                {t.me?.can_pull_out && (pullOutLeft ?? 0) > 0 && (
+                {t.me?.can_pull_out && (t.me.alone || (pullOutLeft ?? 0) > 0) && (
                   <button
                     className="btn-ghost"
                     onClick={() =>
@@ -390,12 +446,15 @@ export function TableRoom() {
                       })
                     }
                   >
-                    <Icon name="logout" size={16} /> Leave table · {Math.floor((pullOutLeft ?? 0) / 60)}:
-                    {String((pullOutLeft ?? 0) % 60).padStart(2, "0")}
+                    <Icon name="logout" size={16} /> Leave table
+                    {!t.me.alone && ` · ${Math.floor((pullOutLeft ?? 0) / 60)}:${String((pullOutLeft ?? 0) % 60).padStart(2, "0")}`}
                   </button>
                 )}
               </div>
-              {t.me && !(t.me.can_pull_out && (pullOutLeft ?? 0) > 0) && (
+              {t.start_mode === "when_full" && t.players >= 2 && (
+                <StartNow table={t} onVote={(agree) => act(() => call(api.POST("/tables/{table_id}/start-now", { ...path, body: { agree } })), "ready")} />
+              )}
+              {t.me && !t.me.alone && !(t.me.can_pull_out && (pullOutLeft ?? 0) > 0) && (
                 <p className="w-full text-xs text-cream/50">
                   The 10-minute leave window has passed. The game starts when the table is full; if it
                   doesn't fill in time it's cancelled and everyone gets a full refund.
@@ -471,7 +530,13 @@ export function TableRoom() {
                 </div>
               ) : (
                 <ErrorBoundary label="betting controls">
-                  <ActionBar state={live.state} act={live.act} />
+                  {/* Phones: pinned to the bottom of the screen so it's always in reach. */}
+                  <div
+                    className="fixed inset-x-0 bottom-0 z-30 border-t border-cream/10 bg-[#030c08]/95 px-4 pt-3 backdrop-blur-xl md:static md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"
+                    style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+                  >
+                    <ActionBar state={live.state} act={live.act} />
+                  </div>
                 </ErrorBoundary>
               )}
             </>

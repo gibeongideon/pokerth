@@ -695,7 +695,7 @@
           "wallet"
         ],
         "summary": "Demo Money",
-        "description": "Demo money for free tables (never real money).",
+        "description": "Play money for free tables (never real money).",
         "operationId": "demo_money_wallet_play_get",
         "responses": {
           "200": {
@@ -719,7 +719,7 @@
           "wallet"
         ],
         "summary": "Refill Demo Money",
-        "description": "Top demo money back up - only when it has run out, limited per day.",
+        "description": "Top play money back up - only when it has run out, limited per day.",
         "operationId": "refill_demo_money_wallet_play_refill_post",
         "responses": {
           "200": {
@@ -1685,6 +1685,62 @@
         }
       }
     },
+    "/tables/{table_id}/start-now": {
+      "post": {
+        "tags": [
+          "tables"
+        ],
+        "summary": "Start Now",
+        "description": "Vote to start with the players seated now. Starts when everyone agrees.",
+        "operationId": "start_now_tables__table_id__start_now_post",
+        "parameters": [
+          {
+            "name": "table_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Table Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartVoteIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Start Now Tables  Table Id  Start Now Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/tables/private": {
       "post": {
         "tags": [
@@ -2234,6 +2290,51 @@
                   "type": "object",
                   "additionalProperties": true,
                   "title": "Response Personal Invite Preview Invites Personal  Code  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invites/personal/{code}/connect": {
+      "post": {
+        "tags": [
+          "friends & invites"
+        ],
+        "summary": "Connect Via Link",
+        "description": "Signed-in player opened an invite link (personal or table): become\nfriends with the link's owner.",
+        "operationId": "connect_via_link_invites_personal__code__connect_post",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Connect Via Link Invites Personal  Code  Connect Post"
                 }
               }
             }
@@ -4353,6 +4454,17 @@
           "buy_in_cents"
         ],
         "title": "StakeTierIn"
+      },
+      "StartVoteIn": {
+        "properties": {
+          "agree": {
+            "type": "boolean",
+            "title": "Agree",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "StartVoteIn"
       },
       "TransferRequest": {
         "properties": {

@@ -221,6 +221,28 @@ async def quit_practice(
     return await _view(session, table_id, user.id)
 
 
+class StartVoteIn(BaseModel):
+    agree: bool = True
+
+
+@router.post("/tables/{table_id}/start-now")
+async def start_now(
+    table_id: uuid.UUID,
+    body: StartVoteIn,
+    user: CurrentUser,
+    session: SessionDep,
+    gateway: GatewayDep,
+) -> dict[str, Any]:
+    """Vote to start with the players seated now. Starts when everyone agrees."""
+    try:
+        await svc.vote_start(session, gateway, table_id, user, body.agree)
+    except svc.TableError as exc:
+        await session.rollback()
+        raise _err(exc) from exc
+    await session.commit()
+    return await _view(session, table_id, user.id)
+
+
 @router.post("/tables/private", status_code=201)
 async def create_private(
     body: PrivateTableRequest, user: CurrentUser, session: SessionDep, gateway: GatewayDep

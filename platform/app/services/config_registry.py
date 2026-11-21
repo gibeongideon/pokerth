@@ -131,16 +131,16 @@ _DEFS += [
         min=1,
         max=20,
     ),
-    # Demo money for free tables (never real money).
-    SettingDef("play.start_usd_cents", int, 10_000, "Demo money every player starts with.", min=0),
+    # Play money for free tables (never real money).
+    SettingDef("play.start_usd_cents", int, 10_000, "Play money every player starts with.", min=0),
     SettingDef(
-        "play.refill_to_usd_cents", int, 10_000, "A refill tops demo money back up to this.", min=0
+        "play.refill_to_usd_cents", int, 10_000, "A refill tops play money back up to this.", min=0
     ),
     SettingDef(
         "play.refills_per_day",
         int,
         1,
-        "Demo money refills allowed per 24h (only when it has run out).",
+        "Play money refills allowed per 24h (only when it has run out).",
         min=0,
         max=24,
     ),
@@ -148,7 +148,7 @@ _DEFS += [
         "play.table_entry_usd_cents",
         int,
         500,
-        "Demo money a seat at a free table costs (0 = no demo money needed).",
+        "Play money a seat at a free table costs (0 = no play money needed).",
         min=0,
     ),
     SettingDef(

@@ -30,6 +30,7 @@ export interface Tier {
 
 export interface Seat {
   username: string;
+  start_vote?: boolean;
   status: "registered" | "playing" | "finished";
   ready: boolean;
   finish_position: number | null;
@@ -59,7 +60,7 @@ export interface TableView {
   scheduled_start_at: string | null;
   ready_deadline: string | null;
   seats: Seat[];
-  me: (Seat & { can_pull_out: boolean; pull_out_seconds_left: number }) | null;
+  me: (Seat & { can_pull_out: boolean; pull_out_seconds_left: number; alone?: boolean }) | null;
 }
 
 export interface LobbyTable {

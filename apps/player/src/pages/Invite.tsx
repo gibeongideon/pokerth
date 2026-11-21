@@ -5,7 +5,7 @@
  * Someone already signed in can add the inviter as a friend instead.
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Avatar, Chip, Spinner } from "../components/bits";
 import { CardFan, Logo } from "../components/Brand";
@@ -41,6 +41,21 @@ export function InviteLanding() {
     retry: false,
   });
   useEffect(() => rememberRef(code), [code]);
+  // Already a player: opening the link makes you friends right away.
+  const connected = useRef(false);
+  useEffect(() => {
+    if (!me.data || !inviter.data || connected.current) return;
+    connected.current = true;
+    call<{ connected: boolean }>(api.POST("/invites/personal/{code}/connect", { params: { path: { code } } }))
+      .then(async (r) => {
+        if (r.connected) {
+          setAdded(true);
+          play("chip");
+          await qc.invalidateQueries({ queryKey: ["friends"] });
+        }
+      })
+      .catch(() => undefined);
+  }, [me.data, inviter.data, code, qc]);
 
   if (inviter.isLoading || me.isLoading) return <Spinner />;
   if (!inviter.data) {
@@ -111,7 +126,8 @@ export function InviteLanding() {
                 <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-chip-green/15 text-chip-green">
                   <Icon name="check" size={28} />
                 </span>
-                <div className="title text-2xl">Request sent to {who}</div>
+                <div className="title text-2xl">You and {who} are now friends</div>
+                <p className="text-sm text-cream/60">Invite each other to tables in one tap.</p>
                 <button className="btn-gold w-full" onClick={() => navigate("/")}>
                   Go to the lobby
                 </button>

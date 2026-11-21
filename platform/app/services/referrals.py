@@ -113,6 +113,17 @@ async def _friend_request(
         session.add(Friendship(requester_id=requester, addressee_id=addressee, status="pending"))
 
 
+async def connect_via_link(session: AsyncSession, user: User, code: str) -> str | None:
+    """An existing player opened someone's invite link: they become friends
+    (the link is the owner's invitation; opening it is the acceptance).
+    Returns the owner's name, or None for an unknown code or one's own link."""
+    owner = await session.scalar(select(User).where(User.referral_code == code.strip().upper()))
+    if owner is None or owner.id == user.id or owner.status != "active":
+        return None
+    await _befriend(session, owner.id, user.id)
+    return _name(owner)
+
+
 async def inviter_preview(session: AsyncSession, code: str) -> dict[str, Any] | None:
     """Public: who owns this invite code (for the /i/<code> landing page)."""
     u = await session.scalar(select(User).where(User.referral_code == code.strip().upper()))

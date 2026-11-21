@@ -163,6 +163,15 @@ async def personal_invite_preview(code: str, session: SessionDep) -> dict[str, A
     return out
 
 
+@router.post("/invites/personal/{code}/connect")
+async def connect_via_link(code: str, user: CurrentUser, session: SessionDep) -> dict[str, Any]:
+    """Signed-in player opened an invite link (personal or table): become
+    friends with the link's owner."""
+    name = await referrals.connect_via_link(session, user, code)
+    await session.commit()
+    return {"connected": name is not None, "friend": name}
+
+
 # ----------------------------------------------------------- organized games
 
 

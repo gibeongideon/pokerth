@@ -52,6 +52,8 @@ export function Shell({ children }: { children: ReactNode }) {
   const [muted, setMutedState] = useState(isMuted);
   const location = useLocation();
   const pending = invites.data?.length ?? 0;
+  // A table screen (/tables/<id>), not the My tables list.
+  const atTable = /^\/tables\/[^/]+$/.test(location.pathname);
   const name = me.data?.username ?? "player";
   const toggleSound = () => {
     setMuted(!muted);
@@ -137,14 +139,17 @@ export function Shell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main key={location.pathname} className="flex-1 animate-fadeUp px-4 pb-28 pt-4 md:px-6 md:pb-10">
+        <main
+          key={location.pathname}
+          className={`flex-1 animate-fadeUp px-4 pt-4 md:px-6 md:pb-10 ${atTable ? "pb-44" : "pb-28"}`}
+        >
           {children}
         </main>
       </div>
 
-      {/* Bottom tab bar on phones */}
+      {/* Bottom tab bar on phones (hidden at a table: the betting controls own the bottom) */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-cream/[0.07] bg-[#030c08]/90 px-1 backdrop-blur-xl md:hidden"
+        className={`fixed inset-x-0 bottom-0 z-30 grid-cols-5 ${atTable ? "hidden" : "grid"} border-t border-cream/[0.07] bg-[#030c08]/90 px-1 backdrop-blur-xl md:hidden`}
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         {NAV.map((n) => (

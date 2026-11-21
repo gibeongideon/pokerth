@@ -105,5 +105,8 @@ class TableSeat(Base):
     join_count: Mapped[int] = mapped_column(Integer, default=1)
     joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     ready_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # "Start now" vote: when every seated player has voted, the table starts
+    # with the players it has instead of waiting to fill.
+    start_vote_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finish_position: Mapped[int | None] = mapped_column(Integer)
     prize_cents: Mapped[int | None] = mapped_column(BigInteger)

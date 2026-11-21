@@ -53,7 +53,7 @@ function TierCard({ tier, color, filling, onPlay, onPrivate, busy }: {
                 <Icon name="trophy" size={12} /> {usd(top)}
               </span>
             ) : (
-              <span>Demo money</span>
+              <span>Play money</span>
             )}
             <span>· {tier.seats} seats</span>
             {filling && <span className="text-chip-green">· {filling.players} waiting</span>}
@@ -87,7 +87,7 @@ function TierCard({ tier, color, filling, onPlay, onPrivate, busy }: {
 
         <div className="relative mt-4 grid grid-cols-2 gap-2">
           <div className="stat">
-            <b className={top > 0 ? "text-gold-300" : ""}>{top > 0 ? usd(top) : "Demo money"}</b>
+            <b className={top > 0 ? "text-gold-300" : ""}>{top > 0 ? usd(top) : "Play money"}</b>
             <span>Winner takes</span>
           </div>
           <div className="stat">

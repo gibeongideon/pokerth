@@ -266,8 +266,11 @@ async def test_pull_out_window(
     assert left.status_code == 200
     assert await _bal(sessions, ledger.user_available(user.id)) == 20_000  # fee refunded too
 
-    # Rejoin, then let the grace window pass: pulling out is refused.
+    # Rejoin with someone else seated, then let the window pass: pulling out is
+    # refused (alone you could always leave).
     await client.post(f"/tables/{view['id']}/join", json={}, headers=h)
+    _, other = await _player(sessions, make_user, "stayer")
+    await client.post(f"/tables/{view['id']}/join", json={}, headers=other)
     async with sessions() as s:
         await s.execute(update(TableSeat).values(joined_at=utcnow() - timedelta(hours=1)))
         await s.commit()
@@ -642,7 +645,7 @@ async def test_demo_money_free_tables_practice_and_refill(
         )
         await s.commit()
     broke = await client.post("/lobby/practice", json={"bots": 3}, headers=ha)
-    assert broke.json()["detail"]["code"] == "out_of_demo_money"
+    assert broke.json()["detail"]["code"] == "out_of_play_money"
     ok = (await client.post("/wallet/play/refill", headers=ha)).json()
     assert ok["play_usd_cents"] == 10_000 and ok["can_refill"] is False
     async with sessions() as s:
@@ -700,3 +703,54 @@ async def test_player_picks_the_number_of_seats(
     assert full.status_code == 200
     # Two of two seats taken: the ready check starts (not waiting for six).
     assert (await client.get(f"/tables/{t['id']}", headers=h1)).json()["status"] == "ready_check"
+
+
+async def test_leave_when_alone_and_start_now_when_all_agree(
+    client: httpx.AsyncClient,
+    sessions: async_sessionmaker[AsyncSession],
+    make_user: MakeUser,
+) -> None:
+    free = await _tier(sessions, name="Free", buy_in_cents=0, seats=6, payout_bps=[10_000])
+    hs = [(await _player(sessions, make_user, n, cents=0))[1] for n in ("vo1", "vo2", "vo3")]
+    await set_setting(sessions, "table.unregister_grace_seconds", 0)  # window already over
+
+    # Alone: can always leave.
+    t = (await client.post("/lobby/quick-play", json={"tier_id": free.id}, headers=hs[0])).json()
+    assert t["me"]["alone"] is True and t["me"]["can_pull_out"] is True
+    assert (await client.post(f"/tables/{t['id']}/leave", headers=hs[0])).status_code < 300
+
+    # Two seated: leaving is closed now, but both can agree to start.
+    t = (await client.post("/lobby/quick-play", json={"tier_id": free.id}, headers=hs[0])).json()
+    await client.post(f"/tables/{t['id']}/join", json={}, headers=hs[1])
+    v = (await client.get(f"/tables/{t['id']}", headers=hs[0])).json()
+    assert v["me"]["can_pull_out"] is False
+    v = (
+        await client.post(f"/tables/{t['id']}/start-now", json={"agree": True}, headers=hs[0])
+    ).json()
+    assert v["status"] == "open"
+    assert sum(1 for s in v["seats"] if s["start_vote"]) == 1
+
+    # A third player arrives: they must agree too.
+    await client.post(f"/tables/{t['id']}/join", json={}, headers=hs[2])
+    v = (
+        await client.post(f"/tables/{t['id']}/start-now", json={"agree": True}, headers=hs[1])
+    ).json()
+    assert v["status"] == "open"
+    v = (
+        await client.post(f"/tables/{t['id']}/start-now", json={"agree": True}, headers=hs[2])
+    ).json()
+    assert v["status"] == "running" and v["players"] == 3
+
+
+async def test_existing_player_opening_invite_link_becomes_friend(
+    client: httpx.AsyncClient, make_user: MakeUser
+) -> None:
+    _, ah = await make_user("linker@example.com", username="linker")
+    _, bh = await make_user("clicker@example.com", username="clicker")
+    code = (await client.get("/me/referral", headers=ah)).json()["code"]
+    r = (await client.post(f"/invites/personal/{code}/connect", headers=bh)).json()
+    assert r == {"connected": True, "friend": "linker"}
+    friends = (await client.get("/friends", headers=bh)).json()["friends"]
+    assert [f["username"] for f in friends] == ["linker"]
+    own = (await client.post(f"/invites/personal/{code}/connect", headers=ah)).json()
+    assert own["connected"] is False

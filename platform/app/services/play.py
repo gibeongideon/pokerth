@@ -1,10 +1,10 @@
-"""Demo money for free tables.
+"""Play money for free tables.
 
 Every player gets demo dollars (``play.start_usd_cents``). A seat at a free
 table costs ``play.table_entry_usd_cents``; winners share the pot like a real
 Sit & Go. When a player runs out they can refill (``play.refills_per_day``).
 
-Demo money lives in its own accounts (``user:<id>:play``, ``table:<id>:play``,
+Play money lives in its own accounts (``user:<id>:play``, ``table:<id>:play``,
 ``house:play_bank``). No deposit, withdrawal, transfer or real-money table
 ever touches them, so it can never turn into real money.
 """
@@ -34,7 +34,7 @@ class PlayError(Exception):
 
 
 async def ensure_started(session: AsyncSession, user_id: uuid.UUID) -> None:
-    """Give a player their starting demo money, once."""
+    """Give a player their starting play money, once."""
     amount = await cfg.get_int(session, "play.start_usd_cents")
     if amount > 0:
         await ledger.post(
@@ -42,7 +42,7 @@ async def ensure_started(session: AsyncSession, user_id: uuid.UUID) -> None:
             idempotency_key=f"play-start:{user_id}",
             kind=KIND_GRANT,
             legs=[Leg(ledger.user_play(user_id), amount), Leg(ledger.PLAY_BANK, -amount)],
-            memo="demo money to start",
+            memo="play money to start",
         )
 
 
@@ -80,13 +80,13 @@ async def status(session: AsyncSession, user: User) -> dict[str, Any]:
 
 
 async def refill(session: AsyncSession, user: User) -> int:
-    """Top demo money back up - only when it has run out, limited per day."""
+    """Top play money back up - only when it has run out, limited per day."""
     # One refill at a time per player.
     await session.execute(select(User.id).where(User.id == user.id).with_for_update())
     bal = await balance(session, user.id)
     entry = await cfg.get_int(session, "play.table_entry_usd_cents")
     if bal >= max(entry, 1):
-        raise PlayError("not_empty", "You still have demo money to play with.", 409)
+        raise PlayError("not_empty", "You still have play money to play with.", 409)
     per_day = await cfg.get_int(session, "play.refills_per_day")
     recent = await _refills_since(session, user.id, utcnow() - timedelta(hours=24))
     if per_day <= 0 or len(recent) >= per_day:
@@ -98,7 +98,7 @@ async def refill(session: AsyncSession, user: User) -> int:
             idempotency_key=f"play-refill:{user.id}:{len(recent)}:{utcnow():%Y%m%d%H%M%S%f}",
             kind=KIND_REFILL,
             legs=[Leg(ledger.user_play(user.id), top_up), Leg(ledger.PLAY_BANK, -top_up)],
-            memo="demo money refill",
+            memo="play money refill",
         )
     return bal + max(top_up, 0)
 

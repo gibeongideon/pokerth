@@ -54,7 +54,7 @@ async def wallet(user: CurrentUser, session: SessionDep) -> dict[str, Any]:
 
 @router.get("/play")
 async def demo_money(user: CurrentUser, session: SessionDep) -> dict[str, Any]:
-    """Demo money for free tables (never real money)."""
+    """Play money for free tables (never real money)."""
     out = await play_svc.status(session, user)
     await session.commit()  # saves the starting grant
     return out
@@ -62,7 +62,7 @@ async def demo_money(user: CurrentUser, session: SessionDep) -> dict[str, Any]:
 
 @router.post("/play/refill")
 async def refill_demo_money(user: CurrentUser, session: SessionDep) -> dict[str, Any]:
-    """Top demo money back up - only when it has run out, limited per day."""
+    """Top play money back up - only when it has run out, limited per day."""
     try:
         await play_svc.refill(session, user)
     except play_svc.PlayError as exc:

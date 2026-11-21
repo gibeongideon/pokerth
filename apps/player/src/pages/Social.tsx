@@ -484,6 +484,11 @@ export function JoinByCode() {
     }
     try {
       await call(api.POST("/tables/{table_id}/join", { params: { path: { table_id: preview.data!.table_id } }, body: { invite_code: code } }));
+      // Joined through someone's link: you become friends with them.
+      const ref = params.get("ref");
+      if (ref) {
+        await call(api.POST("/invites/personal/{code}/connect", { params: { path: { code: ref } } })).catch(() => undefined);
+      }
       play("chip");
       navigate(`/tables/${preview.data!.table_id}`);
     } catch (e) {
