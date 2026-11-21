@@ -142,6 +142,15 @@ The seat token already carries signed table settings (`cfg`: players, chips, sma
 - Shared links always use the public site URL, never the app's own origin.
 - appId `app.feltkings.player` follows the working brand; it cannot change after the first Play upload (decide O-5 first).
 
+### D-030 · 2026-11-21 · Accepted — Name "Draely" (UI only)
+The product shows the name **Draely** (from Braela + Darius) everywhere users see it: app, emails, page titles, Android label. Code identifiers stay (`feltkings` image/compose names, `app.feltkings.player` app id, storage keys). Closes the naming part of O-5.
+
+### D-031 · 2026-11-21 · Accepted — Staging deploy: one server, Docker Compose, GitHub Actions
+- `dev` → staging at https://draely.dafeapp.com (209.38.120.140); `prod` → a separate production server later. One workflow (`deploy.yml`), GitHub Environments per target.
+- Stack: Caddy (TLS, web app, `/api` → API, `/ws` → game server, `/mail` → Mailpit on staging), API, Celery worker + beat, game server, Postgres, Redis. Images in GHCR, tagged with the commit.
+- Secrets are generated on the server (`deploy/bootstrap-server.sh`) and never stored in git or GitHub; GitHub only holds the SSH deploy key.
+- Kubernetes (PRODUCTION_PLAN) stays the long-term target; this is the D-018 VPS step.
+
 ---
 
 ## Open items (to decide)

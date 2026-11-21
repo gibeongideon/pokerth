@@ -2,7 +2,12 @@
 
 Read this first when resuming. Update it at the end of every session.
 
-## Current state (2026-11-21)
+## Current state (2026-11-21, later)
+- **Name:** the app is now called **Draely** in the UI (D-030).
+- **Production review:** part 1 done (backend + game server, `docs/platform/REVIEW_2026-11-21.md`); player-app items still open.
+- **Staging deploy prepared** (D-031, `deploy/README.md`): server 209.38.120.140 bootstrapped (Docker, firewall, `deploy` user, secrets in `/opt/feltkings/.env`). Waiting on: DNS record `draely` → 209.38.120.140, GitHub environment `staging` secrets, then push `dev`.
+
+## Earlier state (2026-11-21)
 - Branches: `stable` → `prod` → `dev`. **`dev` is checked out.** Nothing pushed to `origin`.
 - Phase 0 and Phase 1 done (Smile ID still manual). **Phase 2a done**: stake levels, fees, full Sit & Go lifecycle with a stand-in game server. **Phase 4 API done**: M-Pesa withdrawals with emailed code, review queue, admin users/reports.
 - Agreed order (D-020): non-UI tasks first (Phase 5 done except 5.7b late reg / re-entry / multi-table, which need the game server). **Phase 3 web player app built** (`apps/player`, screenshots in `docs/platform/screenshots/phase3/`). **Phase 2b done**: the C++ server runs in platform mode and an end-to-end bot game settled correctly. **Live play in the web app done** (2026-11-21, D-026): players play real hands in the browser (desktop and phone) through `packages/protocol`; screenshots in `docs/platform/screenshots/live/`. **Reconnect/rejoin done** (D-027): reload, new device or dropped network gets the seat back; error boundaries; table page lazy-loaded. **Visual redesign done** (`docs/platform/screenshots/ui-v2/`). **Quick invites done** (D-028: `/i/<code>` sign-up page, email invites tracked by email, table links that sign newcomers up). **Capacitor Android project done** (D-029; sign-in by emailed code, deep links, icons/splash, CI APK build). **Local APK build is blocked on a JDK** (none installed; `sudo apt install openjdk-21-jdk`). **Next:** build + try the APK on a phone, then the server runtime image and hand history.
