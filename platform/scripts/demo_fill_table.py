@@ -1,5 +1,7 @@
 """Fill your demo table with bot opponents (LOCAL TESTING ONLY).
 
+Runs `docker` on purpose (it starts the bot container).
+
 On the phone (demo APK, signed in as alice) tap Quick play or open a table.
 Then run on the computer:
 
@@ -33,11 +35,20 @@ def main() -> None:
             tokens[user] = r.json()["access_token"]
         return {"Authorization": f"Bearer {tokens[user]}"}
 
-    mine = [t for t in c.get("/tables/mine", headers=h(me)).json() if t["status"] in ("open", "ready_check")]
+    mine = [
+        t
+        for t in c.get("/tables/mine", headers=h(me)).json()
+        if t["status"] in ("open", "ready_check")
+    ]
     if not mine:
-        sys.exit(f"{me} isn't waiting at a table. Tap Quick play (or open a table) on the phone first.")
+        sys.exit(
+            f"{me} isn't waiting at a table. Tap Quick play (or open a table) on the phone first."
+        )
     table = mine[0]
-    print(f"table {table['id']} ({table['price_label']}): {table['players']}/{table['seats_total']} seated")
+    print(
+        f"table {table['id']} ({table['price_label']}): "
+        f"{table['players']}/{table['seats_total']} seated"
+    )
 
     others = [u for u in DEMO if u != me]
     seated: list[str] = []
@@ -73,12 +84,31 @@ def main() -> None:
     else:
         sys.exit("you didn't press ready in time")
 
-    seat_tokens = [c.get(f"/tables/{table['id']}/seat-token", headers=h(u)).json()["token"] for u in seated]
+    seat_tokens = [
+        c.get(f"/tables/{table['id']}/seat-token", headers=h(u)).json()["token"] for u in seated
+    ]
     subprocess.run(["docker", "rm", "-f", "poker-bots"], capture_output=True)
     subprocess.run(
-        ["docker", "run", "-d", "--name", "poker-bots", "--network", "host", "-v", "poker-server-build-cache:/build:ro",
-         "poker-server-build", "/build/bin/pokerth_bot", "-s", "127.0.0.1", "--no-tls", "--platform-tokens", ",".join(seat_tokens)],
-        check=True, capture_output=True,
+        [
+            "docker",
+            "run",
+            "-d",
+            "--name",
+            "poker-bots",
+            "--network",
+            "host",
+            "-v",
+            "poker-server-build-cache:/build:ro",
+            "poker-server-build",
+            "/build/bin/pokerth_bot",
+            "-s",
+            "127.0.0.1",
+            "--no-tls",
+            "--platform-tokens",
+            ",".join(seat_tokens),
+        ],
+        check=True,
+        capture_output=True,
     )
     print(f"{len(seated)} bots are playing. Good luck! (stop them: docker rm -f poker-bots)")
 
