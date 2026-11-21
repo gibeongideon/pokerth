@@ -11,9 +11,12 @@
 		-Server
 	}
 
-	# Game server-to-platform calls never come from outside.
-	@internal path /api/internal/games/*
-	respond @internal 404
+	# Game server-to-platform calls never come from outside. (A handle block:
+	# a bare respond would run after the /api proxy.) The more specific path
+	# wins over /api/*.
+	handle /api/internal/* {
+		respond 404
+	}
 
 	handle_path /api/* {
 		reverse_proxy api:8000

@@ -122,7 +122,9 @@ jobs:
           dc() { docker compose --env-file .env --env-file image.env "$@"; }
           dc pull --quiet
           dc up -d postgres redis
-          dc run --rm api alembic upgrade head
+          # -T and </dev/null: `compose run` would otherwise read this script's
+          # stdin and silently swallow the rest of it.
+          dc run --rm -T api alembic upgrade head </dev/null
           dc up -d --remove-orphans
           docker logout ghcr.io >/dev/null
           docker image prune -af --filter "until=168h" >/dev/null || true
@@ -130,8 +132,13 @@ jobs:
           REMOTE
       - name: Health check
         run: |
+          # The server's .env is the source of truth for its domain.
+          DOMAIN="${{ vars.SITE_DOMAIN }}"
+          if [ -z "$DOMAIN" ]; then
+            DOMAIN=$(ssh "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" "grep '^SITE_DOMAIN=' /opt/feltkings/.env | cut -d= -f2")
+          fi
           for i in $(seq 1 30); do
-            if curl -fsS "https://${{ vars.SITE_DOMAIN }}/api/readyz"; then exit 0; fi
+            if curl -fsS "https://$DOMAIN/api/readyz"; then echo; echo "healthy: https://$DOMAIN"; exit 0; fi
             sleep 5
           done
-          echo "site not healthy"; exit 1
+          echo "site not healthy: https://$DOMAIN"; exit 1
