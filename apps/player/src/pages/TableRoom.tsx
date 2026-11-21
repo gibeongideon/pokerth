@@ -4,12 +4,12 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { Avatar, Ring, SeatDots, Spinner, StatusBadge } from "../components/bits";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { Icon } from "../components/Icon";
-import { useToast } from "../components/Toast";
+import { useErrorToast, useToast } from "../components/Toast";
 import { ActionBar } from "../game/ActionBar";
 import { TableCanvas, type CanvasSeat, type LiveTable } from "../game/TableCanvas";
 import { useLiveGame } from "../game/useLiveGame";
 import { pot as potOf, type TableState } from "@poker/protocol";
-import { api, call, errorMessage } from "../lib/api";
+import { api, call } from "../lib/api";
 import { PUBLIC_URL } from "../lib/native";
 import { usd, when } from "../lib/format";
 import { useMe, useSecondsLeft } from "../lib/hooks";
@@ -18,6 +18,7 @@ import type { FriendItem, TableView } from "../lib/types";
 
 function InvitePanel({ table, onClose }: { table: TableView; onClose: () => void }) {
   const toast = useToast();
+  const showError = useErrorToast();
   const friends = useQuery({
     queryKey: ["friends"],
     queryFn: () => call<{ friends: FriendItem[] }>(api.GET("/friends")),
@@ -47,7 +48,7 @@ function InvitePanel({ table, onClose }: { table: TableView; onClose: () => void
       );
       onClose();
     } catch (e) {
-      toast(errorMessage(e), "error");
+      showError(e);
     }
   };
 
@@ -243,7 +244,7 @@ function Rsvp({ tableId }: { tableId: string }) {
 export function TableRoom() {
   const { id = "" } = useParams();
   const me = useMe();
-  const toast = useToast();
+  const showError = useErrorToast();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [inviting, setInviting] = useState(false);
@@ -297,7 +298,7 @@ export function TableRoom() {
         qc.invalidateQueries({ queryKey: ["demo-money"] }),
       ]);
     } catch (e) {
-      toast(errorMessage(e), "error");
+      showError(e);
     } finally {
       acting.current = false;
     }
@@ -347,6 +348,9 @@ export function TableRoom() {
             )}
           </div>
         </div>
+        <Link to="/hands" className="btn-icon shrink-0" aria-label="Hand rankings" title="Hand rankings">
+          <span className="font-display text-lg leading-none">?</span>
+        </Link>
         <div className="shrink-0 rounded-2xl border border-gold-400/30 bg-black/30 px-3 py-1.5 text-right shadow-glow md:px-4 md:py-2">
           <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-cream/50">Prize pool</div>
           <div className="title gold-text text-2xl leading-tight md:text-3xl">{usd(t.prize_pool_cents)}</div>
@@ -489,7 +493,7 @@ export function TableRoom() {
               <button
                 className="btn-ghost px-3 py-1.5 text-sm"
                 onClick={() =>
-                  confirm("Leave this practice game? It counts as a loss of your demo entry.") &&
+                  confirm("Leave this practice game? You lose your play money entry.") &&
                   act(async () => {
                     await call(api.POST("/tables/{table_id}/quit-practice", path));
                     navigate("/");

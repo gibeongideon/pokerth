@@ -1,7 +1,8 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Avatar } from "../components/bits";
+import { Icon } from "../components/Icon";
 import { useToast } from "../components/Toast";
 import { api, call, errorMessage, signOut as endSession } from "../lib/api";
 import { usd, when } from "../lib/format";
@@ -131,6 +132,19 @@ export function Profile() {
             {m.is_admin && <span className="badge bg-gold-400/20 text-gold-300">Admin</span>}
           </div>
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Link to="/hands" className="panel-flat flex items-center gap-3 p-4 transition hover:border-gold-400/40">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gold-400/15 font-display text-lg text-gold-300">?</span>
+          <span className="font-semibold">Hand rankings</span>
+        </Link>
+        <Link to="/tables" className="panel-flat flex items-center gap-3 p-4 transition hover:border-gold-400/40">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gold-400/15 text-gold-300">
+            <Icon name="history" size={18} />
+          </span>
+          <span className="font-semibold">My tables</span>
+        </Link>
       </div>
 
       <div className="panel space-y-3 p-5">

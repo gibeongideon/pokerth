@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { usd } from "../lib/format";
-import { useInvites, useMe, useWallet } from "../lib/hooks";
+import { useInvites, useMe, useMyTables, useWallet } from "../lib/hooks";
 import { DEMO_PLAYER } from "../lib/native";
 import { isMuted, play, setMuted } from "../lib/sound";
 import { Avatar } from "./bits";
@@ -78,12 +78,17 @@ export function Shell({ children }: { children: ReactNode }) {
   const me = useMe();
   const wallet = useWallet(!!me.data);
   const invites = useInvites(!!me.data);
+  const mine = useMyTables(!!me.data);
   const [muted, setMutedState] = useState(isMuted);
   const location = useLocation();
   const pending = invites.data?.length ?? 0;
   // A table screen (/tables/<id>), not the My tables list.
   const atTable = /^\/tables\/[^/]+$/.test(location.pathname);
   const name = me.data?.username ?? "player";
+  // The game you're in, when you're somewhere else in the app: one tap back.
+  const live = (mine.data ?? []).find((t) => t.status === "running" || t.status === "ready_check") ?? null;
+  const waiting = (mine.data ?? []).filter((t) => t.status === "open").length;
+  const showBackToGame = !!live && !atTable;
   const toggleSound = () => {
     setMuted(!muted);
     setMutedState(!muted);
@@ -110,8 +115,15 @@ export function Shell({ children }: { children: ReactNode }) {
               {n.to === "/friends" && pending > 0 && (
                 <span className="ml-auto rounded-full bg-chip-red px-2 py-0.5 font-sans text-xs font-bold text-white">{pending}</span>
               )}
+              {n.to === "/tables" && (live || waiting > 0) && (
+                <span className={`ml-auto h-2.5 w-2.5 rounded-full ${live ? "animate-pulse bg-chip-green" : "bg-gold-400"}`} />
+              )}
             </NavLink>
           ))}
+          <NavLink to="/hands" className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
+            <span className="flex w-5 justify-center font-display text-lg leading-none">?</span>
+            Hand rankings
+          </NavLink>
         </nav>
         <div className="mt-auto space-y-3">
           <Link to="/organize" className="panel block overflow-hidden p-4 transition hover:-translate-y-0.5">
@@ -168,6 +180,19 @@ export function Shell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
+        {showBackToGame && live && (
+          <Link
+            to={`/tables/${live.id}`}
+            className="mx-4 mt-3 flex animate-pop items-center gap-3 rounded-2xl border border-chip-green/40 bg-chip-green/10 px-4 py-2.5 text-sm md:mx-6"
+          >
+            <span className="h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-chip-green" />
+            <span className="min-w-0 flex-1 truncate">
+              {live.status === "ready_check" ? "Your table is full - confirm you're in" : "Your game is on"}: <b>{live.title ?? live.name}</b>
+            </span>
+            <span className="shrink-0 font-semibold text-gold-300">Back to game</span>
+            <Icon name="chevron" size={16} className="shrink-0 text-gold-300" />
+          </Link>
+        )}
         <main
           key={location.pathname}
           className={`flex-1 animate-fadeUp px-4 pt-4 md:px-6 md:pb-10 ${atTable ? "pb-44" : "pb-28"}`}
@@ -200,6 +225,9 @@ export function Shell({ children }: { children: ReactNode }) {
                 {n.label}
                 {n.to === "/friends" && pending > 0 && (
                   <span className="absolute right-[24%] top-2 h-2.5 w-2.5 rounded-full bg-chip-red ring-2 ring-[#030c08]" />
+                )}
+                {n.to === "/tables" && (live || waiting > 0) && (
+                  <span className={`absolute right-[24%] top-2 h-2.5 w-2.5 rounded-full ring-2 ring-[#030c08] ${live ? "animate-pulse bg-chip-green" : "bg-gold-400"}`} />
                 )}
               </>
             )}

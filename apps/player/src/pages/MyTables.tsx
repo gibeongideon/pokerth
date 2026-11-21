@@ -1,15 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { SeatDots, Spinner, StatusBadge } from "../components/bits";
-import { api, call } from "../lib/api";
-import type { TableView } from "../lib/types";
+import { useMyTables } from "../lib/hooks";
 
 export function MyTables() {
-  const tables = useQuery({
-    queryKey: ["my-tables"],
-    queryFn: () => call<TableView[]>(api.GET("/tables/mine")),
-    refetchInterval: 4000,
-  });
+  const tables = useMyTables(true, true);
   if (tables.isLoading) return <Spinner />;
   return (
     <div className="space-y-4">

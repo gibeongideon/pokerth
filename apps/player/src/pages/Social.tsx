@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Avatar, Chip, Empty, SeatDots, Spinner } from "../components/bits";
-import { useToast } from "../components/Toast";
+import { useErrorToast, useToast } from "../components/Toast";
 import { api, call, errorMessage } from "../lib/api";
 import { TIER_COLORS, usd, when } from "../lib/format";
 import { useInvites, useMe, useTiers } from "../lib/hooks";
@@ -12,7 +12,7 @@ import { Icon } from "../components/Icon";
 import { EmailSignIn, rememberReturn } from "./Auth";
 
 function InviteCard({ invite }: { invite: Invite }) {
-  const toast = useToast();
+  const showError = useErrorToast();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const t = invite.table;
@@ -31,7 +31,7 @@ function InviteCard({ invite }: { invite: Invite }) {
       }
       await Promise.all([qc.invalidateQueries({ queryKey: ["invites"] }), qc.invalidateQueries({ queryKey: ["wallet"] })]);
     } catch (e) {
-      toast(errorMessage(e), "error");
+      showError(e);
     } finally {
       setBusy(false);
     }
@@ -473,7 +473,7 @@ export function JoinByCode() {
   const { code = "" } = useParams();
   const [params] = useSearchParams();
   const me = useMe();
-  const toast = useToast();
+  const showError = useErrorToast();
   const navigate = useNavigate();
   const [signingUp, setSigningUp] = useState(false);
   const preview = useQuery({
@@ -500,7 +500,7 @@ export function JoinByCode() {
       play("chip");
       navigate(`/tables/${preview.data!.table_id}`);
     } catch (e) {
-      toast(errorMessage(e), "error");
+      showError(e);
     } finally {
       joining.current = false;
     }

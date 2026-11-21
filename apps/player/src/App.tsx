@@ -11,6 +11,7 @@ import { Profile } from "./pages/Profile";
 import { Friends, JoinByCode, Organize } from "./pages/Social";
 import { InviteLanding } from "./pages/Invite";
 import { MyTables } from "./pages/MyTables";
+import { HandRanks } from "./pages/HandRanks";
 import { DepositReturn, WalletPage } from "./pages/Wallet";
 import { DevLogin } from "./pages/DevLogin";
 import { DEMO_PLAYER, DEV_TOOLS } from "./lib/native";
@@ -82,6 +83,7 @@ export function App() {
       <Route path="/wallet/deposit/return" element={<Protected><DepositReturn /></Protected>} />
       <Route path="/friends" element={<Protected><Friends /></Protected>} />
       <Route path="/organize" element={<Protected><Organize /></Protected>} />
+      <Route path="/hands" element={<MaybeShell><HandRanks /></MaybeShell>} />
       <Route path="/profile" element={<Protected><Profile /></Protected>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

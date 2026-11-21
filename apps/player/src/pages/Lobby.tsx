@@ -4,8 +4,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { Chip, Spinner, StatusBadge } from "../components/bits";
 import { CardFan } from "../components/Brand";
 import { Icon } from "../components/Icon";
-import { useToast } from "../components/Toast";
-import { api, call, errorMessage } from "../lib/api";
+import { useErrorToast } from "../components/Toast";
+import { api, call } from "../lib/api";
 import { TIER_COLORS, kes, usd, when } from "../lib/format";
 import { useInvites, useMe, useTiers } from "../lib/hooks";
 import { play } from "../lib/sound";
@@ -137,7 +137,7 @@ export function Lobby() {
   });
   const invites = useInvites();
   const navigate = useNavigate();
-  const toast = useToast();
+  const showError = useErrorToast();
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
 
@@ -149,7 +149,7 @@ export function Lobby() {
       await Promise.all([qc.invalidateQueries({ queryKey: ["wallet"] }), qc.invalidateQueries({ queryKey: ["demo-money"] })]);
       navigate(`/tables/${table.id}`);
     } catch (e) {
-      toast(errorMessage(e), "error");
+      showError(e);
     } finally {
       setBusy(false);
     }
@@ -233,6 +233,10 @@ export function Lobby() {
             </Link>
           )}
         </div>
+        <Link to="/hands" className="relative mt-4 inline-flex items-center gap-1.5 text-sm text-gold-300 hover:underline">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gold-400/20 font-display text-xs">?</span>
+          New to poker? See which hands win
+        </Link>
         <div className="relative mt-7 grid max-w-lg grid-cols-3 gap-2">
           <div className="stat bg-black/30">
             <b>{seated}</b>

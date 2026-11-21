@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { api, call } from "./api";
-import type { Invite, Me, Tier, Wallet } from "./types";
+import type { Invite, Me, TableView, Tier, Wallet } from "./types";
 
 export function useMe() {
   return useQuery({
@@ -35,6 +35,16 @@ export function useInvites(enabled = true) {
     queryFn: () => call<Invite[]>(api.GET("/invites")),
     enabled,
     refetchInterval: 20_000,
+  });
+}
+
+/** Tables I'm seated at that haven't finished. ``fast`` polls quicker (My tables page). */
+export function useMyTables(enabled = true, fast = false) {
+  return useQuery({
+    queryKey: ["my-tables"],
+    queryFn: () => call<TableView[]>(api.GET("/tables/mine")),
+    enabled,
+    refetchInterval: fast ? 4000 : 15_000,
   });
 }
 
