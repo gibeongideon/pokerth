@@ -12,8 +12,13 @@ import uuid
 from collections.abc import AsyncIterator, Callable
 from typing import Any
 
-import httpx
-import pytest
+# Tests run in local mode. Set before importing the app: importing app.main
+# builds the settings, and outside local they demand production secrets.
+os.environ["PLATFORM_ENV"] = "local"
+os.environ["PLATFORM_ENABLE_DEV_ROUTES"] = "true"
+
+import httpx  # noqa: E402
+import pytest  # noqa: E402
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
