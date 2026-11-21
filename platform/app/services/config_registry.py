@@ -100,8 +100,9 @@ _DEFS += [
     SettingDef(
         "table.unregister_grace_seconds",
         int,
-        120,
-        "After joining, a player can pull out for free for this long.",
+        600,
+        "While a table isn't full, a player can pull out with a full refund this long "
+        "after joining.",
         min=0,
         max=3600,
     ),

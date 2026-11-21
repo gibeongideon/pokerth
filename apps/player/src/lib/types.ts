@@ -51,7 +51,8 @@ export interface TableView {
   players: number;
   prize_pool_cents: number;
   payout_bps: number[];
-  start_mode: "when_full" | "scheduled";
+  start_mode: "when_full" | "scheduled" | "practice";
+  bots: number;
   is_private: boolean;
   is_organizer: boolean;
   invite_code: string | null;

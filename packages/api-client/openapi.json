@@ -1639,6 +1639,52 @@
         }
       }
     },
+    "/tables/{table_id}/quit-practice": {
+      "post": {
+        "tags": [
+          "tables"
+        ],
+        "summary": "Quit Practice",
+        "description": "Leave a practice game against the computer now (counts as a loss).",
+        "operationId": "quit_practice_tables__table_id__quit_practice_post",
+        "parameters": [
+          {
+            "name": "table_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Table Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Quit Practice Tables  Table Id  Quit Practice Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/tables/private": {
       "post": {
         "tags": [

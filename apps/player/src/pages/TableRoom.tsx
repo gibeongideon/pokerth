@@ -381,11 +381,26 @@ export function TableRoom() {
                   <Icon name="users" size={18} /> Invite friends
                 </button>
                 {t.me?.can_pull_out && (pullOutLeft ?? 0) > 0 && (
-                  <button className="btn-ghost" onClick={() => act(() => call(api.POST("/tables/{table_id}/leave", path)))}>
-                    Pull out · {Math.floor((pullOutLeft ?? 0) / 60)}:{String((pullOutLeft ?? 0) % 60).padStart(2, "0")}
+                  <button
+                    className="btn-ghost"
+                    onClick={() =>
+                      act(async () => {
+                        await call(api.POST("/tables/{table_id}/leave", path));
+                        navigate("/");
+                      })
+                    }
+                  >
+                    <Icon name="logout" size={16} /> Leave table · {Math.floor((pullOutLeft ?? 0) / 60)}:
+                    {String((pullOutLeft ?? 0) % 60).padStart(2, "0")}
                   </button>
                 )}
               </div>
+              {t.me && !(t.me.can_pull_out && (pullOutLeft ?? 0) > 0) && (
+                <p className="w-full text-xs text-cream/50">
+                  The 10-minute leave window has passed. The game starts when the table is full; if it
+                  doesn't fill in time it's cancelled and everyone gets a full refund.
+                </p>
+              )}
             </div>
           )}
 
@@ -400,6 +415,22 @@ export function TableRoom() {
             </div>
           )}
 
+          {t.status === "running" && playing && t.start_mode === "practice" && (
+            <div className="mb-3 flex justify-end">
+              <button
+                className="btn-ghost px-3 py-1.5 text-sm"
+                onClick={() =>
+                  confirm("Leave this practice game? It counts as a loss of your demo entry.") &&
+                  act(async () => {
+                    await call(api.POST("/tables/{table_id}/quit-practice", path));
+                    navigate("/");
+                  })
+                }
+              >
+                <Icon name="logout" size={16} /> Leave game
+              </button>
+            </div>
+          )}
           {t.status === "running" && playing && (
             <>
               {live.reconnecting ? (

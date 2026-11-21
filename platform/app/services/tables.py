@@ -750,6 +750,18 @@ async def _settle_play(
         )
 
 
+async def quit_practice(session: AsyncSession, table_id: uuid.UUID, user: User) -> GameTable:
+    """Leave a practice game early: it counts as finishing last (the demo
+    entry is lost) and the table is finished, so the player can play again."""
+    table = await _lock_table(session, table_id)
+    if not table.config.get("bots") or table.status != "running":
+        raise TableError("not_practice", "Only a running practice game can be left early.", 409)
+    if user.id not in {s.user_id for s in await _seats(session, table.id, "playing")}:
+        raise TableError("not_registered", "You are not playing at this table.", 404)
+    last = int(table.config["bots"]) + 1
+    return await settle(session, table.id, [user.id], {user.id: last})
+
+
 async def start_practice(
     session: AsyncSession, gateway: GameGateway, user: User, bots: int = 5
 ) -> GameTable:
@@ -884,6 +896,7 @@ async def table_view(
         "registration_opens_at": c.get("registration_opens_at"),
         "payout_bps": c["payout_bps"],
         "start_mode": c["start_mode"],
+        "bots": int(c.get("bots") or 0),
         "is_private": table.is_private,
         "title": table.title,
         "message": table.message,

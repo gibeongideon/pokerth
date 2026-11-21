@@ -658,3 +658,22 @@ async def test_demo_money_free_tables_practice_and_refill(
         await s.commit()
     again = await client.post("/wallet/play/refill", headers=ha)
     assert again.status_code == 429 and again.json()["detail"]["code"] == "refill_limit"
+
+
+async def test_leave_practice_early_and_pull_out_window(
+    client: httpx.AsyncClient,
+    sessions: async_sessionmaker[AsyncSession],
+    make_user: MakeUser,
+) -> None:
+    free = await _tier(sessions, name="Free", buy_in_cents=0, seats=3, payout_bps=[10_000])
+    _, h = await _player(sessions, make_user, "quitter", cents=0)
+
+    p = (await client.post("/lobby/practice", json={"bots": 5}, headers=h)).json()
+    left = await client.post(f"/tables/{p['id']}/quit-practice", headers=h)
+    assert left.status_code == 200 and left.json()["status"] == "finished"
+    # Free to play again straight away; the entry was lost.
+    t = (await client.post("/lobby/quick-play", json={"tier_id": free.id}, headers=h)).json()
+    assert t["me"]["can_pull_out"] is True
+    assert 590 <= t["me"]["pull_out_seconds_left"] <= 600  # 10 minutes to leave a waiting table
+    out = await client.post(f"/tables/{t['id']}/leave", headers=h)
+    assert out.status_code < 300, out.text

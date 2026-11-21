@@ -206,6 +206,20 @@ async def practice(
     return await _view(session, table.id, user.id)
 
 
+@router.post("/tables/{table_id}/quit-practice")
+async def quit_practice(
+    table_id: uuid.UUID, user: CurrentUser, session: SessionDep
+) -> dict[str, Any]:
+    """Leave a practice game against the computer now (counts as a loss)."""
+    try:
+        await svc.quit_practice(session, table_id, user)
+    except svc.TableError as exc:
+        await session.rollback()
+        raise _err(exc) from exc
+    await session.commit()
+    return await _view(session, table_id, user.id)
+
+
 @router.post("/tables/private", status_code=201)
 async def create_private(
     body: PrivateTableRequest, user: CurrentUser, session: SessionDep, gateway: GatewayDep
