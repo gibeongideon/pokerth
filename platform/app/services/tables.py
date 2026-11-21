@@ -209,6 +209,16 @@ async def _lock_table(session: AsyncSession, table_id: uuid.UUID) -> GameTable:
     return table
 
 
+async def check_user_can_create(session: AsyncSession, tier: StakeTier) -> None:
+    """Player-created tables: free stakes always; paid only if the setting allows."""
+    if tier.buy_in_cents > 0 and not await cfg.get_bool(session, "tables.user_created_paid"):
+        raise TableError(
+            "paid_tables_quick_play_only",
+            "For now, paid stakes are played through Quick play. Create a free table instead.",
+            403,
+        )
+
+
 async def has_active_seat(session: AsyncSession, user_id: uuid.UUID) -> bool:
     """Seated (or registered) at a table that hasn't finished."""
     found = await session.scalar(
@@ -653,6 +663,39 @@ async def settle(
     return table
 
 
+async def start_practice(
+    session: AsyncSession, gateway: GameGateway, user: User, bots: int = 5
+) -> GameTable:
+    """Free game against computer players, starting now. Virtual chips only:
+    built on the free stake level, never on a paid one."""
+    tier = await session.scalar(
+        select(StakeTier)
+        .where(StakeTier.enabled, StakeTier.buy_in_cents == 0)
+        .order_by(StakeTier.sort_order)
+        .limit(1)
+    )
+    if tier is None:
+        raise TableError("not_found", "Free play is not available right now.", 404)
+    if not 1 <= bots <= 9:
+        raise TableError("bad_request", "Choose between 1 and 9 computer players.", 422)
+    table = await open_table(session, tier, private=True, created_by=user.id)
+    if _price_of(table).total != 0:
+        raise TableError("not_free", "Practice tables must be free.", 409)
+    table.title = "Practice vs computer"
+    table.config = {
+        **table.config,
+        "name": "Practice",
+        "start_mode": "practice",
+        "seats": 1,
+        "min_players": 1,
+        "payout_bps": [10_000],
+        "bots": bots,
+    }
+    seat = await join(session, gateway, table.id, user, table.invite_code)
+    await _start(session, gateway, table, [seat])
+    return table
+
+
 # --------------------------------------------------------------------- views
 
 
@@ -697,6 +740,8 @@ def game_server_cfg(table: GameTable, players: int) -> dict[str, Any]:
         "sb": int(c.get("first_small_blind") or 10),
         "blind_minutes": int(c.get("blind_level_minutes") or 5),
         "title": (table.title or c["name"])[:60],
+        # Practice tables: the game server fills the other seats with computer players.
+        "bots": int(c.get("bots") or 0),
     }
 
 

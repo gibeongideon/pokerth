@@ -64,6 +64,8 @@ export interface TableView {
 export interface LobbyTable {
   id: string;
   name: string;
+  title: string | null;
+  organizer: string | null;
   price_label: string;
   status: TableStatus;
   players: number;

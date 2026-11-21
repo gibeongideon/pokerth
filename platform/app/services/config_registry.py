@@ -131,6 +131,13 @@ _DEFS += [
         max=20,
     ),
     SettingDef(
+        "tables.user_created_paid",
+        bool,
+        False,
+        "Players may create their own paid tables (organize / private). Off: paid stakes run "
+        "one system table at a time via Quick play; free tables can be created by anyone.",
+    ),
+    SettingDef(
         "table.open_max_minutes",
         int,
         60,

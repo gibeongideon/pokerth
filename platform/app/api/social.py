@@ -34,6 +34,8 @@ class OrganizeIn(BaseModel):
     scheduled_start_at: datetime | None = None
     organizer_plays: bool = True
     invite: Handles = []
+    # Public: listed in the lobby for anyone to join. Private: invite code only.
+    public: bool = False
 
 
 def _err(exc: social.SocialError | table_svc.TableError) -> ApiError:
@@ -182,6 +184,7 @@ async def organize(
             scheduled_start_at=body.scheduled_start_at,
             organizer_plays=body.organizer_plays,
             invitees=body.invite,
+            public=body.public,
         )
     except social.SocialError as exc:
         await session.rollback()

@@ -1547,6 +1547,50 @@
         }
       }
     },
+    "/lobby/practice": {
+      "post": {
+        "tags": [
+          "tables"
+        ],
+        "summary": "Practice",
+        "description": "Free game against computer players (virtual chips), starting right away.",
+        "operationId": "practice_lobby_practice_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PracticeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Practice Lobby Practice Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/tables/private": {
       "post": {
         "tags": [
@@ -3764,6 +3808,19 @@
           "title"
         ],
         "title": "OrganizeIn"
+      },
+      "PracticeRequest": {
+        "properties": {
+          "bots": {
+            "type": "integer",
+            "maximum": 9.0,
+            "minimum": 1.0,
+            "title": "Bots",
+            "default": 5
+          }
+        },
+        "type": "object",
+        "title": "PracticeRequest"
       },
       "PrivateTableRequest": {
         "properties": {

@@ -160,9 +160,10 @@ async def test_sit_and_go_from_lobby_to_payout(
     assert await _bal(sessions, ledger.table_escrow(table_id)) == 30_000
     assert await _bal(sessions, ledger.HOUSE_FEES) == 150
 
-    # A replacement table opened for the lobby.
+    # The full table left the public list; a replacement opened for the next players.
     lobby = (await client.get(f"/lobby/tables?tier_id={tier.id}")).json()
-    assert [t["status"] for t in lobby] == ["ready_check", "open"]
+    assert [t["status"] for t in lobby] == ["open"]
+    assert lobby[0]["id"] != str(table_id)
 
     # Everyone confirms; the game starts and seat tokens can be issued.
     for _, h in players:
@@ -182,6 +183,7 @@ async def test_sit_and_go_from_lobby_to_payout(
         "sb": 10,
         "blind_minutes": 5,
         "title": "High",
+        "bots": 0,
     }
 
     # Game server reports the result (HMAC-signed): cat wins, ann second.
@@ -397,6 +399,7 @@ async def test_private_table_needs_code(
     make_user: MakeUser,
     real_money: None,
 ) -> None:
+    await set_setting(sessions, "tables.user_created_paid", True)
     tier = await _tier(sessions)
     _, host = await _player(sessions, make_user, "host")
     _, guest = await _player(sessions, make_user, "guest")
@@ -539,3 +542,51 @@ async def test_result_without_no_shows_places_them_last(
     async with sessions() as s:
         with pytest.raises(svc.TableError):
             await svc.settle(s, uuid.uuid4(), [users[0].id])
+
+
+async def test_practice_vs_computer_is_free_and_starts_now(
+    client: httpx.AsyncClient,
+    sessions: async_sessionmaker[AsyncSession],
+    make_user: MakeUser,
+) -> None:
+    await _tier(sessions, name="Free", buy_in_cents=0, payout_bps=[10_000])
+    user, h = await _player(sessions, make_user, "solo", cents=0)
+
+    resp = await client.post("/lobby/practice", json={"bots": 5}, headers=h)
+    assert resp.status_code == 201, resp.text
+    t = resp.json()
+    assert t["status"] == "running" and t["me"]["status"] == "playing"
+    assert t["is_private"] is True  # never listed in the lobby
+
+    token = (await client.get(f"/tables/{t['id']}/seat-token", headers=h)).json()["token"]
+    claims = jwt.decode(token, options={"verify_signature": False})
+    assert claims["cfg"]["players"] == 1 and claims["cfg"]["bots"] == 5
+
+    # The result lists only the human; nothing is paid (virtual chips).
+    body = json.dumps({"table_id": t["id"], "finishing_order": [str(user.id)]}).encode()
+    ok = await client.post(
+        f"/internal/games/{t['id']}/result",
+        content=body,
+        headers={"x-signature": sign_internal(body)},
+    )
+    assert ok.status_code == 200 and ok.json()["status"] == "finished"
+    assert await _bal(sessions, ledger.user_available(user.id)) == 0
+
+    bad = await client.post("/lobby/practice", json={"bots": 0}, headers=h)
+    assert bad.status_code == 422
+
+
+async def test_players_create_free_tables_paid_only_via_quick_play(
+    client: httpx.AsyncClient,
+    sessions: async_sessionmaker[AsyncSession],
+    make_user: MakeUser,
+) -> None:
+    await set_setting(sessions, "real_money_enabled", True)
+    paid = await _tier(sessions)
+    free = await _tier(sessions, name="Free", buy_in_cents=0, payout_bps=[10_000])
+    _, h = await _player(sessions, make_user, "maker")
+
+    refused = await client.post("/tables/private", json={"tier_id": paid.id}, headers=h)
+    assert refused.json()["detail"]["code"] == "paid_tables_quick_play_only"
+    ok = await client.post("/tables/private", json={"tier_id": free.id}, headers=h)
+    assert ok.status_code == 201, ok.text

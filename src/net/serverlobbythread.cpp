@@ -1827,7 +1827,7 @@ ServerLobbyThread::PlacePlatformPlayer(boost::shared_ptr<SessionData> session)
 		GameData data;
 		data.gameType = GAME_TYPE_NORMAL;
 		data.allowSpectators = false;
-		data.maxNumberOfPlayers = seat->players;
+		data.maxNumberOfPlayers = seat->players + seat->bots;
 		data.startMoney = seat->startingChips;
 		data.firstSmallBlind = seat->firstSmallBlind;
 		data.raiseIntervalMode = RAISE_ON_MINUTES;
@@ -1842,6 +1842,7 @@ ServerLobbyThread::PlacePlatformPlayer(boost::shared_ptr<SessionData> session)
 								  session->GetPlayerData()->GetUniqueId(), session->GetPlayerData()->GetDBId(),
 								  GetGui(), m_serverConfig));
 		game->SetPlatformTable(seat->tableId);
+		game->SetPlatformSeats(seat->players, seat->bots);
 		game->Init();
 		InternalAddGame(game);
 		m_platformGames[seat->tableId] = gameId;

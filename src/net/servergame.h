@@ -103,6 +103,10 @@ public:
 
 	// Managed (platform) mode.
 	void SetPlatformTable(const std::string &tableId);
+	// Practice tables: this many humans, the rest computer players.
+	void SetPlatformSeats(int humans, int bots) { m_platformHumans = humans; m_platformBots = bots; }
+	int GetPlatformHumans() const { return m_platformHumans; }
+	int GetPlatformBots() const { return m_platformBots; }
 	bool IsPlatformGame() const;
 	const std::string &GetPlatformTable() const;
 	// Remember which platform user plays as this server player id (again after a rejoin).
@@ -241,6 +245,8 @@ private:
 	std::string m_platformTableId;
 	std::map<unsigned, std::string> m_platformUsers;
 	bool m_platformReported = false;
+	int m_platformHumans = 0;
+	int m_platformBots = 0;
 
 	unsigned m_adminPlayerId;
 

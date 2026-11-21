@@ -59,9 +59,11 @@ function TierCard({ tier, color, filling, onPlay, onPrivate, busy }: {
             {filling && <span className="text-chip-green">· {filling.players} waiting</span>}
           </div>
         </div>
-        <button className="btn-icon h-11 w-11" onClick={onPrivate} disabled={busy} aria-label={`Private ${tier.name} table`}>
-          <Icon name="lock" size={18} />
-        </button>
+        {tier.buy_in_cents === 0 && (
+          <button className="btn-icon h-11 w-11" onClick={onPrivate} disabled={busy} aria-label={`Private ${tier.name} table`}>
+            <Icon name="lock" size={18} />
+          </button>
+        )}
         <button className="btn-gold h-11 px-4" onClick={onPlay} disabled={busy}>
           Play
         </button>
@@ -114,9 +116,11 @@ function TierCard({ tier, color, filling, onPlay, onPrivate, busy }: {
           <button className="btn-gold flex-1 text-lg" onClick={onPlay} disabled={busy}>
             <Icon name="bolt" size={18} strokeWidth={2.4} /> Quick play
           </button>
-          <button className="btn-icon h-auto w-12" onClick={onPrivate} disabled={busy} title="Private table for friends" aria-label={`Private ${tier.name} table`}>
-            <Icon name="lock" size={18} />
-          </button>
+          {tier.buy_in_cents === 0 && (
+            <button className="btn-icon h-auto w-12" onClick={onPrivate} disabled={busy} title="Private table for friends" aria-label={`Private ${tier.name} table`}>
+              <Icon name="lock" size={18} />
+            </button>
+          )}
         </div>
       </div>
     </>
@@ -151,9 +155,12 @@ export function Lobby() {
     }
   };
   const quickPlay = (t: Tier) => go(call<TableView>(api.POST("/lobby/quick-play", { body: { tier_id: t.id } })));
+  const practice = () => go(call<TableView>(api.POST("/lobby/practice", { body: { bots: 5 } })));
 
   const all = tables.data ?? [];
-  const filling = all.filter((t) => t.status === "open" && t.players > 0);
+  // Open tables: anything public still taking players that has someone in it,
+  // or that a player created (it has a title) - including empty ones.
+  const filling = all.filter((t) => t.status === "open" && (t.players > 0 || !!t.title));
   const seated = all.reduce((n, t) => n + (t.status === "running" || t.status === "open" || t.status === "ready_check" ? t.players : 0), 0);
   const tierList = tiers.data ?? [];
   const colorOf = (label: string) => TIER_COLORS[Math.max(0, tierList.findIndex((t) => t.price_label === label)) % TIER_COLORS.length];
@@ -192,8 +199,11 @@ export function Lobby() {
                 <Icon name="bolt" size={20} strokeWidth={2.4} /> Quick play · {suggested.buy_in_cents ? usd(suggested.buy_in_cents) : "Free"}
               </button>
             )}
+            <button className="btn-felt w-full px-5 py-3 sm:w-auto" disabled={busy} onClick={practice}>
+              <Icon name="spark" size={18} /> Practice vs computer
+            </button>
             <Link to="/organize" className="btn-ghost w-full px-5 py-3 sm:w-auto">
-              <Icon name="users" size={18} /> Organize a game
+              <Icon name="users" size={18} /> Create a table
             </Link>
           </div>
           {pendingInvites > 0 && (
@@ -250,14 +260,17 @@ export function Lobby() {
 
       <section>
         <div className="mb-3 flex items-center gap-3">
-          <h2 className="title text-2xl">Tables filling now</h2>
+          <h2 className="title text-2xl">Open tables</h2>
+          <Link to="/organize" className="ml-auto text-sm text-gold-300 hover:underline">
+            + Create a table
+          </Link>
           {filling.length > 0 && <span className="h-2 w-2 animate-pulse rounded-full bg-chip-green shadow-[0_0_8px_#35b26b]" />}
         </div>
         {filling.length === 0 ? (
           <div className="panel-flat flex flex-col items-center gap-2 px-5 py-8 text-center">
             <Icon name="seat" size={28} className="text-cream/30" />
-            <div className="title text-lg">No tables filling yet</div>
-            <div className="text-sm text-cream/55">Hit Quick play and be the first to sit down.</div>
+            <div className="title text-lg">No open tables right now</div>
+            <div className="text-sm text-cream/55">Hit Quick play, create a public table, or practice against the computer.</div>
           </div>
         ) : (
           <div className="grid gap-2 lg:grid-cols-2">
@@ -269,10 +282,11 @@ export function Lobby() {
                   <Chip color={color} size={38} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="truncate font-display text-lg">{t.name}</span>
+                      <span className="truncate font-display text-lg">{t.title ?? t.name}</span>
                       <StatusBadge status={t.status} />
                     </div>
                     <div className="mb-1.5 text-xs text-cream/55">
+                      {t.organizer ? `by ${t.organizer} · ` : ""}
                       {t.price_label} · {left} seat{left === 1 ? "" : "s"} left
                       {t.scheduled_start_at && ` · starts ${when(t.scheduled_start_at)}`}
                     </div>

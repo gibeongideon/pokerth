@@ -281,8 +281,10 @@ boost::shared_ptr<SeatClaims> VerifySeatToken(const std::string &token)
 		claims->startingChips = GetInt(cfg, "chips", 0);
 		claims->firstSmallBlind = GetInt(cfg, "sb", 0);
 		claims->blindLevelMinutes = GetInt(cfg, "blind_minutes", 5);
+		claims->bots = GetInt(cfg, "bots", 0);
 		if (claims->userId.empty() || claims->username.empty() || claims->tableId.empty()
-				|| claims->players < 2 || claims->players > 10
+				|| claims->players < 1 || claims->bots < 0
+				|| claims->players + claims->bots < 2 || claims->players + claims->bots > 10
 				|| claims->startingChips <= 0 || claims->firstSmallBlind <= 0) {
 			LOG_MSG("platform: rejected seat token with incomplete claims");
 			return none;

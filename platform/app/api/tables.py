@@ -2,12 +2,12 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 
 from app.api.deps import CurrentUser, SessionDep
 from app.core.errors import ApiError
-from app.models import GameTable, StakeTier, TableSeat
+from app.models import GameTable, StakeTier, TableSeat, User
 from app.services import config_registry as cfg
 from app.services import payments as pay
 from app.services import seat_tokens
@@ -82,11 +82,15 @@ async def lobby_tables(
         .subquery()
     )
     q = (
-        select(GameTable, func.coalesce(counts.c.n, 0))
+        select(GameTable, func.coalesce(counts.c.n, 0), User.username)
         .outerjoin(counts, counts.c.table_id == GameTable.id)
+        .outerjoin(User, User.id == GameTable.created_by)
         .where(GameTable.is_private.is_(False))
-        .where(GameTable.status.in_(svc.ACTIVE_TABLE))
+        # Only tables still taking players: once full (ready check / running)
+        # a table leaves the public list and the next one for that stake opens.
+        .where(GameTable.status == "open")
         .order_by(GameTable.created_at)
+        .limit(200)
     )
     if tier_id is not None:
         q = q.where(GameTable.tier_id == tier_id)
@@ -94,6 +98,9 @@ async def lobby_tables(
         {
             "id": str(t.id),
             "name": t.config["name"],
+            # Player-created public tables carry their own title and organizer.
+            "title": t.title,
+            "organizer": organizer,
             "price_label": t.config["price_label"],
             "status": t.status,
             "players": n,
@@ -102,7 +109,7 @@ async def lobby_tables(
             if t.scheduled_start_at
             else None,
         }
-        for t, n in (await session.execute(q)).all()
+        for t, n, organizer in (await session.execute(q)).all()
     ]
 
 
@@ -181,6 +188,24 @@ async def quick_play(
     return await _view(session, seat.table_id, user.id)
 
 
+class PracticeRequest(BaseModel):
+    bots: int = Field(default=5, ge=1, le=9)
+
+
+@router.post("/lobby/practice", status_code=201)
+async def practice(
+    body: PracticeRequest, user: CurrentUser, session: SessionDep, gateway: GatewayDep
+) -> dict[str, Any]:
+    """Free game against computer players (virtual chips), starting right away."""
+    try:
+        table = await svc.start_practice(session, gateway, user, body.bots)
+    except svc.TableError as exc:
+        await session.rollback()
+        raise _err(exc) from exc
+    await session.commit()
+    return await _view(session, table.id, user.id)
+
+
 @router.post("/tables/private", status_code=201)
 async def create_private(
     body: PrivateTableRequest, user: CurrentUser, session: SessionDep, gateway: GatewayDep
@@ -190,6 +215,7 @@ async def create_private(
     if tier is None or not tier.enabled or tier.start_mode != "when_full":
         raise ApiError(404, "not_found", "That stake level is not available.")
     try:
+        await svc.check_user_can_create(session, tier)
         table = await svc.open_table(session, tier, private=True, created_by=user.id)
         await svc.join(session, gateway, table.id, user, table.invite_code)
     except svc.TableError as exc:

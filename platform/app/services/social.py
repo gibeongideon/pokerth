@@ -467,6 +467,7 @@ async def organize(
     scheduled_start_at: datetime | None,
     organizer_plays: bool,
     invitees: list[str],
+    public: bool = False,
 ) -> tuple[GameTable, InviteResult]:
     tier = await session.get(StakeTier, tier_id)
     if tier is None or not tier.enabled:
@@ -478,15 +479,18 @@ async def organize(
     if not organizer.username:
         raise SocialError("username_required", "Choose a username first.", 403)
     try:
+        await table_svc.check_user_can_create(session, tier)
         table = await table_svc.open_table(
             session,
             tier,
-            private=True,
+            private=not public,
             scheduled_start_at=scheduled_start_at,
             created_by=organizer.id,
         )
-        table.title = title.strip()[:80]
-        table.message = (message or "").strip()[:500] or None
+        # Public tables are shown to everyone: no links in their texts.
+        table.title = strip_links(title.strip())[:80] if public else title.strip()[:80]
+        msg = (message or "").strip()[:500] or None
+        table.message = strip_links(msg) if (public and msg) else msg
         if organizer_plays:
             await table_svc.join(session, gateway, table.id, organizer, table.invite_code)
     except table_svc.TableError as exc:

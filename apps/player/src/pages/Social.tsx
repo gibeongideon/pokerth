@@ -304,7 +304,9 @@ export function Friends() {
 }
 
 export function Organize() {
-  const tiers = useTiers();
+  const allTiers = useTiers();
+  // For now players create free tables only; paid stakes run via Quick play.
+  const tiers = { ...allTiers, data: allTiers.data?.filter((t) => t.buy_in_cents === 0) };
   const toast = useToast();
   const navigate = useNavigate();
   const friends = useQuery({ queryKey: ["friends"], queryFn: () => call<{ friends: FriendItem[] }>(api.GET("/friends")) });
@@ -314,6 +316,7 @@ export function Organize() {
   const [timed, setTimed] = useState(false);
   const [start, setStart] = useState("");
   const [plays, setPlays] = useState(true);
+  const [isPublic, setIsPublic] = useState(false);
   const [picked, setPicked] = useState<string[]>([]);
   const [extra, setExtra] = useState("");
   const [busy, setBusy] = useState(false);
@@ -332,6 +335,7 @@ export function Organize() {
             message: message || null,
             scheduled_start_at: timed && start ? new Date(start).toISOString() : null,
             organizer_plays: plays,
+            public: isPublic,
             invite: [...picked, ...extra.split(/[\s,]+/).filter(Boolean)],
           },
         }),
@@ -350,7 +354,7 @@ export function Organize() {
     <form onSubmit={submit} className="mx-auto max-w-2xl space-y-5">
       <div>
         <h1 className="title gold-text text-4xl">Organize a game</h1>
-        <p className="text-cream/70">A private table for your crew. You choose the stakes and the time.</p>
+        <p className="text-cream/70">Your table: you choose the stakes, the time and who can join.</p>
       </div>
       <div className="panel space-y-5 p-5">
         <div>
@@ -379,6 +383,22 @@ export function Organize() {
               );
             })}
           </div>
+        </div>
+        <div>
+          <div className="label">Who can join</div>
+          <div className="segmented" role="tablist">
+            <button type="button" role="tab" aria-selected={!isPublic} onClick={() => setIsPublic(false)}>
+              <Icon name="lock" size={16} /> Invite only
+            </button>
+            <button type="button" role="tab" aria-selected={isPublic} onClick={() => setIsPublic(true)}>
+              <Icon name="users" size={16} /> Anyone (public)
+            </button>
+          </div>
+          <p className="mt-1.5 text-xs text-cream/50">
+            {isPublic
+              ? "Listed in the lobby under Open tables - anyone can take a seat. You can still invite friends."
+              : "Hidden from the lobby. Only people with your invite link or code can join."}
+          </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="flex items-center gap-3 rounded-xl bg-felt-950/60 p-3 text-sm">

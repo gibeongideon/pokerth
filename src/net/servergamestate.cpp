@@ -581,9 +581,9 @@ ServerGameStateInit::NotifySessionRemoved(boost::shared_ptr<ServerGame> server)
 }
 
 void
-ServerGameStateInit::RegisterPlatformStartTimer(boost::shared_ptr<ServerGame> server)
+ServerGameStateInit::RegisterPlatformStartTimer(boost::shared_ptr<ServerGame> server, int secs)
 {
-	server->GetStateTimer2().expires_after(seconds(platform::StartTimeoutSec()));
+	server->GetStateTimer2().expires_after(seconds(secs >= 0 ? secs : platform::StartTimeoutSec()));
 	server->GetStateTimer2().async_wait(
 		boost::bind(
 			&ServerGameStateInit::TimerPlatformStart, this, boost::asio::placeholders::error, server));
@@ -594,10 +594,12 @@ ServerGameStateInit::TimerPlatformStart(const boost::system::error_code &ec, boo
 {
 	if (ec || &server->GetState() != this)
 		return;
-	if (server->GetCurNumberOfPlayers() >= 2) {
+	const bool withBots = server->GetPlatformBots() > 0;
+	if (server->GetCurNumberOfPlayers() >= 2 || (withBots && server->GetCurNumberOfPlayers() >= 1)) {
 		LOG_MSG("platform: starting table " << server->GetPlatformTable() << " with "
-				<< server->GetCurNumberOfPlayers() << " players (others did not connect in time).");
-		SendStartEvent(*server, false);
+				<< server->GetCurNumberOfPlayers() << " players"
+				<< (withBots ? " and computer players." : " (others did not connect in time)."));
+		SendStartEvent(*server, withBots);
 	} else {
 		// Only one player showed up: they win by default; no-shows place last.
 		LOG_MSG("platform: table " << server->GetPlatformTable() << " had a single player at the start deadline.");
@@ -620,7 +622,11 @@ ServerGameStateInit::HandleNewPlayer(boost::shared_ptr<ServerGame> server, boost
 
 			AcceptNewSession(server, session, false);
 
-			if (server->GetCurNumberOfPlayers() == tmpGameData.maxNumberOfPlayers) {
+			if (server->IsPlatformGame() && server->GetPlatformBots() > 0
+					&& server->GetCurNumberOfPlayers() >= server->GetPlatformHumans()) {
+				// Practice table: every human is here, computer players fill the rest.
+				RegisterPlatformStartTimer(server, 2);
+			} else if (server->GetCurNumberOfPlayers() == tmpGameData.maxNumberOfPlayers) {
 				// Automatically start the game if it is full.
 				RegisterAutoStartTimer(server);
 			} else if (server->IsPlatformGame() && server->GetCurNumberOfPlayers() == 1) {

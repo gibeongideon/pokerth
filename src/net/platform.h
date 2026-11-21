@@ -47,6 +47,7 @@ struct SeatClaims {
 	int startingChips = 0;
 	int firstSmallBlind = 0;
 	int blindLevelMinutes = 0;
+	int bots = 0;          // computer players filling the other seats (practice tables)
 };
 
 // True when POKERTH_PLATFORM_MODE=1.

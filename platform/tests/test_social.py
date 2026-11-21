@@ -17,6 +17,8 @@ from tests.conftest import FakeMailer, MakeUser, set_setting
 @pytest.fixture
 async def tier_id(sessions: async_sessionmaker[AsyncSession]) -> int:
     await set_setting(sessions, "real_money_enabled", True)
+    # These tests organize paid tables; by default only free ones may be created.
+    await set_setting(sessions, "tables.user_created_paid", True)
     async with sessions() as s:
         tier = StakeTier(
             name="Mid",
@@ -328,3 +330,33 @@ async def test_mail_outage_does_not_break_invites(
     assert made.status_code == 201 and made.json()["invited"] == ["buddy"]
     link = await client.post("/auth/magic-link", json={"email": "someone@example.com"})
     assert link.status_code == 503 and link.json()["detail"]["code"] == "email_unavailable"
+
+
+async def test_public_organized_table_is_listed_private_is_not(
+    client: httpx.AsyncClient,
+    sessions: async_sessionmaker[AsyncSession],
+    make_user: MakeUser,
+    tier_id: int,
+) -> None:
+    _, org = await _player(sessions, make_user, "hostess")
+    _, other = await _player(sessions, make_user, "walkin")
+
+    async def organize(public: bool, title: str) -> dict:
+        r = await client.post(
+            "/games/organize",
+            json={"tier_id": tier_id, "title": title, "public": public, "organizer_plays": False},
+            headers=org,
+        )
+        assert r.status_code == 201, r.text
+        return r.json()["table"]
+
+    pub = await organize(True, "Open table, see www.evil.example")
+    priv = await organize(False, "Just friends")
+    listed = {t["id"]: t for t in (await client.get("/lobby/tables", headers=other)).json()}
+    assert pub["id"] in listed and priv["id"] not in listed
+    assert listed[pub["id"]]["organizer"] == "hostess"
+    assert "evil" not in listed[pub["id"]]["title"]  # links stripped from public titles
+
+    # Anyone can join the public one without a code; the private one needs it.
+    ok = await client.post(f"/tables/{pub['id']}/join", json={}, headers=other)
+    assert ok.status_code == 200, ok.text
