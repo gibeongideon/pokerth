@@ -12,10 +12,11 @@ export const nativePlatform = Capacitor.getPlatform(); // "android" | "ios" | "w
 const env = import.meta.env as Record<string, string | undefined>;
 
 /** Web: same-origin "/api" (proxied). App: absolute API URL baked in at build time. */
-export const API_BASE = (env.VITE_API_BASE_URL ?? "/api").replace(/\/$/, "");
+// `||`, not `??`: CI passes unset variables as empty strings.
+export const API_BASE = (env.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
 
 /** Links people share must point at the public site, never at the app's own origin. */
-export const PUBLIC_URL = (env.VITE_PUBLIC_URL ?? (isNative ? "" : location.origin)).replace(/\/$/, "");
+export const PUBLIC_URL = (env.VITE_PUBLIC_URL || (isNative ? "" : location.origin)).replace(/\/$/, "");
 
 /**
  * Test builds only: sign in automatically as this seeded demo player

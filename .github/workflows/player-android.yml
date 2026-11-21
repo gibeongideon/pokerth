@@ -24,8 +24,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
-      VITE_API_BASE_URL: ${{ vars.PLAYER_API_BASE_URL }}
-      VITE_PUBLIC_URL: ${{ vars.PLAYER_PUBLIC_URL }}
+      # Defaults to staging; set the repository variables to point elsewhere.
+      VITE_API_BASE_URL: ${{ vars.PLAYER_API_BASE_URL || 'https://draely.dafeapp.com/api' }}
+      VITE_PUBLIC_URL: ${{ vars.PLAYER_PUBLIC_URL || 'https://draely.dafeapp.com' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
