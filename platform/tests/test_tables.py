@@ -101,6 +101,15 @@ def test_split_prizes() -> None:
     assert svc.split_prizes(30_000, [6500, 3500], 3) == [19_500, 10_500]
     assert svc.split_prizes(10_001, [6500, 3500], 2) == [6501, 3500]  # leftover to 1st
     assert svc.split_prizes(20_000, [5000, 3000, 2000], 2) == [12_500, 7_500]  # rescaled
+    # Cent stakes: a $0.10 six-seat table pays exact cents, nothing lost.
+    assert svc.split_prizes(60, [6500, 3500], 6) == [39, 21]
+    assert svc.split_prizes(1, [6500, 3500], 2) == [1, 0]
+
+
+def test_cent_stake_price() -> None:
+    tier = StakeTier(buy_in_cents=10, fee_type="pct", fee_value=Decimal("0.5"), fee_min_cents=1)
+    assert svc.compute_fee(tier) == 1
+    assert svc.Price(10, 1, 0).label == "$0.11"
 
 
 @pytest.mark.parametrize(

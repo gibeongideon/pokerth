@@ -90,7 +90,7 @@ Full plan: [docs/platform/PRODUCTION_PLAN.md](docs/platform/PRODUCTION_PLAN.md) 
 - [ ] Final name and visual identity ("Felt Kings" is a working title, O-5)
 
 ## Next up (owner requests, 2026-11-21)
-- [ ] **Tokens:** 1 USD = 129 tokens (KES-pegged), so stakes can be smaller than $1. Plan written: `docs/platform/TOKENS_PLAN.md` - waiting for the owner's OK and answers to its 3 questions.
+- [x] ~~Tokens~~ → kept cents (D-033). Added $0.10 and $0.50 stake levels; `app.bootstrap` adds missing default levels on existing servers
 - [x] Hand rankings guide (`/hands`, public): linked from the table (?), lobby, profile and side menu
 - [x] Easier navigation: "Back to game" banner anywhere in the app, live/waiting dot on My tables, errors with a one-tap fix (Add money, Refill, My tables, Finish setup)
 - [ ] Phone check of the pinned betting bar and start-now prompt on a real device.

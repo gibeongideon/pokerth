@@ -49,7 +49,7 @@ later builds use the cache.
 ssh -i ~/.ssh/draely_deploy deploy@209.38.120.140
 cd /opt/feltkings
 dc() { docker compose --env-file .env --env-file image.env "$@"; }
-dc run --rm api python -m app.bootstrap --admin you@example.com   # stake levels + admin
+dc run --rm api python -m app.bootstrap --admin you@example.com   # stake levels + admin (safe to re-run: adds new default levels)
 grep MAIL_UI_PASSWORD .env                                         # password for /mail
 ```
 - Sign in at https://draely.dafeapp.com with that email; read the sign-in email at

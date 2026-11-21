@@ -2,7 +2,8 @@
 
     python -m app.bootstrap [--admin you@example.com]
 
-Creates the default stake levels if there are none, and marks the given email
+Adds any default stake level that is missing (matched by name; existing
+levels keep their settings, only their order follows the defaults), and marks the given email
 as admin (it signs in with a magic link as usual; the account is created if it
 doesn't exist yet). No demo players or money - that's app.seed, local only.
 Safe to run again.
@@ -24,27 +25,33 @@ from app.services.auth import normalize_email
 
 async def main(admin_email: str | None) -> None:
     async with get_sessionmaker()() as s:
-        if not (await s.scalars(select(StakeTier))).first():
-            for order, (name, buy_in, seats, bps) in enumerate(TIERS):
-                tier = StakeTier(
-                    name=name,
-                    buy_in_cents=buy_in,
-                    fee_type="pct",
-                    fee_value=Decimal("0.5"),
-                    fee_min_cents=1 if buy_in else 0,
-                    seats=seats,
-                    min_players=2,
-                    start_mode="when_full",
-                    payout_bps=bps,
-                    starting_chips=3000,
-                    first_small_blind=10,
-                    blind_level_minutes=5,
-                    enabled=True,
-                    sort_order=order,
-                )
-                table_svc.validate_tier(tier)
-                s.add(tier)
-            print(f"created {len(TIERS)} stake levels")
+        existing = {t.name: t for t in (await s.scalars(select(StakeTier))).all()}
+        added = 0
+        for order, (name, buy_in, seats, bps) in enumerate(TIERS):
+            if name in existing:
+                existing[name].sort_order = order
+                continue
+            tier = StakeTier(
+                name=name,
+                buy_in_cents=buy_in,
+                fee_type="pct",
+                fee_value=Decimal("0.5"),
+                fee_min_cents=1 if buy_in else 0,
+                seats=seats,
+                min_players=2,
+                start_mode="when_full",
+                payout_bps=bps,
+                starting_chips=3000,
+                first_small_blind=10,
+                blind_level_minutes=5,
+                enabled=True,
+                sort_order=order,
+            )
+            table_svc.validate_tier(tier)
+            s.add(tier)
+            added += 1
+        print(f"added {added} stake levels")
+        await s.flush()
         if admin_email:
             email = normalize_email(admin_email)
             user = await s.scalar(select(User).where(User.email == email))

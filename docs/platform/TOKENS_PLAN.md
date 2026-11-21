@@ -1,6 +1,6 @@
 # Plan: tokens (1 USD = 129 tokens)
 
-**Status:** proposal, waiting for the owner's OK. Nothing built yet.
+**Status:** not doing (2026-11-21). The owner chose to keep standard cents; small games use cent stake levels instead (D-033). Kept for reference.
 
 ## What the owner wants
 Money inside Draely shown and played as **tokens**: 1 USD = 129 tokens. Stakes can then be much smaller

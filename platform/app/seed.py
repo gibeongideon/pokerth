@@ -21,6 +21,8 @@ from app.services import tables as table_svc
 TIERS = [
     # name, buy-in cents, seats, payout bps
     ("Free play", 0, 6, [10_000]),
+    ("Starter", 10, 6, [6500, 3500]),  # small cent stakes: $0.10 and $0.50
+    ("Small", 50, 6, [6500, 3500]),
     ("Micro", 100, 6, [6500, 3500]),
     ("Low", 500, 6, [6500, 3500]),
     ("Mid", 2000, 6, [6500, 3500]),

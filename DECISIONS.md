@@ -156,6 +156,12 @@ The product shows the name **Draely** (from Braela + Darius) everywhere users se
 - **Practice vs computer**: a free table that starts at once; the game server fills the other seats with its computer players (seat-token `cfg.bots`).
 - **Demo money** (dollars, never real money): $100 to start, a free seat costs $5, winners share the demo pot; beating the computer pays the computer players' entries. When it runs out, refill to $100 once per 24h. All amounts are settings (`play.*`). Separate ledger accounts (`user:*:play`, `table:*:play`, `house:play_bank`); no deposit, withdrawal, transfer or real-money report touches them.
 
+### D-033 · 2026-11-21 · Accepted — Cents, not tokens; small stakes in cents
+The owner chose plain US cents over a token unit (1 USD = 129 tokens, see `docs/platform/TOKENS_PLAN.md`).
+Smaller games come from cent stake levels instead: defaults now include **Starter $0.10** and **Small $0.50**
+(price incl. the 1-cent minimum fee: $0.11 / $0.51). The ledger is unchanged. `python -m app.bootstrap`
+adds missing default levels by name, so it can be re-run on servers that already have levels.
+
 ---
 
 ## Open items (to decide)
